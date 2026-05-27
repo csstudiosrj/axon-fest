@@ -144,13 +144,13 @@ export default function EscolaDashboardPage() {
         .eq('id', user.id)
         .single()
 
-      if (!usuario?.grupo_id) {
+      if (!usuario?.organizacao_id) {
         setSemOrganizacao(true)
         setLoading(false)
         return
       }
 
-      const organizacaoId = usuario.grupo_id
+      const organizacaoId = usuario.organizacao_id
 
       const [organizacaoRes, apresentacoesRes, participantesRes] = await Promise.all([
         supabase.from('grupos').select('nome').eq('id', organizacaoId).single(),
