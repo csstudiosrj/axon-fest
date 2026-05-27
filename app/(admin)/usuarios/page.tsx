@@ -33,19 +33,21 @@ interface TenantConfig {
 // ─── Configuração de cargos ───────────────────────────────────────────────────
 
 const CARGOS: Record<string, { label: string; descricao: string; cor: string }> = {
-  super_admin: { label: "Super Admin", descricao: "Acesso total incluindo assinatura e credenciais", cor: "text-purple-400 bg-purple-400/10 border-purple-400/30" },
-  admin:       { label: "Admin",       descricao: "Acesso total exceto credenciais e assinatura",   cor: "text-axon-gold bg-axon-gold-dim border-axon-gold-dim" },
-  produtor:    { label: "Produtor",    descricao: "PDV, Loja, Inscrições e Dashboard",              cor: "text-blue-400 bg-blue-400/10 border-blue-400/30" },
-  marketing:   { label: "Marketing",  descricao: "Marketing, Dashboard e Inscrições (sem valores)",cor: "text-pink-400 bg-pink-400/10 border-pink-400/30" },
-  assistente:  { label: "Assistente", descricao: "Inscrições & Elenco e Mídias & Áudio",           cor: "text-green-400 bg-green-400/10 border-green-400/30" },
-  escola_admin: { label: "Escola Admin", descricao: "Administração da escola (elenco, inscrições)", cor: "text-orange-400 bg-orange-400/10 border-orange-400/30" },
-  coreografo:  { label: "Coreógrafo",  descricao: "Gestão artística da escola",                     cor: "text-cyan-400 bg-cyan-400/10 border-cyan-400/30" },
+  super_admin: { label: "Super Admin",     descricao: "Acesso total incluindo assinatura e credenciais", cor: "text-purple-400 bg-purple-400/10 border-purple-400/30" },
+  admin:       { label: "Admin",           descricao: "Acesso total exceto credenciais e assinatura",    cor: "text-axon-gold bg-axon-gold-dim border-axon-gold-dim" },
+  produtor:    { label: "Produtor",        descricao: "PDV, Loja, Inscrições e Dashboard",               cor: "text-blue-400 bg-blue-400/10 border-blue-400/30" },
+  marketing:   { label: "Marketing",       descricao: "Marketing, Dashboard e Inscrições (sem valores)", cor: "text-pink-400 bg-pink-400/10 border-pink-400/30" },
+  assistente:  { label: "Assistente",      descricao: "Inscrições & Elenco e Mídias & Áudio",            cor: "text-green-400 bg-green-400/10 border-green-400/30" },
+  org_admin:   { label: "Admin do Grupo",  descricao: "Administração do grupo (elenco, inscrições)",     cor: "text-orange-400 bg-orange-400/10 border-orange-400/30" },
+  org_membro:  { label: "Membro do Grupo", descricao: "Acesso básico ao portal do grupo",                cor: "text-cyan-400 bg-cyan-400/10 border-cyan-400/30" },
+  jurado:      { label: "Jurado",          descricao: "Acesso ao portal de avaliação",                   cor: "text-rose-400 bg-rose-400/10 border-rose-400/30" },
 };
 
 const HIERARQUIA: Record<string, string[]> = {
-  super_admin: ["super_admin", "admin", "produtor", "marketing", "assistente", "escola_admin", "coreografo"],
-  admin:       ["produtor", "marketing", "assistente", "escola_admin", "coreografo"],
-  produtor:    [], marketing: [], assistente: [], escola_admin: [], coreografo: [],
+  super_admin: ["super_admin", "admin", "produtor", "marketing", "assistente", "org_admin", "org_membro"],
+  admin:       ["produtor", "marketing", "assistente", "org_admin", "org_membro"],
+  produtor:    ["org_admin", "org_membro"],
+  marketing:   [], assistente: [], org_admin: [], org_membro: [], jurado: [],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
