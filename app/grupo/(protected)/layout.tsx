@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import GrupoShell from "../_components/EscolaShell";
 
 const ROLES_GRUPO = ["org_admin", "org_membro"];
 
@@ -25,5 +26,5 @@ export default async function GrupoProtectedLayout({
     redirect("/grupo/login");
   }
 
-  return <>{children}</>;
+  return <GrupoShell>{children}</GrupoShell>;
 }
