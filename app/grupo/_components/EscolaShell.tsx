@@ -89,7 +89,7 @@ export default function GrupoShell({ children }: { children: React.ReactNode }) 
             .single(),
           data.organizacao_id
             ? supabase
-                .from('organizacoes')
+                .from('grupos')
                 .select('nome')
                 .eq('id', data.organizacao_id)
                 .single()
