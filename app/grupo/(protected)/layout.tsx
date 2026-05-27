@@ -1,11 +1,29 @@
-import EscolaShell from "../_components/EscolaShell";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
-export default function GrupoProtectedLayout({
+const ROLES_GRUPO = ["org_admin", "org_membro"];
+
+export default async function GrupoProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // A autenticação já foi feita no layout pai (/grupo/layout.tsx)
-  // Este componente só serve para aplicar o shell visual (EscolaShell)
-  return <EscolaShell>{children}</EscolaShell>;
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    redirect("/grupo/login");
+  }
+
+  const { data: userData, error } = await supabase
+    .from("usuarios")
+    .select("role, organizacao_id")
+    .eq("id", session.user.id)
+    .single();
+
+  if (error || !userData || !ROLES_GRUPO.includes(userData.role)) {
+    redirect("/grupo/login");
+  }
+
+  return <>{children}</>;
 }
