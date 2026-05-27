@@ -18,7 +18,7 @@ interface PageProps {
 }
 
 export default async function InscricaoPage({ params }: PageProps) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: row, error } = await supabase
     .from("eventos")
