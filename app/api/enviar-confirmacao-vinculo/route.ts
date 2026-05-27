@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
     const { email, nome, grupoNome, funcao, token } = await request.json();
+
 
     if (!email || !nome || !grupoNome || !funcao || !token) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
 
+
     const confirmLink = `${process.env.NEXT_PUBLIC_APP_URL}/confirmar-participacao/${token}`;
+
 
     // Objeto com tipagem explícita para evitar erro de TypeScript
     const funcaoLabel: Record<string, string> = {
@@ -25,7 +28,9 @@ export async function POST(request: NextRequest) {
       outro: "Outro",
     };
 
+
     const funcaoTraduzida = funcaoLabel[funcao] || funcao;
+
 
     await resend.emails.send({
       from: "ARXUM Fest <noreply@csstudios.site>",
@@ -42,6 +47,7 @@ export async function POST(request: NextRequest) {
         </div>
       `,
     });
+
 
     return NextResponse.json({ success: true });
   } catch (error) {
