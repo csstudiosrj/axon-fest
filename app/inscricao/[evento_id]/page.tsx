@@ -14,16 +14,17 @@ interface EventoInscricao {
 }
 
 interface PageProps {
-  params: { evento_id: string };
+  params: Promise<{ evento_id: string }>;
 }
 
 export default async function InscricaoPage({ params }: PageProps) {
+  const { evento_id } = await params;
   const supabase = await createClient();
 
   const { data: row, error } = await supabase
     .from("eventos")
     .select("id, nome, cor_primaria, cor_secundaria, tema_escuro, logo_url, status")
-    .eq("id", params.evento_id)
+    .eq("id", evento_id)
     .single();
 
   if (error || !row) notFound();
