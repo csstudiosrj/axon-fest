@@ -1,417 +1,252 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import {
-  Music2,
-  Users,
-  Upload,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  FileMusic,
-  TrendingUp,
-} from 'lucide-react'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { CalendarDays, MapPin, Building2, ArrowRight, Ticket } from "lucide-react";
+import { createClient } from "../../../../lib/supabase/client";
 
-interface Stats {
-  apresentaçãos: number
-  participantes: number
-  musicasEnviadas: number
-  pagamentosPendentes: number
-  pagamentosConfirmados: number
-  valorPendente: number
-  valorPago: number
+
+interface Festival {
+  inscricao_id: string;
+  evento_id: string;
+  status_inscricao: string;
+  evento_nome: string;
+  evento_data_inicio: string;
+  evento_data_fim: string;
+  evento_local: string;
+  evento_status: string;
+  evento_cor_primaria: string | null;
+  evento_banner_url: string | null;
+  evento_logo_url: string | null;
+  produtora_nome: string;
+  produtora_logo_url: string | null;
 }
 
-interface Apresentação {
-  id: string
-  nome: string
-  tipo: string
-  categoria_id_old: string | null
-  status_pagamento: string
-  valor_total: number | null
-  arquivo_audio: string | null
-  created_at: string
-}
+const STATUS_INSCRICAO: Record<string, { label: string; className: string }> = {
+  rascunho:  { label: "Rascunho",  className: "text-gray-400 bg-gray-400/10 border-gray-400/30" },
+  ativo:     { label: "Ativo",     className: "text-green-400 bg-green-400/10 border-green-400/30" },
+  encerrado: { label: "Encerrado", className: "text-red-400 bg-red-400/10 border-red-400/30" },
+};
 
-const INITIAL_STATS: Stats = {
-  apresentaçãos: 0,
-  participantes: 0,
-  musicasEnviadas: 0,
-  pagamentosPendentes: 0,
-  pagamentosConfirmados: 0,
-  valorPendente: 0,
-  valorPago: 0,
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value)
-}
-
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(dateStr))
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function SkeletonCard() {
   return (
-    <div className="animate-pulse rounded-xl border border-axon-border bg-axon-panel p-5">
-      <div className="flex items-start justify-between">
-        <div className="h-4 w-32 rounded bg-white/10" />
-        <div className="h-4 w-4 rounded bg-white/10" />
-      </div>
-      <div className="mt-3 h-8 w-20 rounded bg-white/10" />
-      <div className="mt-2 h-3 w-36 rounded bg-white/10" />
-    </div>
-  )
+    <div className="animate-pulse rounded-xl border border-axon-border bg-axon-panel h-48" />
+  );
 }
 
-function KpiCard({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  accent = 'default',
-}: {
-  title: string
-  value: string | number
-  subtitle: string
-  icon: React.ElementType
-  accent?: 'gold' | 'success' | 'alert' | 'default'
-}) {
-  const valueClass: Record<string, string> = {
-    gold: 'text-axon-gold',
-    success: 'text-white',
-    alert: 'text-red-400',
-    default: 'text-white',
-  }
-
+function BadgeStatus({ status }: { status: string }) {
+  const cfg = STATUS_INSCRICAO[status] ?? STATUS_INSCRICAO["rascunho"];
   return (
-    <div className="rounded-xl border border-axon-border bg-axon-panel p-5">
-      <div className="flex items-start justify-between">
-        <span className="text-sm text-white/50">{title}</span>
-        <Icon size={18} className="text-white/25" />
-      </div>
-      <div className={`mt-2 text-3xl font-bold ${valueClass[accent]}`}>{value}</div>
-      <div className="mt-1 text-xs text-white/40">{subtitle}</div>
-    </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const isPago = status === 'pago'
-
-  return (
-    <span
-      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-        isPago ? 'bg-white/10 text-white' : 'bg-yellow-500/10 text-yellow-400'
-      }`}
-    >
-      {status}
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${cfg.className}`}>
+      {cfg.label}
     </span>
-  )
+  );
 }
 
-export default function EscolaDashboardPage() {
-  const [stats, setStats] = useState<Stats>(INITIAL_STATS)
-  const [organizacaoNome, setOrganizacaoNome] = useState<string>('')
-  const [recentes, setRecentes] = useState<Apresentação[]>([])
-  const [loading, setLoading] = useState(true)
-  const [semOrganizacao, setSemOrganizacao] = useState(false)
+function FestivalCard({ festival, onClick }: { festival: Festival; onClick: () => void }) {
+  const accent = festival.evento_cor_primaria ?? "var(--color-axon-gold, #C5A059)";
+
+  return (
+    <div
+      className="relative rounded-xl border border-axon-border bg-axon-panel overflow-hidden flex flex-col cursor-pointer group transition-all duration-200 hover:border-axon-gold/40 hover:shadow-lg"
+      onClick={onClick}
+      style={{ borderLeftColor: accent, borderLeftWidth: "3px" }}
+    >
+      {festival.evento_banner_url && (
+        <div className="h-24 w-full overflow-hidden">
+          <img
+            src={festival.evento_banner_url}
+            alt={festival.evento_nome}
+            className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-200"
+          />
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 p-4 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {festival.evento_logo_url ? (
+              <img
+                src={festival.evento_logo_url}
+                alt={festival.evento_nome}
+                className="w-8 h-8 rounded-lg object-contain shrink-0 bg-axon-bg border border-axon-border"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-axon-bg border border-axon-border flex items-center justify-center shrink-0">
+                <Ticket size={14} className="text-axon-gold" />
+              </div>
+            )}
+            <h3 className="text-white font-bold text-sm leading-snug truncate">
+              {festival.evento_nome}
+            </h3>
+          </div>
+          <BadgeStatus status={festival.status_inscricao} />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <Building2 size={12} className="shrink-0 text-gray-500" />
+            <span className="truncate">{festival.produtora_nome}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <CalendarDays size={12} className="shrink-0 text-gray-500" />
+            <span>{formatDate(festival.evento_data_inicio)} – {formatDate(festival.evento_data_fim)}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <MapPin size={12} className="shrink-0 text-gray-500" />
+            <span className="truncate">{festival.evento_local}</span>
+          </div>
+        </div>
+
+        <div className="mt-auto pt-2">
+          <button
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold text-black bg-axon-gold hover:opacity-90 transition-opacity"
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+          >
+            Acessar festival <ArrowRight size={13} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 px-6 text-center gap-4">
+      <div className="w-16 h-16 rounded-full bg-axon-panel border border-axon-border flex items-center justify-center">
+        <Ticket size={28} className="text-gray-600" />
+      </div>
+      <div className="space-y-1.5">
+        <h2 className="text-white font-bold text-base">Nenhum festival encontrado</h2>
+        <p className="text-gray-500 text-sm max-w-sm leading-relaxed">
+          Você ainda não está inscrito em nenhum festival. Para participar, acesse o link de
+          inscrição divulgado pela produtora do festival nas redes sociais ou canais de comunicação.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function GrupoDashboardPage() {
+  const router = useRouter();
+  const [festivais, setFestivais] = useState<Festival[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient()
+      const supabase = createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) { setErro("Sessão inválida. Faça login novamente."); setLoading(false); return; }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: usuario, error: usuarioError } = await supabase
+        .from("usuarios")
+        .select("organizacao_id")
+        .eq("id", user.id)
+        .single();
 
-      if (!user) {
-        setLoading(false)
-        return
+      if (usuarioError || !usuario?.organizacao_id) {
+        setErro("Sua conta não está vinculada a nenhum grupo. Entre em contato com o administrador.");
+        setLoading(false);
+        return;
       }
 
-      const { data: usuario } = await supabase
-        .from('usuarios')
-        .select('organizacao_id')
-        .eq('id', user.id)
-        .single()
-
-      if (!usuario?.organizacao_id) {
-        setSemOrganizacao(true)
-        setLoading(false)
-        return
-      }
-
-      const organizacaoId = usuario.organizacao_id
-
-      const [organizacaoRes, apresentacoesRes, participantesRes] = await Promise.all([
-        supabase.from('grupos').select('nome').eq('id', organizacaoId).single(),
-        supabase
-          .from('apresentacoes')
-          .select(
-            'id, nome, tipo, categoria_id_old, status_pagamento, valor_total, arquivo_audio, created_at'
+      const { data: inscricoes, error: inscricoesError } = await supabase
+        .from("inscricoes_grupo_evento")
+        .select(`
+          id,
+          evento_id,
+          status,
+          eventos (
+            nome,
+            data_inicio,
+            data_fim,
+            local,
+            status,
+            banner_url,
+            logo_url,
+            cor_primaria,
+            produtora_id,
+            produtoras (
+              nome,
+              logo_url
+            )
           )
-          .eq('grupo_id', organizacaoId)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('grupo_participantes')
-          .select('participante_id', { count: 'exact', head: true })
-          .eq('grupo_id', organizacaoId),
-      ])
+        `)
+        .eq("grupo_id", usuario.organizacao_id);
 
-      if (organizacaoRes.data) {
-        setOrganizacaoNome(organizacaoRes.data.nome)
-      }
+      if (inscricoesError) { setErro("Erro ao carregar festivais."); setLoading(false); return; }
 
-      const apresentacoes = apresentacoesRes.data ?? []
-      const participantesCount = participantesRes.count ?? 0
+      const mapped: Festival[] = (inscricoes ?? [])
+        .filter((i) => i.eventos)
+        .map((i) => {
+          const ev = i.eventos as any;
+          const prod = ev.produtoras as any;
+          return {
+            inscricao_id: i.id,
+            evento_id: i.evento_id,
+            status_inscricao: i.status,
+            evento_nome: ev.nome,
+            evento_data_inicio: ev.data_inicio,
+            evento_data_fim: ev.data_fim,
+            evento_local: ev.local,
+            evento_status: ev.status,
+            evento_cor_primaria: ev.cor_primaria ?? null,
+            evento_banner_url: ev.banner_url ?? null,
+            evento_logo_url: ev.logo_url ?? null,
+            produtora_nome: prod?.nome ?? "Produtora",
+            produtora_logo_url: prod?.logo_url ?? null,
+          };
+        });
 
-      const musicasEnviadas = apresentacoes.filter((item) => item.arquivo_audio).length
-      const pendentes = apresentacoes.filter((item) => item.status_pagamento === 'pendente')
-      const pagos = apresentacoes.filter((item) => item.status_pagamento === 'pago')
-
-      setStats({
-        apresentaçãos: apresentacoes.length,
-        participantes: participantesCount,
-        musicasEnviadas,
-        pagamentosPendentes: pendentes.length,
-        pagamentosConfirmados: pagos.length,
-        valorPendente: pendentes.reduce((acc, item) => acc + (item.valor_total ?? 0), 0),
-        valorPago: pagos.reduce((acc, item) => acc + (item.valor_total ?? 0), 0),
-      })
-
-      setRecentes(apresentacoes.slice(0, 6))
-      setLoading(false)
+      setFestivais(mapped);
+      setLoading(false);
     }
 
-    load()
-  }, [])
-
-  if (semOrganizacao) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <AlertTriangle size={40} className="mb-4 text-yellow-500" />
-        <h2 className="text-lg font-semibold text-white">Organizacao nao vinculada</h2>
-        <p className="mt-2 max-w-sm text-sm text-white/40">
-          Seu usuario nao esta vinculado a nenhuma organizacao. Entre em contato com o
-          administrador do festival.
-        </p>
-      </div>
-    )
-  }
-
-  const progressoMusicas =
-    stats.apresentaçãos > 0
-      ? Math.round((stats.musicasEnviadas / stats.apresentaçãos) * 100)
-      : 0
+    load();
+  }, []);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="max-w-5xl mx-auto space-y-6 px-4 py-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-sm text-white/40">
-          {organizacaoNome ? `Painel da organizacao ${organizacaoNome}` : 'Visao geral da sua conta'}
-        </p>
+        <h1 className="text-xl font-bold text-white">Meus Festivais</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Selecione um festival para acessar o portal do grupo.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
-        ) : (
-          <>
-            <KpiCard
-              title="Apresentacoes"
-              value={stats.apresentaçãos}
-              subtitle="cadastradas no portal"
-              icon={Music2}
-              accent="gold"
-            />
-            <KpiCard
-              title="Participantes"
-              value={stats.participantes}
-              subtitle="no banco de elenco"
-              icon={Users}
-            />
-            <KpiCard
-              title="Musicas Enviadas"
-              value={`${stats.musicasEnviadas}/${stats.apresentaçãos}`}
-              subtitle={`${progressoMusicas}% das apresentacoes`}
-              icon={Upload}
-              accent={
-                stats.musicasEnviadas === stats.apresentaçãos && stats.apresentaçãos > 0
-                  ? 'success'
-                  : 'default'
-              }
-            />
-            <KpiCard
-              title="Pagamentos Pendentes"
-              value={stats.pagamentosPendentes}
-              subtitle={formatCurrency(stats.valorPendente)}
-              icon={Clock}
-              accent={stats.pagamentosPendentes > 0 ? 'alert' : 'default'}
-            />
-          </>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-axon-border bg-axon-panel p-5">
-          <h2 className="mb-4 text-sm font-semibold text-white/60">Situacao Financeira</h2>
-          {loading ? (
-            <div className="flex animate-pulse flex-col gap-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-5 rounded bg-white/10" />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={14} className="text-white/70" />
-                  <span className="text-sm text-white/60">Confirmados</span>
-                </div>
-                <span className="text-sm font-semibold text-white">
-                  {formatCurrency(stats.valorPago)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle size={14} className="text-yellow-500" />
-                  <span className="text-sm text-white/60">Aguardando pagamento</span>
-                </div>
-                <span className="text-sm font-semibold text-yellow-400">
-                  {formatCurrency(stats.valorPendente)}
-                </span>
-              </div>
-
-              <div className="mt-1 flex items-center justify-between border-t border-axon-border pt-3">
-                <div className="flex items-center gap-2">
-                  <TrendingUp size={14} className="text-axon-gold" />
-                  <span className="text-xs text-white/40">Total geral</span>
-                </div>
-                <span className="text-sm font-bold text-axon-gold">
-                  {formatCurrency(stats.valorPago + stats.valorPendente)}
-                </span>
-              </div>
-            </div>
-          )}
+      {loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
+      )}
 
-        <div className="rounded-xl border border-axon-border bg-axon-panel p-5">
-          <h2 className="mb-4 text-sm font-semibold text-white/60">Envio de Musicas</h2>
-          {loading ? (
-            <div className="flex animate-pulse flex-col gap-3">
-              <div className="h-5 rounded bg-white/10" />
-              <div className="h-2 rounded-full bg-white/10" />
-              <div className="h-4 w-3/4 rounded bg-white/10" />
-            </div>
-          ) : stats.apresentaçãos === 0 ? (
-            <div className="flex flex-col items-center justify-center py-4 text-center">
-              <FileMusic size={28} className="mb-2 text-white/15" />
-              <p className="text-sm text-white/40">Nenhuma apresentacao cadastrada ainda</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-white/60">Musicas enviadas</span>
-                <span className="font-semibold text-white">
-                  {stats.musicasEnviadas} de {stats.apresentaçãos}
-                </span>
-              </div>
-
-              <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-2 rounded-full bg-axon-gold transition-all duration-500"
-                  style={{ width: `${progressoMusicas}%` }}
-                />
-              </div>
-
-              <p className="text-xs text-white/40">
-                {stats.apresentaçãos - stats.musicasEnviadas > 0
-                  ? `${stats.apresentaçãos - stats.musicasEnviadas} apresentacao(oes) aguardando envio de musica`
-                  : 'Todas as musicas foram enviadas'}
-              </p>
-            </div>
-          )}
+      {!loading && erro && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5">
+          <p className="text-red-400 text-sm font-medium">{erro}</p>
         </div>
-      </div>
+      )}
 
-      <div className="overflow-hidden rounded-xl border border-axon-border bg-axon-panel">
-        <div className="border-b border-axon-border px-5 py-4">
-          <h2 className="text-sm font-semibold text-white/60">Ultimas Apresentacoes</h2>
+      {!loading && !erro && festivais.length === 0 && <EmptyState />}
+
+      {!loading && !erro && festivais.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {festivais.map((f) => (
+            <FestivalCard
+              key={f.inscricao_id}
+              festival={f}
+              onClick={() => router.push(`/grupo/${f.evento_id}/inicio`)}
+            />
+          ))}
         </div>
-
-        {loading ? (
-          <div className="flex flex-col gap-2 p-5">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-10 animate-pulse rounded bg-white/5" />
-            ))}
-          </div>
-        ) : recentes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Music2 size={36} className="mb-3 text-white/15" />
-            <p className="text-sm text-white/40">Nenhuma apresentacao cadastrada</p>
-            <p className="mt-1 text-xs text-white/25">
-              Acesse Apresentaçãos no menu lateral para comecar
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-axon-border">
-                  <th className="px-5 py-3 text-left text-xs font-medium text-white/40">Nome</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-white/40">Tipo</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-white/40">Musica</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-white/40">
-                    Pagamento
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-white/40">
-                    Cadastro
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentes.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="border-b border-axon-border/40 transition-colors last:border-0 hover:bg-white/[0.025]"
-                  >
-                    <td className="px-5 py-3 font-medium text-white">{c.nome}</td>
-                    <td className="px-5 py-3 capitalize text-white/50">{c.tipo ?? '-'}</td>
-                    <td className="px-5 py-3">
-                      {c.arquivo_audio ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-white/80">
-                          <CheckCircle2 size={12} />
-                          enviada
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-yellow-500/80">
-                          <Clock size={12} />
-                          pendente
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3">
-                      <StatusBadge status={c.status_pagamento} />
-                    </td>
-                    <td className="px-5 py-3 text-xs text-white/40">{formatDate(c.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      )}
     </div>
-  )
+  );
 }
