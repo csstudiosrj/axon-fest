@@ -385,7 +385,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
             data: {
               nome: responsavel,
             },
-            emailRedirectTo: `https://arxum.csstudios.site/fest/inscricao/${eventoId}`,
+            emailRedirectTo: `https://arxum.csstudios.site/fest/grupo/login`,
           },
         });
 
@@ -564,7 +564,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
                     type="email"
                     value={loginEmail}
                     onChange={(e) => {
-                      setErroLogin("");const tipoDocumento 
+                      setErroLogin("");
                       setLoginEmail(e.target.value);
                     }}
                     placeholder="email@exemplo.com"
