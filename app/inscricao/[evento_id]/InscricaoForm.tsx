@@ -93,6 +93,81 @@ function maskEmail(email: string | null) {
 }
 
 function StepSkeleton({ isDark }: { isDark: boolean }) {
+  const handleConfirmacaoEmail = useCallback(() => {
+    setErroCadastro("");
+
+    startTransition(async () => {
+      try {
+        const supabase = createClient();
+
+        const { data: authLogin, error: loginError } = await supabase.auth.signInWithPassword({
+          email,
+          password: senha,
+        });
+
+        if (loginError || !authLogin.user) {
+          setErroCadastro("Email ainda não confirmado. Verifique sua caixa de entrada.");
+          return;
+        }
+
+        if (!cadastroPendente) {
+          router.push("/grupo/dashboard");
+          return;
+        }
+
+        const { data: grupo, error: grupoError } = await supabase
+          .from("grupos")
+          .insert({
+            nome: cadastroPendente.nome,
+            documento: cadastroPendente.documento,
+            tipo_documento: cadastroPendente.tipoDoc,
+            email: cadastroPendente.email,
+            email_contato: cadastroPendente.emailContato || null,
+            responsavel: cadastroPendente.responsavel,
+            telefone: onlyDigits(cadastroPendente.telefone),
+            cidade: cadastroPendente.cidade,
+            estado: cadastroPendente.estado,
+          })
+          .select("id")
+          .single();
+
+        if (grupoError || !grupo) {
+          setErroCadastro("Sua conta foi confirmada, mas não foi possível salvar o grupo.");
+          return;
+        }
+
+        const { error: usuarioError } = await supabase.from("usuarios").insert({
+          id: authLogin.user.id,
+          email: cadastroPendente.email,
+          nome: cadastroPendente.responsavel,
+          role: "org_admin",
+          organizacao_id: grupo.id,
+        });
+
+        if (usuarioError) {
+          setErroCadastro("Sua conta foi confirmada, mas não foi possível vincular o usuário ao grupo.");
+          return;
+        }
+
+        const { error: inscricaoError } = await supabase.from("inscricoes_grupo_evento").insert({
+          grupo_id: grupo.id,
+          evento_id: eventoId,
+          status: "ativo",
+          origem: "landing",
+        });
+
+        if (inscricaoError) {
+          setErroCadastro("Conta confirmada, mas houve um erro ao registrar a inscrição.");
+          return;
+        }
+
+        router.push("/grupo/dashboard");
+      } catch {
+        setErroCadastro("Erro inesperado ao confirmar cadastro. Tente novamente.");
+      }
+    });
+  }, [cadastroPendente, email, eventoId, router, senha]);
+
   return (
     <div className="space-y-4">
       <div className="animate-pulse rounded-xl border border-axon-border bg-axon-panel p-5">
@@ -135,6 +210,17 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
   const [erroCadastro, setErroCadastro] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [emailAguardando, setEmailAguardando] = useState("");
+  const [cadastroPendente, setCadastroPendente] = useState<{
+    nome: string;
+    responsavel: string;
+    email: string;
+    emailContato: string;
+    telefone: string;
+    cidade: string;
+    estado: string;
+    documento: string;
+    tipoDoc: string;
+  } | null>(null);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginSenha, setLoginSenha] = useState("");
@@ -313,6 +399,17 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
         }
 
         if (authData.user && !authData.session) {
+          setCadastroPendente({
+            nome: nomeGrupo,
+            responsavel,
+            email,
+            emailContato,
+            telefone,
+            cidade,
+            estado,
+            documento: documentoLimpo,
+            tipoDoc: tipoDocumento,
+          });
           setEmailAguardando(email);
           setEtapa("aguardando_confirmacao");
           return;
@@ -566,12 +663,15 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
                 Após confirmar, volte para esta página e faça login com seu e-mail e senha.
               </p>
             </div>
+            {erroCadastro && (
+              <p className="flex items-center gap-1.5 text-xs text-red-400">
+                <AlertCircle size={12} />
+                {erroCadastro}
+              </p>
+            )}
             <button
               type="button"
-              onClick={() => {
-                setEtapa("identificacao");
-                setEmailAguardando("");
-              }}
+              onClick={handleConfirmacaoEmail}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white"
               style={{ background: accent }}
             >
