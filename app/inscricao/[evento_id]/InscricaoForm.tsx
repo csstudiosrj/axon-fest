@@ -93,80 +93,7 @@ function maskEmail(email: string | null) {
 }
 
 function StepSkeleton({ isDark }: { isDark: boolean }) {
-  const handleConfirmacaoEmail = useCallback(() => {
-    setErroCadastro("");
 
-    startTransition(async () => {
-      try {
-        const supabase = createClient();
-
-        const { data: authLogin, error: loginError } = await supabase.auth.signInWithPassword({
-          email,
-          password: senha,
-        });
-
-        if (loginError || !authLogin.user) {
-          setErroCadastro("Email ainda não confirmado. Verifique sua caixa de entrada.");
-          return;
-        }
-
-        if (!cadastroPendente) {
-          router.push("/grupo/dashboard");
-          return;
-        }
-
-        const { data: grupo, error: grupoError } = await supabase
-          .from("grupos")
-          .insert({
-            nome: cadastroPendente.nome,
-            documento: cadastroPendente.documento,
-            tipo_documento: cadastroPendente.tipoDoc,
-            email: cadastroPendente.email,
-            email_contato: cadastroPendente.emailContato || null,
-            responsavel: cadastroPendente.responsavel,
-            telefone: onlyDigits(cadastroPendente.telefone),
-            cidade: cadastroPendente.cidade,
-            estado: cadastroPendente.estado,
-          })
-          .select("id")
-          .single();
-
-        if (grupoError || !grupo) {
-          setErroCadastro("Sua conta foi confirmada, mas não foi possível salvar o grupo.");
-          return;
-        }
-
-        const { error: usuarioError } = await supabase.from("usuarios").insert({
-          id: authLogin.user.id,
-          email: cadastroPendente.email,
-          nome: cadastroPendente.responsavel,
-          role: "org_admin",
-          organizacao_id: grupo.id,
-        });
-
-        if (usuarioError) {
-          setErroCadastro("Sua conta foi confirmada, mas não foi possível vincular o usuário ao grupo.");
-          return;
-        }
-
-        const { error: inscricaoError } = await supabase.from("inscricoes_grupo_evento").insert({
-          grupo_id: grupo.id,
-          evento_id: eventoId,
-          status: "ativo",
-          origem: "landing",
-        });
-
-        if (inscricaoError) {
-          setErroCadastro("Conta confirmada, mas houve um erro ao registrar a inscrição.");
-          return;
-        }
-
-        router.push("/grupo/dashboard");
-      } catch {
-        setErroCadastro("Erro inesperado ao confirmar cadastro. Tente novamente.");
-      }
-    });
-  }, [cadastroPendente, email, eventoId, router, senha]);
 
   return (
     <div className="space-y-4">
@@ -359,6 +286,81 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
       }
     });
   }, [eventoId, loginEmail, loginSenha, router]);
+
+  const handleConfirmacaoEmail = useCallback(() => {
+    setErroCadastro("");
+
+    startTransition(async () => {
+      try {
+        const supabase = createClient();
+
+        const { data: authLogin, error: loginError } = await supabase.auth.signInWithPassword({
+          email,
+          password: senha,
+        });
+
+        if (loginError || !authLogin.user) {
+          setErroCadastro("Email ainda não confirmado. Verifique sua caixa de entrada.");
+          return;
+        }
+
+        if (!cadastroPendente) {
+          router.push("/grupo/dashboard");
+          return;
+        }
+
+        const { data: grupo, error: grupoError } = await supabase
+          .from("grupos")
+          .insert({
+            nome: cadastroPendente.nome,
+            documento: cadastroPendente.documento,
+            tipo_documento: cadastroPendente.tipoDoc,
+            email: cadastroPendente.email,
+            email_contato: cadastroPendente.emailContato || null,
+            responsavel: cadastroPendente.responsavel,
+            telefone: onlyDigits(cadastroPendente.telefone),
+            cidade: cadastroPendente.cidade,
+            estado: cadastroPendente.estado,
+          })
+          .select("id")
+          .single();
+
+        if (grupoError || !grupo) {
+          setErroCadastro("Sua conta foi confirmada, mas não foi possível salvar o grupo.");
+          return;
+        }
+
+        const { error: usuarioError } = await supabase.from("usuarios").insert({
+          id: authLogin.user.id,
+          email: cadastroPendente.email,
+          nome: cadastroPendente.responsavel,
+          role: "org_admin",
+          organizacao_id: grupo.id,
+        });
+
+        if (usuarioError) {
+          setErroCadastro("Sua conta foi confirmada, mas não foi possível vincular o usuário ao grupo.");
+          return;
+        }
+
+        const { error: inscricaoError } = await supabase.from("inscricoes_grupo_evento").insert({
+          grupo_id: grupo.id,
+          evento_id: eventoId,
+          status: "ativo",
+          origem: "landing",
+        });
+
+        if (inscricaoError) {
+          setErroCadastro("Conta confirmada, mas houve um erro ao registrar a inscrição.");
+          return;
+        }
+
+        router.push("/grupo/dashboard");
+      } catch {
+        setErroCadastro("Erro inesperado ao confirmar cadastro. Tente novamente.");
+      }
+    });
+  }, [cadastroPendente, email, eventoId, router, senha]);
 
   const handleCadastro = useCallback(() => {
     setErroCadastro("");
