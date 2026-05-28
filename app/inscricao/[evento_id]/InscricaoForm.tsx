@@ -42,7 +42,7 @@ interface InscricaoFormProps {
   evento: EventoInscricao;
 }
 
-type Etapa = "identificacao" | "login" | "cadastro";
+type Etapa = "identificacao" | "login" | "cadastro" | "aguardando_confirmacao";
 
 const ESTADOS = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
@@ -134,6 +134,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
   const [erroLogin, setErroLogin] = useState("");
   const [erroCadastro, setErroCadastro] = useState("");
   const [buscando, setBuscando] = useState(false);
+  const [emailAguardando, setEmailAguardando] = useState("");
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginSenha, setLoginSenha] = useState("");
@@ -308,6 +309,12 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
 
         if (authError || !authData.user) {
           setErroCadastro(authError?.message || "Não foi possível criar sua conta agora.");
+          return;
+        }
+
+        if (authData.user && !authData.session) {
+          setEmailAguardando(email);
+          setEtapa("aguardando_confirmacao");
           return;
         }
 
@@ -537,6 +544,40 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
                 Voltar
               </button>
             </div>
+          </div>
+        )}
+
+        {!buscando && !isPending && etapa === "aguardando_confirmacao" && (
+          <div className="space-y-6 py-2">
+            <div
+              className="flex h-14 w-14 items-center justify-center rounded-2xl"
+              style={{ background: `${accent}18`, border: `1px solid ${accent}30`, color: accent }}
+            >
+              <Mail size={24} />
+            </div>
+            <div className="space-y-2">
+              <h3 className={`text-lg font-bold ${headingClass}`}>Verifique seu e-mail</h3>
+              <p className={`text-sm leading-relaxed ${textClass}`}>
+                Enviamos um link de confirmação para{" "}
+                <span className={`font-semibold ${headingClass}`}>{emailAguardando}</span>.
+                Clique no link para ativar sua conta e continuar a inscrição.
+              </p>
+              <p className={`text-sm leading-relaxed ${textClass}`}>
+                Após confirmar, volte para esta página e faça login com seu e-mail e senha.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEtapa("identificacao");
+                setEmailAguardando("");
+              }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white"
+              style={{ background: accent }}
+            >
+              <CheckCircle2 size={16} />
+              Já confirmei meu e-mail
+            </button>
           </div>
         )}
 
