@@ -385,7 +385,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
             data: {
               nome: responsavel,
             },
-            emailRedirectTo: `https://arxum.csstudios.site/fest/grupo/login`,
+            emailRedirectTo: `https://arxum.csstudios.site/fest/inscricao/${eventoId}`,
           },
         });
 
