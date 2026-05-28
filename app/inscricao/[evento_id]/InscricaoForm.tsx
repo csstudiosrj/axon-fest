@@ -165,7 +165,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
   const faintClass = isDark ? "text-gray-500" : "text-gray-500";
 
   const docDigits = useMemo(() => onlyDigits(documento), [documento]);
-  const tipoDocumento = docDigits.length > 11 ? "CNPJ" : "CPF";
+  const tipoDocumento = docDigits.length > 11 ? "cnpj" : "cpf";
 
   const inputBase = `w-full rounded-xl border ${borderClass} ${mutedPanelClass} px-4 py-3 text-sm ${headingClass} placeholder:text-gray-500 focus:outline-none`;
   const iconClass = faintClass;
@@ -564,7 +564,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
                     type="email"
                     value={loginEmail}
                     onChange={(e) => {
-                      setErroLogin("");
+                      setErroLogin("");const tipoDocumento 
                       setLoginEmail(e.target.value);
                     }}
                     placeholder="email@exemplo.com"
