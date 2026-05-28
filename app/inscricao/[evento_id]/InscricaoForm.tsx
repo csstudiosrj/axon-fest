@@ -137,17 +137,6 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
   const [erroCadastro, setErroCadastro] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [emailAguardando, setEmailAguardando] = useState("");
-  const [cadastroPendente, setCadastroPendente] = useState<{
-    nome: string;
-    responsavel: string;
-    email: string;
-    emailContato: string;
-    telefone: string;
-    cidade: string;
-    estado: string;
-    documento: string;
-    tipoDoc: string;
-  } | null>(null);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginSenha, setLoginSenha] = useState("");
@@ -304,6 +293,9 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
           return;
         }
 
+        const pendente = localStorage.getItem('cadastroPendente');
+        const cadastroPendente = pendente ? JSON.parse(pendente) : null;
+
         if (!cadastroPendente) {
           router.push("/grupo/dashboard");
           return;
@@ -355,12 +347,13 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
           return;
         }
 
+        localStorage.removeItem('cadastroPendente');
         router.push("/grupo/dashboard");
       } catch {
         setErroCadastro("Erro inesperado ao confirmar cadastro. Tente novamente.");
       }
     });
-  }, [cadastroPendente, email, eventoId, router, senha]);
+  }, [email, eventoId, router, senha]);
 
   const handleCadastro = useCallback(() => {
     setErroCadastro("");
@@ -402,17 +395,12 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
         }
 
         if (authData.user && !authData.session) {
-          setCadastroPendente({
-            nome: nomeGrupo,
-            responsavel,
-            email,
-            emailContato,
-            telefone,
-            cidade,
-            estado,
-            documento: documentoLimpo,
-            tipoDoc: tipoDocumento,
-          });
+          localStorage.setItem('cadastroPendente', JSON.stringify({ 
+            eventoId, nome: nomeGrupo, responsavel, 
+            email, emailContato,
+            telefone, cidade, estado,
+            documento: documento, tipoDoc: tipoDocumento 
+          }));
           setEmailAguardando(email);
           setEtapa("aguardando_confirmacao");
           return;
