@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { PlanoAssinatura } from "./PlanoAssinatura";
 import {
   User, Mail, Phone, Lock, Camera,
   Save, Eye, EyeOff, CheckCircle, AlertCircle, Loader2
@@ -442,21 +443,7 @@ export default function PerfilPage() {
         {/* Seção de senha */}
         <SecaoSenha email={email} onSalvar={alterarSenha} salvando={salvandoSenha} />
 
-        {/* Card SaaS — placeholder pra lapidação final */}
-        <div className="bg-axon-panel border border-axon-border rounded-2xl p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-2 h-2 rounded-full bg-axon-gold animate-pulse" />
-              <h2 className="text-white font-semibold">Plano & Assinatura</h2>
-            </div>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-axon-gold-dim text-axon-gold border border-axon-gold-dim font-semibold">
-              Em breve
-            </span>
-          </div>
-          <p className="text-gray-500 text-sm mt-3">
-            Gerencie seu plano, forma de pagamento e histórico de faturas.
-          </p>
-        </div>
+        <PlanoAssinatura />
       </div>
     </>
   );

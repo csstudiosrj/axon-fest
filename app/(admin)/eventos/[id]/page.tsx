@@ -2360,11 +2360,7 @@ export default function PainelEventoPage() {
                           >
                             {acaoLabel}
                           </button>
-                        ) : (
-                          <span className="text-xs text-gray-600 bg-white/5 px-2.5 py-1 rounded-full">
-                            Em breve
-                          </span>
-                        )}
+                        ) : null}
                       </div>
                     ))}
                   </div>
