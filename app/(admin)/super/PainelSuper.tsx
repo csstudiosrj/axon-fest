@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Building2, Check, Copy, FlaskConical, Loader2, Mail, Percent, Trash2 } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
+import { Produtoras, type LinhaProdutora } from "./Produtoras";
 
 type Valores = Record<string, unknown>;
 
@@ -196,9 +197,10 @@ function Demonstracao({ existente }: { existente: { id: string; nome: string; cr
   );
 }
 
-export function PainelSuper({ configuracoes, demonstracao }: {
+export function PainelSuper({ configuracoes, demonstracao, produtoras }: {
   configuracoes: Record<string, Valores>;
   demonstracao: { id: string; nome: string; created_at: string } | null;
+  produtoras: LinhaProdutora[];
 }) {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -206,6 +208,7 @@ export function PainelSuper({ configuracoes, demonstracao }: {
         <h1 className="text-xl font-semibold text-white">Super Admin</h1>
         <p className="mt-1 text-sm text-gray-400">Configurações do ARXUM Fest que valem para todas as produtoras.</p>
       </div>
+      <Produtoras linhas={produtoras} />
       <Demonstracao existente={demonstracao} />
       {GRUPOS.map((g) => <FormularioGrupo key={g.chave} grupo={g} inicial={configuracoes[g.chave] ?? {}} />)}
     </div>
