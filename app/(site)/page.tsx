@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ShieldCheck, Lock, FileSignature, Users } from "lucide-react";
-import { TAXA_TEXTO } from "@/lib/site/conteudo";
+import { obterConfiguracoes } from "@/lib/site/configuracoes";
 import { CaixaDemo, NotasDemo, PainelDemo, TermoDemo } from "./_components/Demos";
 import {
   BotaoPrimario, BotaoSecundario, CabecalhoSecao, Container, LinkSeta, Paragrafo, Rotulo, Titulo,
@@ -17,7 +17,8 @@ const SEGMENTOS = [
   "Festivais de dança", "Mostras de teatro", "Competições de música", "Circuitos escolares", "Festivais de circo", "Mostras de artes integradas",
 ];
 
-export default function Inicio() {
+export default async function Inicio() {
+  const { taxaTexto: TAXA_TEXTO } = await obterConfiguracoes();
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}

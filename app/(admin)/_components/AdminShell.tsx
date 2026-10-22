@@ -21,6 +21,7 @@ import {
   FileSignature,
   Megaphone,
   ShieldCheck,
+  Crown,
 } from "lucide-react";
 
 const navLinks = [
@@ -89,7 +90,7 @@ export default function AdminShell({
         </button>
 
         <nav className="flex-1 py-6 flex flex-col gap-1 px-3 overflow-y-auto">
-          {navLinks.map((link) => {
+          {[...navLinks, ...(userRole === "super_admin" ? [{ name: "Super Admin", href: "/super", icon: Crown }] : [])].map((link) => {
             const isActive =
               pathname === link.href || pathname.startsWith(link.href + "/");
             const Icon = link.icon;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EMPRESA, PRECOS } from "@/lib/site/conteudo";
+import { obterConfiguracoes, ouPendente, type Configuracoes } from "@/lib/site/configuracoes";
 import { DocumentoLegal, type SecaoLegal } from "../_components/DocumentoLegal";
 
 export const metadata: Metadata = {
@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   description: "Como o ARXUM Fest coleta, usa, protege e exclui dados pessoais, inclusive de crianças e adolescentes.",
 };
 
-const SECOES: SecaoLegal[] = [
+function secoes({ precos: PRECOS, empresa: EMPRESA }: Configuracoes): SecaoLegal[] {
+  return [
   {
     id: "papeis",
     titulo: "Quem é responsável pelos dados",
@@ -17,7 +18,7 @@ const SECOES: SecaoLegal[] = [
         <p>A LGPD (Lei nº 13.709/2018) diferencia quem decide sobre os dados (<strong>controlador</strong>) de quem os trata em nome de outro (<strong>operador</strong>):</p>
         <ul>
           <li><strong>Dados de inscrições, grupos, participantes, jurados e compradores de um evento:</strong> a controladora é a <strong>Produtora</strong> do evento. A ARXUM atua como <strong>operadora</strong>, tratando esses dados apenas para executar a Plataforma conforme as instruções da Produtora.</li>
-          <li><strong>Dados das contas de Produtoras e de navegação no site:</strong> a controladora é a <strong>ARXUM</strong> ({EMPRESA.razaoSocial}, CNPJ {EMPRESA.cnpj}).</li>
+          <li><strong>Dados das contas de Produtoras e de navegação no site:</strong> a controladora é a <strong>ARXUM</strong> ({ouPendente(EMPRESA.razaoSocial)}, CNPJ {ouPendente(EMPRESA.cnpj)}).</li>
         </ul>
         <p>Pedidos sobre dados de um evento podem ser feitos diretamente à Produtora ou à ARXUM, que os encaminhará.</p>
       </>
@@ -135,19 +136,22 @@ const SECOES: SecaoLegal[] = [
     id: "encarregado",
     titulo: "Encarregado e contato",
     conteudo: (
-      <p>Encarregado pelo tratamento de dados (DPO): <a href={`mailto:${EMPRESA.emailPrivacidade}`}>{EMPRESA.emailPrivacidade}</a>. Endereço: {EMPRESA.endereco}. Esta Política complementa os <Link href="/termos-de-uso">Termos de Uso</Link> e pode ser atualizada; mudanças relevantes serão comunicadas com antecedência.</p>
+      <p>Encarregado pelo tratamento de dados (DPO): <a href={`mailto:${EMPRESA.emailPrivacidade}`}>{EMPRESA.emailPrivacidade}</a>. Endereço: {ouPendente(EMPRESA.endereco)}. Esta Política complementa os <Link href="/termos-de-uso">Termos de Uso</Link> e pode ser atualizada; mudanças relevantes serão comunicadas com antecedência.</p>
     ),
   },
 ];
+}
 
-export default function Privacidade() {
+export default async function Privacidade() {
+  const config = await obterConfiguracoes();
+  const EMPRESA = config.empresa;
   return (
     <DocumentoLegal
       rotulo="Documentos legais"
       titulo="Política de Privacidade"
-      vigencia={EMPRESA.vigencia}
+      vigencia={ouPendente(EMPRESA.vigencia)}
       intro={<p>Esta Política explica quais dados pessoais o ARXUM Fest trata, por que, com quem compartilha, por quanto tempo guarda e como você exerce seus direitos. Ela vale para o site, os painéis e os aplicativos usados em eventos.</p>}
-      secoes={SECOES}
+      secoes={secoes(config)}
     />
   );
 }

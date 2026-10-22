@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 
-import { brl } from "@/lib/site/conteudo";
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function SimuladorTaxa({ percentual, fixa }: { percentual: number; fixa: number }) {
   const [valor, setValor] = useState(150);

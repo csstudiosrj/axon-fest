@@ -64,7 +64,15 @@ export default function ApuracaoPage({ searchParams }: { searchParams: Promise<{
       const locais = (await pacotesLocais()).map((p) => ({ id: p.evento.id, nome: p.evento.nome }));
       let lista = locais;
       if (navigator.onLine) {
-        const { data } = await createClient().from("eventos").select("id, nome").order("data_inicio", { ascending: false });
+        // Só eventos da própria produtora (eventos públicos de outras também são visíveis pelo RLS)
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: eu } = user
+          ? await supabase.from("usuarios").select("role, produtora_id").eq("id", user.id).maybeSingle()
+          : { data: null };
+        let consulta = supabase.from("eventos").select("id, nome").order("data_inicio", { ascending: false });
+        if (eu?.role !== "super_admin") consulta = consulta.eq("produtora_id", eu?.produtora_id ?? "");
+        const { data } = await consulta;
         if (data) lista = [...data, ...locais.filter((l) => !data.some((d) => d.id === l.id))];
       }
       if (!vivo) return;

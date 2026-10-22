@@ -7,6 +7,9 @@ const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans", display
 // Syne é exclusiva do logotipo (Manual de Marca); títulos usam DM Sans
 const syne = Syne({ subsets: ["latin"], weight: ["800"], variable: "--font-syne", display: "swap" });
 
+// Valores e contatos vêm do banco (configuracoes_sistema), com cache de 5 min
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: {
     default: "ARXUM Fest — Gestão de festivais e mostras artísticas",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enviarEmail, escapeHtml } from "@/lib/email";
-import { CONTATO } from "@/lib/site/conteudo";
+import { obterConfiguracoes } from "@/lib/site/configuracoes";
 
 // Formulário de contato do site institucional → e-mail para a equipe.
 // Proteções simples: campo-isca (honeypot), limites de tamanho e de envios por IP.
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
     .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#5e7a94">${k}</td><td style="padding:4px 0">${escapeHtml(v)}</td></tr>`)
     .join("");
 
+  const { contato: CONTATO } = await obterConfiguracoes();
   try {
     await enviarEmail({
       para: CONTATO.email,

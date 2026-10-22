@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CONTATO, EMPRESA, PRECOS, TAXA_TEXTO } from "@/lib/site/conteudo";
+import { brl, obterConfiguracoes, ouPendente, type Configuracoes } from "@/lib/site/configuracoes";
 import { DocumentoLegal, type SecaoLegal } from "../_components/DocumentoLegal";
 
 export const metadata: Metadata = {
@@ -8,14 +8,15 @@ export const metadata: Metadata = {
   description: "Condições de uso da plataforma ARXUM Fest por produtoras, equipes, grupos, participantes, jurados e compradores.",
 };
 
-const SECOES: SecaoLegal[] = [
+function secoes({ precos: PRECOS, contato: CONTATO, empresa: EMPRESA, taxaTexto: TAXA_TEXTO }: Configuracoes): SecaoLegal[] {
+  return [
   {
     id: "definicoes",
     titulo: "Definições",
     conteudo: (
       <ul>
         <li><strong>Plataforma:</strong> o sistema ARXUM Fest, acessível em arxum.com.br/fest, incluindo páginas públicas, painéis e aplicações para celular.</li>
-        <li><strong>ARXUM:</strong> {EMPRESA.razaoSocial}, inscrita no CNPJ sob o nº {EMPRESA.cnpj}, com sede em {EMPRESA.endereco}.</li>
+        <li><strong>ARXUM:</strong> {ouPendente(EMPRESA.razaoSocial)}, inscrita no CNPJ sob o nº {ouPendente(EMPRESA.cnpj)}, com sede em {ouPendente(EMPRESA.endereco)}.</li>
         <li><strong>Produtora:</strong> pessoa física ou jurídica que cria uma conta para organizar festivais, mostras ou eventos na Plataforma.</li>
         <li><strong>Equipe:</strong> pessoas convidadas pela Produtora para operar a conta (administradores, produtores, marketing, assistentes, operadores de caixa e jurados).</li>
         <li><strong>Grupo:</strong> escola, companhia, banda ou coletivo que se inscreve em eventos de uma Produtora.</li>
@@ -72,7 +73,7 @@ const SECOES: SecaoLegal[] = [
         <p><strong>Tarifas do meio de pagamento</strong> (PIX, cartão, parcelamento) são cobradas pela instituição parceira e informadas no momento da configuração do recebimento.</p>
         <p>Para cada evento, a Produtora escolhe se a taxa de serviço e as tarifas são <strong>repassadas ao Comprador</strong> (somadas ao preço) ou <strong>absorvidas</strong> (descontadas do repasse).</p>
         <p>Os prazos de repasse seguem as regras da instituição de pagamento. A Produtora deve manter dados cadastrais e bancários corretos e completar a verificação de identidade exigida pela instituição.</p>
-        <p>Vendas em dinheiro, maquininha própria ou PIX direto para a Produtora, registradas no caixa do evento, não são processadas pela ARXUM e não geram taxa de serviço.</p>
+        <p><strong>Vendas no caixa do evento</strong> (dinheiro, maquininha própria ou PIX direto para a Produtora) não passam pela instituição de pagamento. Sobre o total registrado no caixa em cada mês incide taxa de {PRECOS.caixaPercentual}%, cobrada em fatura mensal. Nos meses em que o total for inferior a {brl(PRECOS.caixaIsencaoAte)}, não há cobrança.</p>
       </>
     ),
   },
@@ -180,15 +181,18 @@ const SECOES: SecaoLegal[] = [
     ),
   },
 ];
+}
 
-export default function TermosDeUso() {
+export default async function TermosDeUso() {
+  const config = await obterConfiguracoes();
+  const EMPRESA = config.empresa;
   return (
     <DocumentoLegal
       rotulo="Documentos legais"
       titulo="Termos de Uso"
-      vigencia={EMPRESA.vigencia}
+      vigencia={ouPendente(EMPRESA.vigencia)}
       intro={<p>Estes Termos regulam o uso do ARXUM Fest por produtoras de eventos, suas equipes, grupos inscritos, participantes, jurados e compradores. Leia com atenção: eles explicam o que a plataforma oferece, o que cabe a cada parte e como funcionam taxas e repasses.</p>}
-      secoes={SECOES}
+      secoes={secoes(config)}
     />
   );
 }

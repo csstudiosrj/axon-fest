@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
 import { Check } from "lucide-react";
-import { PRECOS, TAXA_TEXTO } from "@/lib/site/conteudo";
+import { brl, obterConfiguracoes, type Configuracoes } from "@/lib/site/configuracoes";
 import { BotaoPrimario, BotaoSecundario, CabecalhoSecao, Container, Paragrafo, Rotulo, Titulo } from "../_components/ui";
 import { SimuladorTaxa } from "./SimuladorTaxa";
 
-export const metadata: Metadata = {
-  title: "Preços",
-  description: `Grátis para criar. Taxa de ${TAXA_TEXTO} só nas vendas feitas pelo sistema — e você decide se absorve ou repassa.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { taxaTexto } = await obterConfiguracoes();
+  return {
+    title: "Preços",
+    description: `Grátis para criar. Taxa de ${taxaTexto} só nas vendas feitas pelo sistema — e você decide se absorve ou repassa.`,
+  };
+}
 
-const T = TAXA_TEXTO;
-
+function conteudo({ precos: PRECOS, taxaTexto: T }: Configuracoes) {
 const PLANOS = [
   {
     nome: "Start",
@@ -21,7 +23,7 @@ const PLANOS = [
       "Todos os módulos liberados",
       "Eventos, equipe e jurados sem limite",
       "Página pública com a sua marca",
-      "Caixa e bilheteria no celular",
+      `Caixa no celular: ${PRECOS.caixaPercentual}% em fatura mensal, isento abaixo de ${brl(PRECOS.caixaIsencaoAte)}/mês`,
       `Taxa de ${T} por venda feita pelo sistema`,
     ],
     nota: `Após ${PRECOS.mesesStart} meses, a conta fica em modo leitura por mais ${PRECOS.mesesGuarda} meses para você assinar o Pro. Depois disso, os dados são apagados.`,
@@ -31,7 +33,7 @@ const PLANOS = [
   {
     nome: "Pro",
     preco: PRECOS.mensalidadePro
-      ? PRECOS.mensalidadePro.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+      ? brl(PRECOS.mensalidadePro)
       : "Sob consulta",
     detalhe: PRECOS.mensalidadePro ? "por mês" : "assinatura mensal",
     descricao: "Para festivais que voltam todo ano e precisam do histórico.",
@@ -51,7 +53,7 @@ const PLANOS = [
 const PERGUNTAS = [
   {
     p: "Quando a taxa é cobrada?",
-    r: `Em cada venda paga online pela plataforma — inscrição, ingresso ou produto: ${T} por venda. Inscrições gratuitas, montagem do evento, convites e vendas em dinheiro ou PIX direto no caixa do evento não têm taxa.`,
+    r: `Em cada venda paga online pela plataforma — inscrição, ingresso ou produto: ${T} por venda. Vendas registradas no caixa do evento (dinheiro, maquininha própria ou PIX direto para o festival) têm ${PRECOS.caixaPercentual}% cobrados em fatura mensal, com isenção nos meses em que o caixa vender menos de ${brl(PRECOS.caixaIsencaoAte)}. Inscrições gratuitas, montagem do evento e convites não têm taxa.`,
   },
   {
     p: "Quem paga a taxa: o festival ou o inscrito?",
@@ -75,7 +77,13 @@ const PERGUNTAS = [
   },
 ];
 
-export default function Precos() {
+return { PLANOS, PERGUNTAS };
+}
+
+export default async function Precos() {
+  const config = await obterConfiguracoes();
+  const { precos: PRECOS, taxaTexto: T } = config;
+  const { PLANOS, PERGUNTAS } = conteudo(config);
   return (
     <>
       <section className="border-b border-arx-line">
