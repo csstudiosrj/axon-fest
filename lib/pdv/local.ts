@@ -59,7 +59,12 @@ export async function enviarPendentes(usuarioId: string): Promise<number> {
   if (!pendentes.length) return 0;
   const r = await fetch(apiUrl("/api/operador/vendas"), {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ itens: pendentes.map(({ usuario_id: _u, enviado: _e, ...v }) => v) }),
+    body: JSON.stringify({
+      itens: pendentes.map((v) => ({
+        id: v.id, venda_id: v.venda_id, produto_id: v.produto_id, produto_nome: v.produto_nome, quantidade: v.quantidade,
+        preco_unitario: v.preco_unitario, forma_pagamento: v.forma_pagamento, evento_id: v.evento_id, created_at: v.created_at,
+      })),
+    }),
   });
   if (!r.ok) return pendentes.length;
   const { aceitos = [], recusados = [] } = (await r.json()) as { aceitos?: string[]; recusados?: string[] };

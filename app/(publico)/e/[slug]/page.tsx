@@ -773,14 +773,12 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
           .eq("evento_id", ev.id)
           .or("premio_dinheiro_1.gt.0,premio_dinheiro_2.gt.0,premio_dinheiro_3.gt.0")
       : Promise.resolve({ data: null, error: null }),
-    ev.exibir_loja_publica
-      ? supabase
-          .from("evento_produtos")
-          // evento_produtos aponta para o catálogo do PDV (pdv_produtos)
-          .select("id, preco_evento, estoque_evento, ativo_evento, produtos:pdv_produtos!inner(id, nome, preco, descricao, ativo)")
-          .eq("evento_id", ev.id)
-          .eq("ativo_evento", true)
-      : Promise.resolve({ data: null, error: null }),
+    // Vitrine: produtos do PDV marcados para este evento (PDV & Bilheteria → produto)
+    supabase
+      .from("evento_produtos")
+      .select("id, preco_evento, estoque_evento, ativo_evento, produtos:pdv_produtos!inner(id, nome, preco, descricao, ativo)")
+      .eq("evento_id", ev.id)
+      .eq("ativo_evento", true),
   ]);
 
   const juradosRows = (juradosRes.data ?? []) as JuradoPublicoRow[];
@@ -1173,7 +1171,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
           </section>
         )}
 
-        {evento.exibir_loja_publica && produtosLoja.length > 0 && (
+        {produtosLoja.length > 0 && (
           <section aria-labelledby="secao-loja">
             <SectionHeader
               titulo="Loja do Festival"

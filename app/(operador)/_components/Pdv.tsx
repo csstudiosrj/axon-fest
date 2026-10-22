@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
@@ -212,9 +212,13 @@ export function Pdv({ modo }: { modo: Modo }) {
   }, [recarregarVendas, sincronizar]);
 
   // Internet voltou: envia o que ficou guardado
+  const pacoteAtual = useRef<PacotePdv | null>(null);
+  useEffect(() => { pacoteAtual.current = pacote; }, [pacote]);
   useEffect(() => {
-    if (online) void sincronizar(pacote);
-  }, [online]); // eslint-disable-line react-hooks/exhaustive-deps
+    const aoVoltar = () => void sincronizar(pacoteAtual.current);
+    window.addEventListener("online", aoVoltar);
+    return () => window.removeEventListener("online", aoVoltar);
+  }, [sincronizar]);
 
   const produtos = useMemo(() => (pacote?.produtos ?? []).filter((p) => p.tipo === modo), [pacote, modo]);
   const categorias = useMemo(() => ["Todos", ...new Set(produtos.map((p) => p.categoria))], [produtos]);

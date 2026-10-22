@@ -1,5 +1,5 @@
 import "server-only";
-import { randomBytes, randomInt } from "node:crypto";
+import { randomBytes, randomInt, randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { TablesInsert } from "@/lib/supabase/database.types";
 import { perfilPorSlug, type SlugPerfil } from "@/lib/perfis";
@@ -104,8 +104,9 @@ export async function criarDemonstracao(admin: Admin) {
     // PDV
     await admin.from("pdv_config").insert({ produtora_id: pid, pin_admin: "1234", pix_nome: "Produtora Demonstração", pix_cidade: "Rio de Janeiro" });
     const produtosPdv = checar(await admin.from("pdv_produtos").insert(
-      ([["Água 500 ml", 5, "cantina"], ["Refrigerante", 7, "cantina"], ["Programa do festival", 15, "loja"], ["Camiseta oficial", 60, "loja"]] as [string, number, string][])
-        .map(([nome, preco, tipo], i) => ({ nome, preco, tipo, produtora_id: pid, ativo: true, ordem: i }))
+      ([["Água 500 ml", 5, "cantina", "Bebidas"], ["Refrigerante", 7, "cantina", "Bebidas"], ["Pão de queijo", 6, "cantina", "Salgados"],
+        ["Camiseta oficial", 60, "cantina", "Lembranças"], ["Ingresso inteira", 40, "bilheteria", "Ingressos"], ["Meia-entrada", 20, "bilheteria", "Ingressos"]] as [string, number, "cantina" | "bilheteria", string][])
+        .map(([nome, preco, tipo, categoria], i) => ({ nome, preco, tipo, categoria, produtora_id: pid, ativo: true, ordem: i }))
     ).select("id, nome, preco"), "pdv_produtos") as { id: string; nome: string; preco: number }[];
 
     let grupoLogin = 0;
@@ -182,15 +183,18 @@ export async function criarDemonstracao(admin: Admin) {
 
       // Vendas de caixa no 1º festival
       if (fi === 0) {
+        // 12 atendimentos de 1 a 2 itens, como o caixa registra
         await admin.from("pdv_vendas").insert(Array.from({ length: 12 }, (_, i) => {
-          const p = produtosPdv[i % produtosPdv.length];
-          const q = 1 + (i % 3);
-          return {
-            produtora_id: pid, evento_id: evento.id, produto_id: p.id, produto_nome: p.nome, quantidade: q,
-            preco_unitario: p.preco, total: p.preco * q, forma_pagamento: ["dinheiro", "pix", "cartao"][i % 3],
-            operador_nome: "Demo Operador", sincronizado: true, itens: [],
-          };
-        }));
+          const venda = randomUUID();
+          const forma = ["dinheiro", "pix", "cartao"][i % 3];
+          return [produtosPdv[i % produtosPdv.length], ...(i % 2 ? [produtosPdv[(i + 1) % produtosPdv.length]] : [])].map((p, k) => {
+            const q = 1 + ((i + k) % 3);
+            return {
+              produtora_id: pid, evento_id: evento.id, venda_id: venda, produto_id: p.id, produto_nome: p.nome, quantidade: q,
+              preco_unitario: p.preco, total: p.preco * q, forma_pagamento: forma, operador_nome: "Demo Operador", sincronizado: true, itens: [],
+            };
+          });
+        }).flat());
       }
     }
   } catch (e) {
