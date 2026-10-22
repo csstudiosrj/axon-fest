@@ -412,7 +412,7 @@ export default function LojaPage() {
         .select("*, produtos!inner(produtora_id)")
         .eq("produtos.produtora_id", produtoraId)
         .order("created_at", { ascending: false }),
-      supabase.from("escolas").select("id, nome").eq("produtora_id", produtoraId).order("nome"),
+      supabase.from("grupos").select("id, nome").eq("produtora_id", produtoraId).order("nome"),
     ]);
 
     setProdutos((prods as Produto[]) ?? []);

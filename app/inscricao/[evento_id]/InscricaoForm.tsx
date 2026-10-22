@@ -101,14 +101,6 @@ function formatPhone(value: string) {
   });
 }
 
-function maskEmail(email: string | null) {
-  if (!email) return "e-mail não informado";
-  const [name, domain] = email.split("@");
-  if (!name || !domain) return email;
-  const head = name.slice(0, 2);
-  return `${head}${"*".repeat(Math.max(name.length - 2, 3))}@${domain}`;
-}
-
 function StepSkeleton({ isDark }: { isDark: boolean }) {
 
 
@@ -199,10 +191,9 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
 
     try {
       const supabase = createClient();
+      // Função do banco que devolve só nome e e-mail mascarado (a tabela grupos não é pública)
       const { data, error } = await supabase
-        .from("grupos")
-        .select("id, nome, email, documento")
-        .eq("documento", doc)
+        .rpc("grupo_por_documento", { p_documento: doc })
         .maybeSingle();
 
       if (error) {
@@ -210,9 +201,10 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
         return;
       }
 
-      if (data) {
-        setGrupoEncontrado(data as GrupoEncontrado);
-        setLoginEmail(data.email || "");
+      const encontrado = data as { id: string; nome: string; email_mascarado: string } | null;
+      if (encontrado) {
+        setGrupoEncontrado({ id: encontrado.id, nome: encontrado.nome, email: encontrado.email_mascarado, documento: doc });
+        setLoginEmail("");
         setEtapa("login");
         return;
       }
@@ -509,7 +501,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
 
             <div className="rounded-2xl border border-axon-border bg-axon-gold-dim p-4" style={{ borderColor: `${accent}30` }}>
               <p className={`text-sm font-semibold ${headingClass}`}>
-                {grupoEncontrado.nome} — {maskEmail(grupoEncontrado.email)}
+                {grupoEncontrado.nome} — {grupoEncontrado.email}
               </p>
             </div>
 

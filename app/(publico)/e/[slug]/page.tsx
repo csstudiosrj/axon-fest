@@ -140,29 +140,17 @@ interface EventoRow {
   autorizacao_menor_url: string | null;
 }
 
-interface EventoJuradoUsuarioRow {
+interface JuradoPublicoRow {
   jurado_id: string;
-  usuarios:
-    | {
-        id: string;
-        nome: string;
-        foto_url: string | null;
-        especialidade: string | null;
-        mini_bio: string | null;
-      }
-    | {
-        id: string;
-        nome: string;
-        foto_url: string | null;
-        especialidade: string | null;
-        mini_bio: string | null;
-      }[]
-    | null;
+  nome: string;
+  foto_url: string | null;
+  especialidade: string | null;
+  mini_bio: string | null;
 }
 
 interface LocalEventoRow {
   id: string;
-  nome: string;
+  nome_local: string;
   endereco: string | null;
   cidade: string | null;
   estado: string | null;
@@ -188,25 +176,15 @@ interface EventoProdutoRow {
   preco_evento: number | null;
   estoque_evento: number | null;
   ativo_evento: boolean;
-  produtos:
-    | {
-        id: string;
-        nome: string;
-        preco: number;
-        descricao: string | null;
-        imagem_url: string | null;
-        exibir_imagem: boolean;
-        exibir_loja_publica: boolean;
-      }
-    | {
-        id: string;
-        nome: string;
-        preco: number;
-        descricao: string | null;
-        imagem_url: string | null;
-        exibir_imagem: boolean;
-        exibir_loja_publica: boolean;
-      }[];
+  produtos: ProdutoPdvRow | ProdutoPdvRow[];
+}
+
+interface ProdutoPdvRow {
+  id: string;
+  nome: string;
+  preco: number;
+  descricao: string | null;
+  ativo: boolean;
 }
 
 interface DadosEventoPublico {
@@ -756,22 +734,24 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
   const [juradosRes, locaisRes, termosRes, categoriasRes, produtosRes] = await Promise.all([
     competitivo
       ? supabase
-          .from("evento_jurados")
-          .select("jurado_id, usuarios!inner(id, nome, foto_url, especialidade, mini_bio)")
+          // View pública: só nome, foto, especialidade e bio (sem cachê/contato)
+          .from("jurados_publicos")
+          .select("jurado_id, nome, foto_url, especialidade, mini_bio")
           .eq("evento_id", ev.id)
       : Promise.resolve({ data: null, error: null }),
     ev.multilocal
       ? supabase
           .from("locais_evento")
-          .select("id, nome, endereco, cidade, estado")
+          .select("id, nome_local, endereco, cidade, estado")
           .eq("evento_id", ev.id)
-          .order("nome")
+          .order("nome_local")
       : Promise.resolve({ data: null, error: null }),
     supabase
       .from("termos_documentos")
       .select("id, titulo, conteudo, tipo")
       .eq("evento_id", ev.id)
-      .order("created_at"),
+      .eq("ativo", true)
+      .order("criado_em"),
     ev.tipo_premiacao === "com_premiacao_dinheiro"
       ? supabase
           .from("categorias")
@@ -782,28 +762,25 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
     ev.exibir_loja_publica
       ? supabase
           .from("evento_produtos")
-          .select("id, preco_evento, estoque_evento, ativo_evento, produtos!inner(id, nome, preco, descricao, imagem_url, exibir_imagem, exibir_loja_publica)")
+          // evento_produtos aponta para o catálogo do PDV (pdv_produtos)
+          .select("id, preco_evento, estoque_evento, ativo_evento, produtos:pdv_produtos!inner(id, nome, preco, descricao, ativo)")
           .eq("evento_id", ev.id)
           .eq("ativo_evento", true)
       : Promise.resolve({ data: null, error: null }),
   ]);
 
-  const juradosRows = (juradosRes.data ?? []) as EventoJuradoUsuarioRow[];
+  const juradosRows = (juradosRes.data ?? []) as JuradoPublicoRow[];
   const jurados: JuradoPublico[] = competitivo
-    ? juradosRows
-        .map((row) => {
-          const usuario = Array.isArray(row.usuarios) ? row.usuarios[0] : row.usuarios;
-          if (!usuario) return null;
-
-          return {
-            id: usuario.id,
-            nome: usuario.nome,
-            foto_url: usuario.foto_url,
-            especialidade: usuario.especialidade,
-            mini_bio: usuario.mini_bio,
-          } satisfies JuradoPublico;
-        })
-        .filter((item): item is JuradoPublico => item !== null)
+    ? juradosRows.map(
+        (row) =>
+          ({
+            id: row.jurado_id,
+            nome: row.nome,
+            foto_url: row.foto_url,
+            especialidade: row.especialidade,
+            mini_bio: row.mini_bio,
+          }) satisfies JuradoPublico
+      )
     : [];
 
   const locais: LocalEvento[] = ev.multilocal
@@ -811,7 +788,7 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
         (local) =>
           ({
             id: local.id,
-            nome: local.nome,
+            nome: local.nome_local,
             endereco: local.endereco,
             cidade: local.cidade,
             estado: local.estado,
@@ -847,7 +824,7 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
   if (produtosRes.data) {
     for (const item of produtosRes.data as EventoProdutoRow[]) {
       const produtoData = Array.isArray(item.produtos) ? item.produtos[0] : item.produtos;
-      if (produtoData && produtoData.exibir_loja_publica !== false) {
+      if (produtoData && produtoData.ativo !== false) {
         produtosLoja.push({
           id: item.id,
           preco_evento: item.preco_evento,
@@ -855,9 +832,9 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
           nome: produtoData.nome,
           preco: produtoData.preco,
           descricao: produtoData.descricao,
-          imagem_url: produtoData.imagem_url,
-          exibir_imagem: produtoData.exibir_imagem ?? false,
-          exibir_loja_publica: produtoData.exibir_loja_publica ?? true,
+          imagem_url: null,
+          exibir_imagem: false,
+          exibir_loja_publica: true,
         });
       }
     }
