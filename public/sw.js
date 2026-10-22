@@ -1,4 +1,4 @@
-/* ARXUM Fest — service worker dos módulos offline (jurado, apuração, caixa).
+/* ARXUM Fest — service worker dos módulos offline (jurado, apuração, mídias, caixa).
  * - Arquivos estáticos do Next (/_next/static) → cache primeiro (têm hash no nome).
  * - Telas offline → rede primeiro; sem rede, usa a última versão guardada.
  * - Dados não passam por aqui: ficam no IndexedDB de cada módulo.
@@ -7,7 +7,7 @@ const VERSAO = "v1";
 const CACHE_ESTATICO = `arxum-estatico-${VERSAO}`;
 const CACHE_PAGINAS = `arxum-paginas-${VERSAO}`;
 const BASE = "/fest";
-const TELAS_OFFLINE = ["/jurado", "/jurados/apuracao", "/caixa", "/bilheteria"];
+const TELAS_OFFLINE = ["/jurado", "/jurados/apuracao", "/midias", "/caixa", "/bilheteria"];
 
 const ehTelaOffline = (url) =>
   TELAS_OFFLINE.some((t) => url.pathname === BASE + t || url.pathname.startsWith(BASE + t + "/"));
