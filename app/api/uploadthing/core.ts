@@ -1,6 +1,7 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import { createClient } from "@/lib/supabase/server";
+import { ROLES_GRUPO } from "@/lib/auth/roles";
 
 const f = createUploadthing();
 
@@ -32,10 +33,7 @@ export const ourFileRouter = {
         throw new UploadThingError("Usuário não encontrado");
       }
 
-      if (
-        usuario.role !== "escola_admin" &&
-        usuario.role !== "coreografo"
-      ) {
+      if (!ROLES_GRUPO.includes(usuario.role)) {
         throw new UploadThingError("Sem permissão para upload");
       }
 
@@ -89,10 +87,7 @@ export const ourFileRouter = {
         throw new UploadThingError("Usuário não encontrado");
       }
 
-      if (
-        usuario.role !== "escola_admin" &&
-        usuario.role !== "coreografo"
-      ) {
+      if (!ROLES_GRUPO.includes(usuario.role)) {
         throw new UploadThingError("Sem permissão para upload");
       }
 

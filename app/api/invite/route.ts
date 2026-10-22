@@ -1,187 +1,310 @@
-import { createClient } from "@supabase/supabase-js";
-import { createClient as createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { getUsuarioAtual, type UsuarioAtual } from "@/lib/auth/session";
+import { HIERARQUIA, ROLES_GRUPO, podeAtribuir } from "@/lib/auth/roles";
+import { urlAbsoluta } from "@/lib/base-path";
+import { emailComBotao, enviarEmail, escapeHtml } from "@/lib/email";
 
-const HIERARQUIA: Record<string, string[]> = {
-  super_admin: ["super_admin", "admin", "produtor", "marketing", "assistente", "escola_admin", "coreografo"],
-  admin:       ["produtor", "marketing", "assistente", "escola_admin", "coreografo"],
-  produtor:    [],
-  marketing:   [],
-  assistente:  [],
-  escola_admin: [],
-  coreografo:  [],
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Gestão de usuários da produtora (convite, cadastro direto, troca de cargo,
+// remoção). Toda escrita usa service role, então TODA regra de acesso é
+// verificada aqui antes:
+//   • quem chama precisa estar logado, ativo e ter cargo gestor (HIERARQUIA);
+//   • admin só age dentro da própria produtora; super_admin informa a produtora;
+//   • o cargo atual do alvo e o cargo novo precisam ser atribuíveis por quem chama;
+//   • ninguém altera/remove a si mesmo; super_admin nunca é criado por aqui.
+// ─────────────────────────────────────────────────────────────────────────────
 
-export async function POST(req: NextRequest) {
-  // Instância administrativa com service_role para operações de Auth e escrita no DB
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+type Admin = ReturnType<typeof createAdminClient>;
+
+const ACOES = ["verificar_email", "invite", "add", "update", "remove"] as const;
+type Acao = (typeof ACOES)[number];
+
+interface Corpo {
+  action?: Acao;
+  email?: string;
+  role?: string;
+  password?: string;
+  userId?: string;
+  grupo_id?: string | null;
+  produtora_id?: string | null;
+  nome?: string | null;
+  telefone?: string | null;
+  foto_url?: string | null;
+  mini_bio?: string | null;
+}
+
+function erro(mensagem: string, status: number) {
+  return NextResponse.json({ error: mensagem }, { status });
+}
+
+function texto(valor: unknown, max = 500): string | null {
+  if (typeof valor !== "string") return null;
+  const t = valor.trim();
+  return t ? t.slice(0, max) : null;
+}
+
+function mascararNome(nome: string | null): string {
+  if (!nome?.trim()) return "Convidado (Pendente)";
+  return nome
+    .trim()
+    .split(/\s+/)
+    .map((parte) => `${Array.from(parte)[0] ?? "*"}***`)
+    .join(" ");
+}
+
+// Produtora em que a ação acontece: a do próprio admin, ou a informada pelo super_admin
+async function resolverProdutora(
+  admin: Admin,
+  caller: UsuarioAtual,
+  produtoraInformada: string | null | undefined
+): Promise<string | NextResponse> {
+  if (caller.role === "super_admin") {
+    if (!produtoraInformada) return erro("Informe a produtora (produtora_id).", 400);
+    const { data } = await admin.from("produtoras").select("id").eq("id", produtoraInformada).maybeSingle();
+    if (!data) return erro("Produtora não encontrada.", 404);
+    return produtoraInformada;
+  }
+  if (!caller.produtora_id) return erro("Seu usuário não está vinculado a uma produtora.", 403);
+  return caller.produtora_id;
+}
+
+// Carrega o alvo e confirma que quem chama pode mexer nele
+async function carregarAlvo(admin: Admin, caller: UsuarioAtual, userId: string | undefined) {
+  if (!userId) return erro("userId ausente.", 400);
+  if (userId === caller.id) return erro("Você não pode alterar o seu próprio acesso.", 403);
+
+  const { data: alvo } = await admin
+    .from("usuarios")
+    .select("id, role, produtora_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (!alvo) return erro("Usuário alvo não encontrado.", 404);
+
+  const mesmaProdutora = !!alvo.produtora_id && alvo.produtora_id === caller.produtora_id;
+  if (caller.role !== "super_admin" && !mesmaProdutora) {
+    return erro("Usuário não pertence à sua organização.", 403);
+  }
+  if (!podeAtribuir(caller.role, alvo.role)) {
+    return erro("Sem permissão para gerenciar este usuário.", 403);
+  }
+  return alvo as { id: string; role: string; produtora_id: string | null };
+}
+
+async function enviarConvite(
+  admin: Admin,
+  email: string,
+  role: string,
+  produtoraId: string,
+  nome: string | null
+): Promise<{ userId: string } | NextResponse> {
+  // generateLink não manda e-mail: geramos o link e enviamos pelo Resend, com
+  // o fluxo token_hash → /auth/confirmar → /definir-senha (compatível com SSR/PKCE).
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: { data: { role, produtora_id: produtoraId, nome } },
+  });
+
+  if (error || !data.user) {
+    const jaExiste = error?.message?.toLowerCase().includes("already");
+    return erro(jaExiste ? "Este e-mail já possui conta no sistema." : error?.message ?? "Erro ao convidar.", jaExiste ? 409 : 400);
+  }
+
+  const link = urlAbsoluta(
+    `/auth/confirmar?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=invite&next=/definir-senha`
   );
 
   try {
-    const body = await req.json();
-    const { email, role, action, password, userId, grupo_id, nome } = body;
+    await enviarEmail({
+      para: email,
+      assunto: "Você foi convidado(a) para o ARXUM Fest",
+      html: emailComBotao({
+        titulo: nome ? `Olá, ${escapeHtml(nome)}!` : "Olá!",
+        paragrafos: [
+          "Você recebeu um convite para acessar o <strong>ARXUM Fest</strong>.",
+          "Clique no botão abaixo para criar sua senha e entrar.",
+        ],
+        botaoTexto: "Aceitar convite",
+        botaoUrl: link,
+        rodape: "Se você não esperava este convite, ignore este e-mail.",
+      }),
+    });
+  } catch (e) {
+    // Desfaz a conta criada para que o convite possa ser reenviado
+    await admin.auth.admin.deleteUser(data.user.id);
+    return erro(`Falha ao enviar o e-mail de convite: ${e instanceof Error ? e.message : "erro desconhecido"}`, 502);
+  }
 
-    // ── Autenticação do solicitante (Zero Trust) ──
-    const supabase = await createServerClient();
-    const { data: { user: caller }, error: authError } = await supabase.auth.getUser();
+  return { userId: data.user.id };
+}
 
-    if (authError || !caller) {
-      return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+export async function POST(req: NextRequest) {
+  try {
+    const caller = await getUsuarioAtual();
+    if (!caller) return erro("Não autenticado.", 401);
+    if (!HIERARQUIA[caller.role]) return erro("Sem permissão para gerenciar usuários.", 403);
+
+    const body = (await req.json()) as Corpo;
+    const action = body.action;
+    if (!action || !ACOES.includes(action)) return erro("Ação inválida.", 400);
+
+    const admin = createAdminClient();
+    const email = texto(body.email, 320)?.toLowerCase() ?? null;
+
+    // ── VERIFICAR E-MAIL (usado no cadastro de jurados) ──
+    // Responde só o necessário, sem expor dados de outras produtoras.
+    if (action === "verificar_email") {
+      if (!email) return erro("E-mail ausente.", 400);
+      const { data: existente } = await admin
+        .from("usuarios")
+        .select("id, nome, role, produtora_id")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (!existente) return NextResponse.json({ existe: false });
+
+      const mesmaProdutora = !!existente.produtora_id && existente.produtora_id === caller.produtora_id;
+      return NextResponse.json({
+        existe: true,
+        id: mesmaProdutora || !existente.produtora_id ? existente.id : null,
+        role: existente.role,
+        nome_mascarado: mascararNome(existente.nome),
+        mesma_produtora: mesmaProdutora,
+        sem_produtora: !existente.produtora_id,
+      });
     }
 
-    // Buscar dados reais do solicitante na tabela usuarios
-    const { data: callerData, error: callerError } = await supabase
-      .from("usuarios")
-      .select("role, produtora_id")
-      .eq("id", caller.id)
-      .single();
-
-    if (callerError || !callerData) {
-      return NextResponse.json({ error: "Usuário solicitante não encontrado no sistema." }, { status: 403 });
-    }
-
-    const { role: inviterRole, produtora_id: inviterProdutoraId } = callerData;
-
-    // ── Validação básica da ação ──
-    if (!action || !["invite", "add", "update", "remove"].includes(action)) {
-      return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
-    }
-
-    // ── Ação REMOVER ──
+    // ── REMOVER ──
     if (action === "remove") {
-      if (!userId) return NextResponse.json({ error: "userId ausente." }, { status: 400 });
+      const alvo = await carregarAlvo(admin, caller, body.userId);
+      if (alvo instanceof NextResponse) return alvo;
 
-      // Verificar se o usuário alvo pertence à mesma produtora
-      const { data: targetUser, error: targetError } = await supabase
-        .from("usuarios")
-        .select("produtora_id")
-        .eq("id", userId)
-        .single();
+      const { error: deleteError } = await admin.from("usuarios").delete().eq("id", alvo.id);
 
-      if (targetError || !targetUser) {
-        return NextResponse.json({ error: "Usuário alvo não encontrado." }, { status: 404 });
-      }
-
-      if (targetUser.produtora_id !== inviterProdutoraId) {
-        return NextResponse.json({ error: "Usuário não pertence à sua organização." }, { status: 403 });
-      }
-
-      // Excluir usuário da autenticação e do banco (com supabaseAdmin para bypass RLS)
-      const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-      if (deleteAuthError) {
-        return NextResponse.json({ error: deleteAuthError.message }, { status: 400 });
-      }
-
-      await supabaseAdmin.from("usuarios").delete().eq("id", userId);
-      return NextResponse.json({ success: true });
-    }
-
-    // ── Ação ATUALIZAR CARGO ──
-    if (action === "update") {
-      if (!userId || !role || !inviterRole) {
-        return NextResponse.json({ error: "Campos obrigatórios ausentes." }, { status: 400 });
-      }
-
-      // Verificar permissão hierárquica do solicitante para o novo cargo
-      if (!HIERARQUIA[inviterRole]?.includes(role)) {
-        return NextResponse.json({ error: "Sem permissão para atribuir este cargo." }, { status: 403 });
-      }
-
-      // Verificar isolamento de tenant
-      const { data: targetUser, error: targetError } = await supabase
-        .from("usuarios")
-        .select("produtora_id")
-        .eq("id", userId)
-        .single();
-
-      if (targetError || !targetUser) {
-        return NextResponse.json({ error: "Usuário alvo não encontrado." }, { status: 404 });
-      }
-
-      if (targetUser.produtora_id !== inviterProdutoraId) {
-        return NextResponse.json({ error: "Usuário não pertence à sua organização." }, { status: 403 });
-      }
-
-      // Atualizar cargo (com supabaseAdmin para bypass RLS)
-      const { error: updateError } = await supabaseAdmin
-        .from("usuarios")
-        .update({ role })
-        .eq("id", userId);
-
-      if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 400 });
-      }
-
-      return NextResponse.json({ success: true });
-    }
-
-    // ── Ações CONVITE e ADICIONAR ──
-    if (action === "invite" || action === "add") {
-      if (!email || !role) {
-        return NextResponse.json({ error: "Email e cargo são obrigatórios." }, { status: 400 });
-      }
-
-      // Verificar permissão hierárquica do solicitante para o cargo do novo usuário
-      if (!HIERARQUIA[inviterRole]?.includes(role)) {
-        return NextResponse.json({ error: "Você não tem permissão para criar usuários com esse cargo." }, { status: 403 });
-      }
-
-      let newUserId: string;
-
-      if (action === "invite") {
-        const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-          data: { role, produtora_id: inviterProdutoraId },
-        });
-        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-        newUserId = data.user.id;
-      } else {
-        if (!password || password.length < 6) {
-          return NextResponse.json({ error: "Senha deve ter no mínimo 6 caracteres." }, { status: 400 });
+      if (deleteError) {
+        // 23503 = registros vinculados (notas, vendas…): desativa em vez de apagar
+        if (deleteError.code === "23503") {
+          await admin.from("usuarios").update({ ativo: false }).eq("id", alvo.id);
+          await admin.auth.admin.updateUserById(alvo.id, { ban_duration: "876000h" });
+          return NextResponse.json({ success: true, desativado: true });
         }
-        const { data, error } = await supabaseAdmin.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { role, produtora_id: inviterProdutoraId },
-        });
-        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-        newUserId = data.user.id;
+        return erro(deleteError.message, 400);
       }
 
-      // Persistir na tabela usuarios (com supabaseAdmin para bypass RLS)
-      const { error: upsertError } = await supabaseAdmin
-        .from("usuarios")
-        .upsert(
-          {
-            id: newUserId,
-            email,
-            role,
-            nome: nome ?? null,
-            organizacao_id: grupo_id ?? null,   // coluna física no banco é 'organizacao_id'
-            ativo: true,                         // obrigatório (NOT NULL)
-            produtora_id: inviterProdutoraId,
-          },
-          { onConflict: "id" }
-        );
-
-      if (upsertError) {
-        return NextResponse.json(
-          { error: "Usuário criado, mas erro ao salvar dados complementares: " + upsertError.message },
-          { status: 500 }
-        );
+      const { error: deleteAuthError } = await admin.auth.admin.deleteUser(alvo.id);
+      if (deleteAuthError && !deleteAuthError.message.toLowerCase().includes("not found")) {
+        return erro(deleteAuthError.message, 400);
       }
-
       return NextResponse.json({ success: true });
     }
 
-    // Fallback (não deve chegar aqui)
-    return NextResponse.json({ error: "Ação não reconhecida." }, { status: 400 });
+    // ── ATUALIZAR CARGO ──
+    if (action === "update") {
+      if (!body.role) return erro("Cargo ausente.", 400);
+      if (!podeAtribuir(caller.role, body.role)) return erro("Sem permissão para atribuir este cargo.", 403);
 
+      const alvo = await carregarAlvo(admin, caller, body.userId);
+      if (alvo instanceof NextResponse) return alvo;
+
+      const { error: updateError } = await admin.from("usuarios").update({ role: body.role }).eq("id", alvo.id);
+      if (updateError) return erro(updateError.message, 400);
+      return NextResponse.json({ success: true });
+    }
+
+    // ── CONVITE e ADICIONAR ──
+    const role = body.role;
+    if (!email || !role) return erro("Email e cargo são obrigatórios.", 400);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return erro("E-mail inválido.", 400);
+    if (!podeAtribuir(caller.role, role)) {
+      return erro("Você não tem permissão para criar usuários com esse cargo.", 403);
+    }
+
+    const produtoraId = await resolverProdutora(admin, caller, body.produtora_id);
+    if (produtoraId instanceof NextResponse) return produtoraId;
+
+    // Grupo opcional para cargos do portal do grupo — precisa ser da mesma produtora
+    let grupoId: string | null = null;
+    if (body.grupo_id && ROLES_GRUPO.includes(role)) {
+      const { data: grupo } = await admin
+        .from("grupos")
+        .select("id, origem_produtora_id")
+        .eq("id", body.grupo_id)
+        .maybeSingle();
+      if (!grupo || grupo.origem_produtora_id !== produtoraId) {
+        return erro("Grupo não encontrado nesta produtora.", 404);
+      }
+      grupoId = grupo.id;
+    }
+
+    const perfil = {
+      nome: texto(body.nome, 200),
+      telefone: texto(body.telefone, 20)?.replace(/\D/g, "") || null,
+      foto_url: texto(body.foto_url, 1000),
+      mini_bio: texto(body.mini_bio, 160),
+    };
+
+    // Conta já existente: só pode ser (re)vinculada se estiver sem produtora e
+    // já tiver o mesmo cargo (ex.: jurado que foi desvinculado antes).
+    const { data: existente } = await admin
+      .from("usuarios")
+      .select("id, role, produtora_id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (existente) {
+      if (existente.produtora_id || existente.role !== role) {
+        return erro("Este e-mail já pertence a outra conta. Use outro e-mail.", 409);
+      }
+      const { error: vinculoError } = await admin
+        .from("usuarios")
+        .update({ produtora_id: produtoraId, ativo: true, ...(grupoId ? { organizacao_id: grupoId } : {}), ...perfil })
+        .eq("id", existente.id);
+      if (vinculoError) return erro(vinculoError.message, 400);
+      return NextResponse.json({ success: true, vinculado: true, userId: existente.id });
+    }
+
+    let newUserId: string;
+
+    if (action === "invite") {
+      const resultado = await enviarConvite(admin, email, role, produtoraId, perfil.nome);
+      if (resultado instanceof NextResponse) return resultado;
+      newUserId = resultado.userId;
+    } else {
+      if (!body.password || body.password.length < 8) {
+        return erro("Senha deve ter no mínimo 8 caracteres.", 400);
+      }
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password: body.password,
+        email_confirm: true,
+        user_metadata: { role, produtora_id: produtoraId },
+      });
+      if (error) return erro(error.message, 400);
+      newUserId = data.user.id;
+    }
+
+    const { error: upsertError } = await admin.from("usuarios").upsert(
+      {
+        id: newUserId,
+        email,
+        role,
+        organizacao_id: grupoId, // coluna física no banco é 'organizacao_id'
+        ativo: true,
+        produtora_id: produtoraId,
+        ...perfil,
+      },
+      { onConflict: "id" }
+    );
+
+    if (upsertError) {
+      return erro("Usuário criado, mas erro ao salvar dados complementares: " + upsertError.message, 500);
+    }
+
+    return NextResponse.json({ success: true, userId: newUserId });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Erro interno do servidor.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[api/invite]", err);
+    return erro("Erro interno do servidor.", 500);
   }
 }

@@ -1,5 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { urlAbsoluta } from "@/lib/base-path";
+import { emailComBotao, enviarEmail, escapeHtml } from "@/lib/email";
+
+// Rota pública: o acesso é autorizado só pelo token do vínculo (UUID aleatório
+// enviado por e-mail). Por isso nada além do necessário é devolvido ao navegador.
+
+function mascararCpf(cpf: string | null | undefined): string | null {
+  const d = (cpf ?? "").replace(/\D/g, "");
+  if (d.length !== 11) return d ? "***" : null;
+  return `***.***.${d.slice(6, 9)}-${d.slice(9)}`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cálculo de idade — fuso horário America/Sao_Paulo para evitar
@@ -33,10 +44,7 @@ function calcularIdade(dataNascimento: string | null | undefined): number {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   // Cliente administrativo com service role key — bypass de RLS
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = createAdminClient();
 
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "0.0.0.0";
@@ -46,7 +54,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { token, action } = body as { token?: string; action?: string };
 
-    if (!token || !action) {
+    if (!token || !action || typeof token !== "string" || !/^[0-9a-f-]{32,36}$/i.test(token)) {
       return NextResponse.json(
         { error: "Token e ação são obrigatórios." },
         { status: 400 }
@@ -121,7 +129,7 @@ export async function POST(request: NextRequest) {
           email_contato: participante.email_contato,
           termo_assinado: participante.termo_assinado,
           responsavel_nome: participante.responsavel_nome,
-          responsavel_cpf: participante.responsavel_cpf,
+          responsavel_cpf: mascararCpf(participante.responsavel_cpf),
         },
         grupo: {
           id: grupo?.id ?? "",
@@ -331,29 +339,37 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // ── Integração com serviço de e-mail (implemente aqui)
-      // Exemplo com Resend:
-      //
-      // const { error: emailError } = await resend.emails.send({
-      //   from: "Arxum Fest <noreply@arxumfest.com.br>",
-      //   to: emailResponsavel,
-      //   subject: `Autorização de participação — ${participante.nome}`,
-      //   html: `
-      //     <p>Você recebeu uma solicitação de autorização para o menor
-      //     ${participante.nome} participar do evento ${grupo?.nome}.</p>
-      //     <p>Clique no link abaixo para assinar a autorização:</p>
-      //     <a href="${process.env.NEXT_PUBLIC_BASE_URL}/confirmar-participacao/${token}?responsavel=true">
-      //       Assinar autorização
-      //     </a>
-      //   `,
-      // });
-      //
-      // if (emailError) {
-      //   return NextResponse.json({ error: "Falha no envio do e-mail." }, { status: 500 });
-      // }
-      //
+      if (participante.termo_assinado) {
+        return NextResponse.json({ error: "Termo já assinado." }, { status: 400 });
+      }
+      if (idade >= 18) {
+        return NextResponse.json(
+          { error: "O participante é maior de idade; autorização de responsável não é necessária." },
+          { status: 400 }
+        );
+      }
+
       // O token NÃO é invalidado aqui — o link continua válido para o
-      // responsável acessar via ?responsavel=true e assinar presencialmente.
+      // responsável acessar via ?responsavel=true e assinar.
+      try {
+        await enviarEmail({
+          para: emailResponsavel.trim(),
+          assunto: `Autorização de participação — ${participante.nome}`,
+          html: emailComBotao({
+            titulo: "Autorização de participação",
+            paragrafos: [
+              `Você recebeu uma solicitação de autorização para que <strong>${escapeHtml(participante.nome)}</strong> participe do grupo <strong>${escapeHtml(grupo?.nome)}</strong> no ARXUM Fest.`,
+              "Clique no botão abaixo para ler o termo e assinar a autorização:",
+            ],
+            botaoTexto: "Assinar autorização",
+            botaoUrl: urlAbsoluta(`/confirmar-participacao/${encodeURIComponent(token)}?responsavel=true`),
+            rodape: "Se você não reconhece esta solicitação, ignore este e-mail.",
+          }),
+        });
+      } catch (e) {
+        console.error("[api/confirmar-participacao] email", e);
+        return NextResponse.json({ error: "Falha no envio do e-mail." }, { status: 502 });
+      }
 
       return NextResponse.json({ success: true });
     }
@@ -361,8 +377,7 @@ export async function POST(request: NextRequest) {
     // ── Ação desconhecida
     return NextResponse.json({ error: "Ação desconhecida." }, { status: 400 });
   } catch (err: unknown) {
-    const mensagem =
-      err instanceof Error ? err.message : "Erro interno do servidor.";
-    return NextResponse.json({ error: mensagem }, { status: 500 });
+    console.error("[api/confirmar-participacao]", err);
+    return NextResponse.json({ error: "Erro interno do servidor." }, { status: 500 });
   }
 }

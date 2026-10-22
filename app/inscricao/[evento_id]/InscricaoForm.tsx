@@ -19,6 +19,23 @@ import {
   User,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { apiUrl, BASE_PATH } from "@/lib/base-path";
+import { ROLES_GRUPO } from "@/lib/auth/roles";
+
+
+// Cadastro do grupo/vínculo/inscrição é feito no servidor (valida a sessão e
+// impede vincular a conta a um grupo de outra pessoa)
+async function cadastrarNoServidor(corpo: Record<string, unknown>): Promise<string | null> {
+  const res = await fetch(apiUrl("/api/grupo/cadastro"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(corpo),
+  }).catch(() => null);
+  if (!res) return "Erro de conexão. Tente novamente.";
+  if (res.ok) return null;
+  const json = (await res.json().catch(() => ({}))) as { error?: string };
+  return json.error ?? "Não foi possível concluir o cadastro.";
+}
 
 interface EventoInscricao {
   id: string;
@@ -247,7 +264,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
           return;
         }
 
-        if (!["org_admin", "org_membro"].includes(usuario.role)) {
+        if (!ROLES_GRUPO.includes(usuario.role)) {
           setErroLogin("Sua conta não possui permissão para continuar esta inscrição.");
           return;
         }
@@ -257,12 +274,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
           return;
         }
 
-        const { error: inscricaoError } = await supabase
-          .from("inscricoes_grupo_evento")
-          .upsert(
-            { grupo_id: usuario.organizacao_id, evento_id: eventoId, status: "ativo", origem: "landing" },
-            { onConflict: "grupo_id,evento_id" }
-          );
+        const inscricaoError = await cadastrarNoServidor({ evento_id: eventoId });
 
         if (inscricaoError) {
           setErroLogin("Seu login foi realizado, mas não foi possível registrar a inscrição.");
@@ -301,49 +313,22 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
           return;
         }
 
-        const { data: grupo, error: grupoError } = await supabase
-          .from("grupos")
-          .insert({
+        const erroServidor = await cadastrarNoServidor({
+          evento_id: eventoId,
+          grupo: {
             nome: cadastroPendente.nome,
             documento: cadastroPendente.documento,
             tipo_documento: cadastroPendente.tipoDoc,
-            email: cadastroPendente.email,
             email_contato: cadastroPendente.emailContato || null,
             responsavel: cadastroPendente.responsavel,
-            telefone: onlyDigits(cadastroPendente.telefone),
+            telefone: cadastroPendente.telefone,
             cidade: cadastroPendente.cidade,
             estado: cadastroPendente.estado,
-          })
-          .select("id")
-          .single();
-
-        if (grupoError || !grupo) {
-          setErroCadastro("Sua conta foi confirmada, mas não foi possível salvar o grupo.");
-          return;
-        }
-
-        const { error: usuarioError } = await supabase.from("usuarios").insert({
-          id: authLogin.user.id,
-          email: cadastroPendente.email,
-          nome: cadastroPendente.responsavel,
-          role: "org_admin",
-          organizacao_id: grupo.id,
+          },
         });
 
-        if (usuarioError) {
-          setErroCadastro("Sua conta foi confirmada, mas não foi possível vincular o usuário ao grupo.");
-          return;
-        }
-
-        const { error: inscricaoError } = await supabase.from("inscricoes_grupo_evento").insert({
-          grupo_id: grupo.id,
-          evento_id: eventoId,
-          status: "ativo",
-          origem: "landing",
-        });
-
-        if (inscricaoError) {
-          setErroCadastro("Conta confirmada, mas houve um erro ao registrar a inscrição.");
+        if (erroServidor) {
+          setErroCadastro(`Sua conta foi confirmada, mas: ${erroServidor}`);
           return;
         }
 
@@ -385,7 +370,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
             data: {
               nome: responsavel,
             },
-            emailRedirectTo: `https://arxum.csstudios.site/fest/grupo/login`,
+            emailRedirectTo: `${window.location.origin}${BASE_PATH}/inscricao/${eventoId}`,
           },
         });
 
@@ -406,49 +391,22 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
           return;
         }
 
-        const { data: grupo, error: grupoError } = await supabase
-          .from("grupos")
-          .insert({
+        const erroServidor = await cadastrarNoServidor({
+          evento_id: eventoId,
+          grupo: {
             nome: nomeGrupo,
             documento: documentoLimpo,
             tipo_documento: tipoDocumento,
-            email,
             email_contato: emailContato || null,
             responsavel,
-            telefone: onlyDigits(telefone),
+            telefone,
             cidade,
             estado,
-          })
-          .select("id")
-          .single();
-
-        if (grupoError || !grupo) {
-          setErroCadastro("Sua conta foi criada, mas não foi possível salvar o grupo.");
-          return;
-        }
-
-        const { error: usuarioError } = await supabase.from("usuarios").insert({
-          id: authData.user.id,
-          email,
-          nome: responsavel,
-          role: "org_admin",
-          organizacao_id: grupo.id,
+          },
         });
 
-        if (usuarioError) {
-          setErroCadastro("Sua conta foi criada, mas não foi possível vincular o usuário ao grupo.");
-          return;
-        }
-
-        const { error: inscricaoError } = await supabase.from("inscricoes_grupo_evento").insert({
-          grupo_id: grupo.id,
-          evento_id: eventoId,
-          status: "ativo",
-          origem: "landing",
-        });
-
-        if (inscricaoError) {
-          setErroCadastro("Cadastro concluído, mas houve um erro ao registrar a inscrição.");
+        if (erroServidor) {
+          setErroCadastro(`Sua conta foi criada, mas: ${erroServidor}`);
           return;
         }
 

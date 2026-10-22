@@ -1,30 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { exigirArea } from "@/lib/auth/guards";
+import { ROLES_GRUPO } from "@/lib/auth/roles";
 import GrupoShell from "../_components/EscolaShell";
-
-const ROLES_GRUPO = ["org_admin", "org_membro"];
 
 export default async function GrupoProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session) {
-    redirect("/grupo/login");
-  }
-
-  const { data: userData, error } = await supabase
-    .from("usuarios")
-    .select("role, organizacao_id")
-    .eq("id", session.user.id)
-    .single();
-
-  if (error || !userData || !ROLES_GRUPO.includes(userData.role)) {
-    redirect("/grupo/login");
-  }
+  await exigirArea(ROLES_GRUPO, { login: "/grupo/login", area: "/grupo" });
 
   return <GrupoShell>{children}</GrupoShell>;
 }

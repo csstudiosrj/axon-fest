@@ -16,6 +16,7 @@ import {
   Users,
   CalendarCheck,
 } from "lucide-react";
+import { apiUrl } from "@/lib/base-path";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -115,7 +116,7 @@ export default function ConfirmarParticipacaoPage() {
     setCarregando(true);
     setErro(null);
     try {
-      const res = await fetch("/api/confirmar-participacao", {
+      const res = await fetch(apiUrl("/api/confirmar-participacao"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, action: "carregar_dados" }),
@@ -164,7 +165,7 @@ export default function ConfirmarParticipacaoPage() {
     setUpdateLoading(true);
     setErro(null);
     try {
-      const res = await fetch("/api/confirmar-participacao", {
+      const res = await fetch(apiUrl("/api/confirmar-participacao"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, action: "confirmar_presenca" }),
@@ -198,7 +199,7 @@ export default function ConfirmarParticipacaoPage() {
     setUpdateLoading(true);
     setErro(null);
     try {
-      const res = await fetch("/api/confirmar-participacao", {
+      const res = await fetch(apiUrl("/api/confirmar-participacao"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -237,7 +238,7 @@ export default function ConfirmarParticipacaoPage() {
     setUpdateLoading(true);
     setErro(null);
     try {
-      const res = await fetch("/api/confirmar-participacao", {
+      const res = await fetch(apiUrl("/api/confirmar-participacao"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -270,7 +271,7 @@ export default function ConfirmarParticipacaoPage() {
     setEnviandoEmail(true);
     setErro(null);
     try {
-      const res = await fetch("/api/confirmar-participacao", {
+      const res = await fetch(apiUrl("/api/confirmar-participacao"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

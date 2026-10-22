@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { apiUrl } from "@/lib/base-path";
 import {
   Search,
   Plus,
@@ -765,7 +766,6 @@ function ModalParticipante({
 interface ModalVincularProps {
   open: boolean;
   grupoId: string;
-  grupoNome: string;
   onClose: () => void;
   onVinculado: () => void;
   opcoesFuncao: string[];
@@ -774,7 +774,6 @@ interface ModalVincularProps {
 function ModalVincular({
   open,
   grupoId,
-  grupoNome,
   onClose,
   onVinculado,
   opcoesFuncao,
@@ -857,16 +856,11 @@ function ModalVincular({
       return;
     }
 
-    await fetch("/api/enviar-confirmacao-vinculo", {
+    // Destinatário e dados do e-mail são buscados no servidor a partir do token
+    await fetch(apiUrl("/api/enviar-confirmacao-vinculo"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: selecionado.email_contato,
-        nome: selecionado.nome,
-        grupoNome: grupoNome,
-        funcao: funcao,
-        token: token,
-      }),
+      body: JSON.stringify({ token }),
     }).catch(console.error);
 
     onVinculado();
@@ -1420,7 +1414,6 @@ function DrawerGrupo({
       <ModalVincular
         open={modalVincular}
         grupoId={grupo.id}
-        grupoNome={grupo.nome}
         onClose={() => setModalVincular(false)}
         onVinculado={() => {
           carregarDados();

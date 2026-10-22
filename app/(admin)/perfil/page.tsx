@@ -225,15 +225,15 @@ export default function PerfilPage() {
   // ── Carregar perfil ──
   useEffect(() => {
     async function carregar() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      setEmail(session.user.email ?? "");
+      setEmail(user.email ?? "");
 
       const { data } = await supabase
         .from("usuarios")
         .select("id, nome, telefone, foto_url, role")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single();
 
       if (data) {

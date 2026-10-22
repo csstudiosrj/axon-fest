@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { UploadButton } from "@/utils/uploadthing";
+import { BASE_PATH, apiUrl } from "@/lib/base-path";
 import {
   Plus,
   X,
@@ -145,18 +146,35 @@ function ModalJurado({ termo, produtoraId, jurado, onClose, onSaved }: ModalJura
     setVerificandoEmail(true);
 
     const timer = window.setTimeout(async () => {
-      const supabase = createClient();
-
-      const { data } = await supabase
-        .from("usuarios")
-        .select("id, nome, email, telefone, role, produtora_id, foto_url, mini_bio")
-        .eq("email", emailNormalizado)
-        .limit(1)
-        .maybeSingle();
+      // Verificação feita no servidor: não expõe dados de contas de outras produtoras
+      const res = await fetch(apiUrl("/api/invite"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verificar_email", email: emailNormalizado }),
+      }).catch(() => null);
+      const data = res?.ok
+        ? ((await res.json()) as {
+            existe: boolean;
+            id?: string | null;
+            role?: string;
+            nome_mascarado?: string;
+            mesma_produtora?: boolean;
+            sem_produtora?: boolean;
+          })
+        : null;
 
       if (currentRequest !== emailCheckRef.current) return;
 
-      const existente = (data as UsuarioExistente | null) ?? null;
+      const existente: UsuarioExistente | null = data?.existe
+        ? {
+            id: data.id ?? "",
+            nome: data.nome_mascarado ?? null,
+            email: emailNormalizado,
+            telefone: null,
+            role: data.role ?? null,
+            produtora_id: data.sem_produtora ? null : data.mesma_produtora ? produtoraId : "outra",
+          }
+        : null;
       setUsuarioExistente(existente);
       setVerificandoEmail(false);
     }, 400);
@@ -237,43 +255,17 @@ function ModalJurado({ termo, produtoraId, jurado, onClose, onSaved }: ModalJura
       return;
     }
 
-    if (usuarioExistente && usuarioSemProdutora) {
-      const { error: vinculoError } = await supabase
-        .from("usuarios")
-        .update({
-          produtora_id: produtoraId,
-          nome: nome.trim(),
-          telefone: telefone.replace(/\D/g, "") || null,
-          foto_url: fotoUrl,
-          mini_bio: miniBio.trim() || null,
-        })
-        .eq("id", usuarioExistente.id);
-
-      if (vinculoError) {
-        setErro("Erro ao vincular o jurado existente à produtora.");
-        setSalvando(false);
-        return;
-      }
-
-      setSalvando(false);
-      setEtapa("confirmacao");
-      onSaved();
-      return;
-    }
-
-    const isFest =
-      typeof window !== "undefined" && window.location.pathname.startsWith("/fest");
-    const urlConvite = isFest ? "/fest/api/convite" : "/api/convite";
-
-    const res = await fetch(urlConvite, {
+    // Convite (ou revínculo de jurado sem produtora) feito no servidor,
+    // que valida cargo e produtora de quem chama
+    const res = await fetch(apiUrl("/api/invite"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        action: "invite",
         email: email.trim().toLowerCase(),
         nome: nome.trim(),
         telefone: telefone.replace(/\D/g, "") || null,
         role: "jurado",
-        produtora_id: produtoraId,
         foto_url: fotoUrl,
         mini_bio: miniBio.trim() || null,
       }),
@@ -287,32 +279,6 @@ function ModalJurado({ termo, produtoraId, jurado, onClose, onSaved }: ModalJura
       return;
     }
 
-    const { data: usuarioCriado, error: usuarioError } = await supabase
-      .from("usuarios")
-      .select("id, produtora_id")
-      .eq("email", email.trim().toLowerCase())
-      .maybeSingle();
-
-    if (usuarioError || !usuarioCriado) {
-      setErro("Usuário convidado, mas não foi possível localizar o cadastro criado.");
-      setSalvando(false);
-      return;
-    }
-
-    const usuarioCriadoTyped = usuarioCriado as { id: string; produtora_id: string | null };
-
-    await supabase
-      .from("usuarios")
-      .update({
-        produtora_id: usuarioCriadoTyped.produtora_id ?? produtoraId,
-        foto_url: fotoUrl,
-        mini_bio: miniBio.trim() || null,
-        telefone: telefone.replace(/\D/g, "") || null,
-        nome: nome.trim(),
-      })
-      .eq("id", usuarioCriadoTyped.id);
-
-    // Correção: bloco de update condicional removido (já tratado acima)
 
     setSalvando(false);
     setEtapa("confirmacao");
@@ -320,14 +286,14 @@ function ModalJurado({ termo, produtoraId, jurado, onClose, onSaved }: ModalJura
   }
 
   function copiarLink() {
-    navigator.clipboard.writeText(`${window.location.origin}/jurado`);
+    navigator.clipboard.writeText(`${window.location.origin}${BASE_PATH}/login`);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   }
 
   function abrirWhatsApp() {
     const numeroLimpo = telefone.replace(/\D/g, "");
-    const link = `${window.location.origin}/jurado`;
+    const link = `${window.location.origin}${BASE_PATH}/login`;
     const msg = encodeURIComponent(
       `Olá, ${nome.trim()}! Você foi convidado para ser jurado em ${termo.organizacao}.\n\nAcesse o link para criar sua senha:\n\n${link}`
     );
@@ -868,16 +834,16 @@ export default function JuradosPage() {
   async function excluirJurado(jurado: Jurado | null): Promise<string | null> {
     if (!jurado || !produtoraId) return null;
 
-    const supabase = createClient();
+    const res = await fetch(apiUrl("/api/invite"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "remove", userId: jurado.id }),
+    });
 
-    const { error } = await supabase
-      .from("usuarios")
-      .delete()
-      .eq("id", jurado.id)
-      .eq("produtora_id", produtoraId)
-      .eq("role", "jurado");
-
-    if (error) return error.message;
+    if (!res.ok) {
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      return json.error || "Erro ao remover jurado.";
+    }
 
     await carregar();
     return null;

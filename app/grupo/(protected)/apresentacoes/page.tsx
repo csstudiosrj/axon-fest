@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { uploadFiles } from "@/utils/uploadthing";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -109,7 +110,6 @@ type Labels = {
 };
 
 const supabase = createClient();
-const UPLOADTHING_ROUTE = "festival-media";
 let toastId = 0;
 
 function cn(...items: Array<string | false | null | undefined>) {
@@ -252,18 +252,14 @@ function ListEditor({
   );
 }
 
-async function uploadViaUploadThing(file: File) {
-  const formData = new FormData();
-  formData.append("files", file);
-  formData.append("routeSlug", UPLOADTHING_ROUTE);
+async function uploadViaUploadThing(
+  file: File,
+  endpoint: "musicUploader" | "mapaDeLuzUploader"
+) {
+  const [first] = await uploadFiles(endpoint, { files: [file] });
+  if (!first) throw new Error("Falha ao enviar arquivo.");
 
-  const response = await fetch("/api/uploadthing", { method: "POST", body: formData });
-  if (!response.ok) throw new Error("Falha ao enviar arquivo.");
-
-  const result = await response.json();
-  const first = Array.isArray(result) ? result[0] : result?.data?.[0] ?? result;
-
-  return { nome: first?.name ?? file.name, url: first?.url ?? first?.ufsUrl ?? "" } as UploadState;
+  return { nome: first.name ?? file.name, url: first.ufsUrl } as UploadState;
 }
 
 export default function ApresentacoesPage() {
@@ -418,7 +414,7 @@ export default function ApresentacoesPage() {
   async function handleAudio(file: File) {
     try {
       setUploadingAudio(true);
-      setArquivoAudio(await uploadViaUploadThing(file));
+      setArquivoAudio(await uploadViaUploadThing(file, "musicUploader"));
       addToast("sucesso", "Áudio enviado.");
     } catch (e) {
       addToast("erro", e instanceof Error ? e.message : "Erro ao enviar áudio.");
@@ -430,7 +426,7 @@ export default function ApresentacoesPage() {
   async function handleLight(file: File) {
     try {
       setUploadingLight(true);
-      setArquivoMapaLuz(await uploadViaUploadThing(file));
+      setArquivoMapaLuz(await uploadViaUploadThing(file, "mapaDeLuzUploader"));
       addToast("sucesso", "Mapa de luz enviado.");
     } catch (e) {
       addToast("erro", e instanceof Error ? e.message : "Erro ao enviar mapa de luz.");
