@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getUsuarioAtual, type UsuarioAtual } from "@/lib/auth/session";
 import { ROLES_GRUPO, ROLES_PAINEL_ADMIN } from "@/lib/auth/roles";
-import { urlAbsoluta } from "@/lib/base-path";
-import { emailComBotao, enviarEmail, escapeHtml } from "@/lib/email";
-import { nomeFuncao, perfilPorSlug } from "@/lib/perfis";
+import { enviarConfirmacaoVinculo } from "@/lib/grupo/vinculo";
 
 // Envia o e-mail de confirmação de vínculo participante ↔ grupo.
 // Recebe só o token: destinatário, nome, grupo e função vêm do banco, e quem
@@ -70,23 +68,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Participante sem e-mail de contato." }, { status: 400 });
     }
 
-    const funcao = nomeFuncao(perfilPorSlug(null), vinculo.funcao as string | null);
-
-    await enviarEmail({
-      para: participante.email_contato,
-      assunto: `Confirme seu vínculo ao grupo ${grupo.nome}`,
-      html: emailComBotao({
-        titulo: `Olá, ${escapeHtml(participante.nome)}!`,
-        paragrafos: [
-          `Você foi adicionado(a) ao grupo <strong>${escapeHtml(grupo.nome)}</strong> no ARXUM Fest.`,
-          `<strong>Sua função neste grupo:</strong> ${escapeHtml(funcao)}`,
-          "Para confirmar seu vínculo e participar dos festivais, clique no link abaixo:",
-        ],
-        botaoTexto: "Confirmar vínculo",
-        botaoUrl: urlAbsoluta(`/confirmar-participacao/${encodeURIComponent(token)}`),
-        rodape: "Se você não reconhece este vínculo, ignore este e-mail.",
-      }),
-    });
+    await enviarConfirmacaoVinculo(admin, token);
 
     return NextResponse.json({ success: true });
   } catch (error) {
