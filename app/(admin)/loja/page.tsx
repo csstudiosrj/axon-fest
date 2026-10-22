@@ -425,14 +425,14 @@ export default function LojaPage() {
   useEffect(() => {
     async function obterProdutora() {
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
       const { data: usuario } = await supabase
         .from("usuarios")
         .select("produtora_id")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single();
       if (usuario?.produtora_id) {
         setProdutoraId(usuario.produtora_id);

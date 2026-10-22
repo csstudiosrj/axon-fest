@@ -563,10 +563,10 @@ export default function MarketingPage() {
     setCarregandoEventos(true);
 
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    const userId = session?.user?.id;
+    const userId = user?.id;
 
     if (!userId) {
       setEventos([]);

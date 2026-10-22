@@ -1,54 +1,20 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { exigirArea } from "@/lib/auth/guards";
+import { ROLES_PAINEL_ADMIN } from "@/lib/auth/roles";
 import AdminShell from "./_components/AdminShell";
-
-// Lista de roles permitidas no painel admin (organizador/produtora)
-const ROLES_PERMITIDAS = [
-  "admin",
-  "super_admin",
-  "produtora_admin",
-  "produtora_staff",
-];
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
+  // Sessão validada no servidor (getUser) + cargo do painel da produtora
+  const usuario = await exigirArea(ROLES_PAINEL_ADMIN, { login: "/login", area: "/dashboard" });
 
-  // 1. Verifica sessão
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  // 2. Busca dados do usuário (role, nome, email)
-  const { data: userData, error } = await supabase
-    .from("usuarios")
-    .select("role, nome, email")
-    .eq("id", session.user.id)
-    .single();
-
-  if (error || !userData) {
-    // Se não encontrar na tabela, redireciona
-    redirect("/login");
-  }
-
-  // 3. Verifica se a role é permitida
-  if (!ROLES_PERMITIDAS.includes(userData.role)) {
-    redirect("/login");
-  }
-
-  // 4. Passa os dados do usuário para o shell cliente
   return (
     <AdminShell
-      userEmail={userData.email || session.user.email || ""}
-      userName={userData.nome || "Organizador"}
-      userRole={userData.role}
+      userEmail={usuario.email}
+      userName={usuario.nome || "Organizador"}
+      userRole={usuario.role}
     >
       {children}
     </AdminShell>

@@ -6,7 +6,9 @@ import {
   Send, CheckCircle, AlertCircle,
   Loader2, ChevronDown, Crown, Users, X, AlertTriangle
 } from "lucide-react";
-import { createClient } from "../../../lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
+import { HIERARQUIA, podeAtribuir } from "@/lib/auth/roles";
+import { apiUrl } from "@/lib/base-path";
 
 const supabase = createClient();
 
@@ -38,17 +40,12 @@ const CARGOS: Record<string, { label: string; descricao: string; cor: string }> 
   produtor:    { label: "Produtor",        descricao: "PDV, Loja, Inscrições e Dashboard",               cor: "text-blue-400 bg-blue-400/10 border-blue-400/30" },
   marketing:   { label: "Marketing",       descricao: "Marketing, Dashboard e Inscrições (sem valores)", cor: "text-pink-400 bg-pink-400/10 border-pink-400/30" },
   assistente:  { label: "Assistente",      descricao: "Inscrições & Elenco e Mídias & Áudio",            cor: "text-green-400 bg-green-400/10 border-green-400/30" },
+  operador:    { label: "Operador",        descricao: "Caixa e bilheteria no celular (login + PIN)",     cor: "text-amber-400 bg-amber-400/10 border-amber-400/30" },
   org_admin:   { label: "Admin do Grupo",  descricao: "Administração do grupo (elenco, inscrições)",     cor: "text-orange-400 bg-orange-400/10 border-orange-400/30" },
   org_membro:  { label: "Membro do Grupo", descricao: "Acesso básico ao portal do grupo",                cor: "text-cyan-400 bg-cyan-400/10 border-cyan-400/30" },
   jurado:      { label: "Jurado",          descricao: "Acesso ao portal de avaliação",                   cor: "text-rose-400 bg-rose-400/10 border-rose-400/30" },
 };
 
-const HIERARQUIA: Record<string, string[]> = {
-  super_admin: ["super_admin", "admin", "produtor", "marketing", "assistente", "org_admin", "org_membro"],
-  admin:       ["produtor", "marketing", "assistente", "org_admin", "org_membro"],
-  produtor:    ["org_admin", "org_membro"],
-  marketing:   [], assistente: [], org_admin: [], org_membro: [], jurado: [],
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -149,7 +146,7 @@ function ModalEditarCargo({
   onCancelar: () => void; salvando: boolean;
 }) {
   const [roleAtual, setRoleAtual] = useState(usuario.role);
-  const cargosPermitidos = HIERARQUIA[inviterRole] ?? [];
+  const cargosPermitidos: readonly string[] = HIERARQUIA[inviterRole] ?? [];
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -233,8 +230,18 @@ function ModalConvidar({
   const [role, setRole] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
+  const [produtoras, setProdutoras] = useState<{ id: string; nome: string }[]>([]);
+  const [produtoraId, setProdutoraId] = useState("");
+  const isSuperAdmin = inviterRole === "super_admin";
 
-  const cargosPermitidos = HIERARQUIA[inviterRole] ?? [];
+  const cargosPermitidos: readonly string[] = HIERARQUIA[inviterRole] ?? [];
+
+  // Super admin não tem produtora: escolhe em qual produtora está criando o acesso
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    supabase.from("produtoras").select("id, nome").order("nome")
+      .then(({ data }) => setProdutoras((data as { id: string; nome: string }[] | null) ?? []));
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -246,12 +253,13 @@ function ModalConvidar({
 
   const handleSubmit = async () => {
     if (!email || !role) { setErro("Preencha e-mail e cargo."); return; }
+    if (isSuperAdmin && !produtoraId) { setErro("Selecione a produtora."); return; }
     setErro(""); setEnviando(true);
     try {
-      const res = await fetch("/api/invite", {
+      const res = await fetch(apiUrl("/api/invite"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role, action: "invite" }),
+        body: JSON.stringify({ email, role, action: "invite", ...(isSuperAdmin ? { produtora_id: produtoraId } : {}) }),
       });
       const json = await res.json();
       if (!res.ok) { setErro(json.error ?? "Erro desconhecido."); setEnviando(false); return; }
@@ -288,6 +296,24 @@ function ModalConvidar({
               className="w-full bg-axon-bg border border-axon-border rounded-xl pl-10 pr-4 py-3 text-white text-sm focus:outline-none focus:border-axon-gold placeholder:text-gray-600" />
           </div>
         </div>
+
+        {/* Produtora (somente super admin) */}
+        {isSuperAdmin && (
+          <div className="space-y-1.5">
+            <label className="text-xs text-gray-400 uppercase tracking-wider">Produtora</label>
+            <div className="relative">
+              <Crown size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+              <select value={produtoraId} onChange={(e) => setProdutoraId(e.target.value)}
+                className="w-full bg-axon-bg border border-axon-border rounded-xl pl-10 pr-8 py-3 text-white text-sm focus:outline-none focus:border-axon-gold appearance-none">
+                <option value="">Selecione a produtora...</option>
+                {produtoras.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+            </div>
+          </div>
+        )}
 
         {/* Cargo */}
         <div className="space-y-1.5">
@@ -355,12 +381,12 @@ export default function UsuariosPage() {
 
   const carregar = async () => {
     setCarregando(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    setMeuId(session.user.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setMeuId(user.id);
 
     const { data: eu } = await supabase
-      .from("usuarios").select("role, produtora_id").eq("id", session.user.id).single();
+      .from("usuarios").select("role, produtora_id").eq("id", user.id).single();
     if (eu) {
       setInviterRole(eu.role);
       if (eu.produtora_id) {
@@ -373,8 +399,14 @@ export default function UsuariosPage() {
       }
     }
 
-    const { data } = await supabase
-      .from("usuarios").select("id, email, nome, role, foto_url").order("role");
+    // Admin vê só a própria produtora; super admin vê todas
+    let query = supabase
+      .from("usuarios").select("id, email, nome, role, foto_url, produtora_id").order("role");
+    if (eu?.role !== "super_admin") {
+      if (!eu?.produtora_id) { setUsuarios([]); setCarregando(false); return; }
+      query = query.eq("produtora_id", eu.produtora_id);
+    }
+    const { data } = await query;
     if (data) setUsuarios(data as Usuario[]);
     setCarregando(false);
   };
@@ -386,7 +418,7 @@ export default function UsuariosPage() {
     if (!modalEditar) return;
     setSalvandoEdicao(true);
     try {
-      const res = await fetch("/api/invite", {
+      const res = await fetch(apiUrl("/api/invite"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update", userId: modalEditar.id, role: novoRole }),
@@ -408,7 +440,7 @@ export default function UsuariosPage() {
     if (!modalExcluir) return;
     setExcluindo(true);
     try {
-      const res = await fetch("/api/invite", {
+      const res = await fetch(apiUrl("/api/invite"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "remove", userId: modalExcluir.id }),
@@ -426,14 +458,11 @@ export default function UsuariosPage() {
   };
 
   // ── Helpers de permissão ──
-  const podeEditar = (u: Usuario) =>
-    u.id !== meuId && (HIERARQUIA[inviterRole] ?? []).includes(u.role);
+  const podeEditar = (u: Usuario) => u.id !== meuId && podeAtribuir(inviterRole, u.role);
 
-  const podeExcluir = (u: Usuario) =>
-    u.id !== meuId && u.role !== "super_admin" &&
-    (inviterRole === "super_admin" || (HIERARQUIA[inviterRole] ?? []).includes(u.role));
+  const podeExcluir = podeEditar;
 
-  const podeConvidar = (HIERARQUIA[inviterRole] ?? []).length > 0;
+  const podeConvidar = !!HIERARQUIA[inviterRole];
 
   return (
     <>

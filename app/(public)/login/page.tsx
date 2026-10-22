@@ -1,17 +1,35 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
+import { ROLES, ROLES_GRUPO, ROLES_PAINEL_ADMIN, destinoPorRole } from "@/lib/auth/roles";
 
-const ROLES_ADMIN = ["admin", "super_admin", "produtora_admin", "produtora_staff"];
+// Login único da produtora, operador (caixa) e jurado. Grupos também são aceitos.
+const ROLES_LOGIN: readonly string[] = [...ROLES, ...ROLES_PAINEL_ADMIN, ...ROLES_GRUPO];
 
-export default function AdminLoginPage() {
+const MENSAGENS_ERRO: Record<string, string> = {
+  "sem-acesso": "Sua conta não tem acesso a esta área.",
+  "link-invalido": "Link inválido ou expirado. Peça um novo convite à organização.",
+};
+
+// Só aceita caminhos internos em ?next= (evita open redirect)
+function destinoSeguro(next: string | null, padrao: string): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return padrao;
+  return next;
+}
+
+export default function AdminLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erro?: string; next?: string }>;
+}) {
+  const params = use(searchParams);
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState((params.erro && MENSAGENS_ERRO[params.erro]) || "");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -42,14 +60,14 @@ export default function AdminLoginPage() {
           return;
         }
 
-        if (!ROLES_ADMIN.includes(userData.role)) {
+        if (!ROLES_LOGIN.includes(userData.role)) {
           await supabase.auth.signOut();
           setError("Acesso negado. Área restrita à organização do festival.");
           setLoading(false);
           return;
         }
 
-        router.push("/dashboard");
+        router.push(destinoSeguro(params.next ?? null, destinoPorRole(userData.role)));
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);

@@ -3,9 +3,10 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ROLES_GRUPO } from "@/lib/auth/roles";
+import { BASE_PATH, apiUrl } from "@/lib/base-path";
 import { Loader2 } from "lucide-react";
 
-const ROLES_GRUPO = ["org_admin", "org_membro"];
 
 export default function GrupoLoginPage() {
   const router = useRouter();
@@ -39,16 +40,28 @@ export default function GrupoLoginPage() {
           .from("usuarios")
           .select("role, organizacao_id, produtora_id")
           .eq("id", authData.session.user.id)
-          .single();
+          .maybeSingle();
 
-        if (userError || !userData) {
+        let role = userData?.role as string | undefined;
+
+        // Primeiro login após confirmar o e-mail: cria o cadastro no servidor
+        if (!userData && !userError) {
+          const res = await fetch(apiUrl("/api/grupo/cadastro"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }).catch(() => null);
+          if (res?.ok) role = "org_admin";
+        }
+
+        if (!role) {
           await supabase.auth.signOut();
           setError("Erro ao verificar permissões. Contate o suporte.");
           setLoading(false);
           return;
         }
 
-        if (!ROLES_GRUPO.includes(userData.role)) {
+        if (!ROLES_GRUPO.includes(role)) {
           await supabase.auth.signOut();
           setError("Acesso negado. Área restrita às organizações participantes.");
           setLoading(false);
@@ -83,23 +96,23 @@ export default function GrupoLoginPage() {
         email: emailValue,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/grupo/login`,
+          emailRedirectTo: `${window.location.origin}${BASE_PATH}/grupo/login`,
+          data: { nome: nome.trim() },
         },
       });
 
       if (authError) throw authError;
 
       if (authData.user) {
-        const { error: userError } = await supabase
-          .from("usuarios")
-          .insert({
-            id: authData.user.id,
-            nome: nome.trim(),
-            email: emailValue,
-            role: "org_admin",
+        // Com sessão (confirmação de e-mail desligada) já cria o cadastro;
+        // sem sessão, ele é criado no primeiro login (handleLogin).
+        if (authData.session) {
+          await fetch(apiUrl("/api/grupo/cadastro"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nome_usuario: nome.trim() }),
           });
-
-        if (userError) throw userError;
+        }
 
         setError("Cadastro realizado! Verifique seu email para confirmar a conta.");
         setIsLogin(true);

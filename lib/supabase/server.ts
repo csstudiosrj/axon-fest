@@ -1,3 +1,4 @@
+import "server-only";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
@@ -22,7 +23,7 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // Server Component — middleware cuida dos cookies
+            // Server Component — o proxy (proxy.ts) cuida da renovação dos cookies
           }
         },
       },
@@ -30,26 +31,14 @@ export async function createClient() {
   );
 }
 
-// Client admin com service role — nunca exposto ao browser
-function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE!
-  );
-}
-
-// Busca a role do usuário autenticado via service role (bypassa RLS corretamente)
-export async function getUserRole(): Promise<string | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("usuarios")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  return data?.role ?? null;
+// Client admin com service role — ignora RLS. Só usar em rotas/server code
+// DEPOIS de validar quem está chamando. Nunca exposto ao browser.
+export function createAdminClient() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY não configurada.");
+  }
+  return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
