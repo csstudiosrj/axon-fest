@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { Tables, TablesUpdate } from "@/lib/supabase/database.types";
 import { maiuscula, perfilPorSlug } from "@/lib/perfis";
 import { apiUrl } from "@/lib/base-path";
 import {
@@ -30,30 +31,9 @@ const supabase = createClient();
 // ============================================================
 // TIPOS
 // ============================================================
-interface Grupo {
-  id: string;
-  nome: string;
-  responsavel: string | null;
-  telefone: string | null;
-  email: string;
-  documento: string | null;
-  tipo_documento: "cpf" | "cnpj" | null;
-  created_at: string;
-  origem_produtora_id: string | null;
-}
+type Grupo = Pick<Tables<"grupos">, "id" | "nome" | "responsavel" | "telefone" | "email" | "documento" | "tipo_documento" | "created_at" | "origem_produtora_id">;
 
-interface Participante {
-  id: string;
-  nome: string;
-  nome_artistico: string | null;
-  documento: string | null;
-  data_nascimento: string;
-  email_contato: string | null;
-  termo_assinado: boolean;
-  funcao: string | null;
-  created_at: string;
-  origem_produtora_id: string | null;
-}
+type Participante = Pick<Tables<"participantes">, "id" | "nome" | "nome_artistico" | "documento" | "data_nascimento" | "email_contato" | "termo_assinado" | "funcao" | "created_at" | "origem_produtora_id">;
 
 interface Vinculo {
   id: string;
@@ -213,7 +193,7 @@ function ModalGrupo({
       setResponsavel(grupo.responsavel || "");
       setTelefone(grupo.telefone || "");
       setEmail(grupo.email);
-      setTipoDocumento(grupo.tipo_documento || "cnpj");
+      setTipoDocumento(grupo.tipo_documento === "cpf" ? "cpf" : "cnpj");
       setDocumento(grupo.documento || "");
     } else {
       setNome("");
@@ -458,7 +438,7 @@ function ModalParticipante({
       setCpf(participante.documento || "");
       setDataNascimento(participante.data_nascimento || "");
       setEmailContato(participante.email_contato || "");
-      setTermoAssinado(participante.termo_assinado);
+      setTermoAssinado(!!participante.termo_assinado);
       setFuncao(participante.funcao || opcoesFuncao[0] || "Outro");
     } else {
       setNome("");
@@ -522,10 +502,11 @@ function ModalParticipante({
     if (!emailContato.trim())
       return setErro("E-mail de contato é obrigatório.");
     if (!funcao) return setErro("Selecione a função.");
+    if (!dataNascimento) return setErro("Data de nascimento é obrigatória.");
     setSalvando(true);
 
     if (participante) {
-      const updateData: Record<string, unknown> = {
+      const updateData: TablesUpdate<"participantes"> = {
         nome_artistico: nomeArtistico.trim() || null,
         email_contato: emailContato.trim(),
         termo_assinado: termoAssinado,
@@ -534,7 +515,7 @@ function ModalParticipante({
       if (isSuperAdmin) {
         updateData.nome = nome.trim();
         updateData.documento = cpfLimpo;
-        updateData.data_nascimento = dataNascimento || null;
+        updateData.data_nascimento = dataNascimento;
       }
       const { error } = await supabase
         .from("participantes")
@@ -547,7 +528,7 @@ function ModalParticipante({
         nome: nome.trim(),
         nome_artistico: nomeArtistico.trim() || null,
         documento: cpfLimpo,
-        data_nascimento: dataNascimento || null,
+        data_nascimento: dataNascimento,
         email_contato: emailContato.trim(),
         termo_assinado: termoAssinado,
         funcao: funcao,
@@ -1238,7 +1219,7 @@ function DrawerGrupo({
           const base = part ?? fallback;
           return {
             ...base,
-            funcao: v.funcao,
+            funcao: v.funcao ?? "",
             confirmado: v.confirmado,
             vinculoId: v.id,
             bloqueado: bloqueadosIds.includes(v.participante_id),

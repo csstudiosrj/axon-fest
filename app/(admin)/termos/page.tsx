@@ -32,7 +32,7 @@ interface Documento {
   id: string;
   tipo: "regulamento" | "uso_imagem" | "autorizacao_menores";
   titulo: string;
-  conteudo: string | null;
+  conteudo: string;
   versao: number;
   ativo: boolean;
   atualizado_em: string;
@@ -55,12 +55,6 @@ interface Evento {
   nome: string;
 }
 
-interface SupabaseParticipanteRow {
-  id: string;
-  nome: string;
-  termo_assinado: boolean | null;
-  escola: { nome: string } | { nome: string }[] | null;
-}
 
 // ─── Cliente Supabase Global ─────────────────────────────────────────────────
 
@@ -245,7 +239,7 @@ function DocumentoEditor({
           : tipo === "uso_imagem"
           ? "Termo de Uso de Imagem"
           : "Autorização para Menores de Idade",
-      conteudo: formato === "html" ? conteudoHtml : null,
+      conteudo: formato === "html" ? conteudoHtml : "",
       formato,
       arquivo_url: formato === "pdf" ? arquivoUrl : null,
       exibir_publico: tipo === "regulamento" ? true : exibirPublico,
@@ -471,25 +465,22 @@ function StatusAssinaturas({
   useEffect(() => {
     if (!eventoId) return;
     setCarregando(true);
+    // Quem está no elenco de alguma apresentação do evento (sem repetir pessoas)
     supabase
-      .from("participantes")
-      .select("id, nome: nome_completo, termo_assinado, escola:escolas(nome)")
-      .eq("festival_id", eventoId)
-      .eq("produtora_id", produtoraId)
-      .order("created_at", { ascending: false })
+      .from("apresentacoes")
+      .select("grupos ( nome ), apresentacao_elenco ( participantes ( id, nome, termo_assinado ) )")
+      .eq("evento_id", eventoId)
       .then(({ data }) => {
-        const rows = (data as unknown as SupabaseParticipanteRow[]) ?? [];
-        const status: ParticipanteStatus[] = rows.map((p) => {
-          const escolaData = Array.isArray(p.escola) ? p.escola[0] : p.escola;
-          const escola_nome = escolaData?.nome ?? "—";
-          return {
-            id: p.id,
-            nome: p.nome,
-            termo_assinado: p.termo_assinado ?? false,
-            escola_nome,
-          };
-        });
-        setParticipantes(status);
+        const porId = new Map<string, ParticipanteStatus>();
+        for (const ap of data ?? []) {
+          const grupo = Array.isArray(ap.grupos) ? ap.grupos[0] : ap.grupos;
+          for (const el of ap.apresentacao_elenco ?? []) {
+            const p = Array.isArray(el.participantes) ? el.participantes[0] : el.participantes;
+            if (!p || porId.has(p.id)) continue;
+            porId.set(p.id, { id: p.id, nome: p.nome, termo_assinado: !!p.termo_assinado, escola_nome: grupo?.nome ?? "—" });
+          }
+        }
+        setParticipantes([...porId.values()].sort((x, y) => x.nome.localeCompare(y.nome, "pt-BR")));
         setCarregando(false);
       });
   }, [eventoId, produtoraId]);
@@ -526,7 +517,7 @@ function StatusAssinaturas({
       {/* Busca */}
       <input
         type="text"
-        placeholder="Buscar participante ou escola..."
+        placeholder="Buscar pessoa ou grupo..."
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
         className="w-full bg-axon-bg border border-axon-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-axon-green placeholder:text-gray-600"
@@ -632,7 +623,7 @@ export default function TermosPage() {
       .select("*")
       .eq("produtora_id", produtoraId)
       .eq("evento_id", eventoSelecionadoId)
-      .order("created_at")
+      .order("criado_em")
       .then(({ data }) => {
         setDocumentos((data as Documento[]) ?? []);
       });
@@ -645,7 +636,8 @@ export default function TermosPage() {
   };
 
   const onSalvarDocumento = async (payload: Partial<Documento>) => {
-    if (!eventoSelecionadoId || !produtoraId) return;
+    if (!eventoSelecionadoId || !produtoraId || !payload.tipo) return;
+    const tipo = payload.tipo;
     setSalvando(true);
 
     const existente = documentos.find(
@@ -678,6 +670,8 @@ export default function TermosPage() {
         .from("termos_documentos")
         .insert({
           ...dataPayload,
+          tipo,
+          titulo: payload.titulo ?? "",
           versao: 1,
         })
         .select()

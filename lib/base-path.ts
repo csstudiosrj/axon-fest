@@ -10,7 +10,7 @@ export function apiUrl(path: `/${string}`): string {
 // NEXT_PUBLIC_APP_URL deve ser só a origem (ex.: https://arxum-fest.vercel.app),
 // mas aceitamos também com /fest no final para não quebrar configs antigas.
 export function urlAbsoluta(path: `/${string}`): string {
-  const origem = (process.env.NEXT_PUBLIC_APP_URL ?? "https://arxum-fest.vercel.app")
+  const origem = (process.env.NEXT_PUBLIC_APP_URL ?? "https://arxum.com.br")
     .replace(/\/+$/, "")
     .replace(new RegExp(`${BASE_PATH}$`), "");
   return `${origem}${BASE_PATH}${path}`;

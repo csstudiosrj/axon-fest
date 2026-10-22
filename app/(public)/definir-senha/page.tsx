@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -14,11 +14,28 @@ export default function DefinirSenhaPage() {
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Convidados chegam sem nome cadastrado: pedimos aqui (aparece para grupos e no site do evento)
+  const [precisaNome, setPrecisaNome] = useState(false);
+  const [nome, setNome] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("usuarios").select("nome").eq("id", user.id).maybeSingle();
+      if (data && !data.nome?.trim()) setPrecisaNome(true);
+    })();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
+    if (precisaNome && nome.trim().length < 3) {
+      setError("Informe seu nome completo.");
+      return;
+    }
     if (senha.length < 8) {
       setError("A senha deve ter pelo menos 8 caracteres.");
       return;
@@ -45,6 +62,8 @@ export default function DefinirSenhaPage() {
       return;
     }
 
+    if (precisaNome) await supabase.from("usuarios").update({ nome: nome.trim() }).eq("id", user.id);
+
     const { data: userData } = await supabase.from("usuarios").select("role").eq("id", user.id).maybeSingle();
     router.push(destinoPorRole(userData?.role ?? ""));
   };
@@ -64,6 +83,13 @@ export default function DefinirSenhaPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
+            {precisaNome && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Seu nome completo</label>
+                <input type="text" required autoComplete="name" value={nome}
+                  onChange={(e) => setNome(e.target.value)} className={inputClass} />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Nova senha</label>
               <input type="password" required autoComplete="new-password" value={senha}

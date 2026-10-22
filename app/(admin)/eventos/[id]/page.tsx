@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { SeletorPerfil } from "../../_components/SeletorPerfil";
+import { INFO_STATUS, STATUS_EVENTO, infoStatus, type StatusEvento } from "@/lib/eventos/status";
+import { LinksDivulgacao } from "./LinksDivulgacao";
 import {
   DragDropContext,
   Droppable,
@@ -163,12 +165,7 @@ const PRESETS: Record<
   },
 };
 
-type EventoStatus =
-  | "Em Montagem"
-  | "inscricoes_abertas"
-  | "inscricoes_prorrogadas"
-  | "adiado"
-  | "cancelado";
+type EventoStatus = StatusEvento;
 
 type EventoFormato = "competitivo" | "mostra" | "misto";
 
@@ -178,6 +175,7 @@ type TipoPremiacao =
   | "com_premiacao_dinheiro";
 
 type Evento = {
+  slug?: string | null;
   id: string;
   nome: string;
   data_inicio: string;
@@ -225,7 +223,7 @@ type Toast = {
 
 type JuradoCadastro = {
   id: string;
-  nome: string;
+  nome: string | null;
   email: string;
   telefone: string | null;
 };
@@ -313,29 +311,7 @@ const GENERO_LABELS: Record<string, string> = {
   misto: "Misto",
 };
 
-const STATUS_LABELS: Record<EventoStatus, string> = {
-  "Em Montagem": "Rascunho / Em Montagem",
-  inscricoes_abertas: "Inscrições Abertas",
-  inscricoes_prorrogadas: "Inscrições Prorrogadas",
-  adiado: "Adiado",
-  cancelado: "Cancelado",
-};
-
-const STATUS_CORES: Record<EventoStatus, string> = {
-  "Em Montagem": "text-gray-400 bg-white/5 border-white/10",
-  inscricoes_abertas: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  inscricoes_prorrogadas: "text-amber-300 bg-amber-500/10 border-amber-500/20",
-  adiado: "text-axon-gold bg-axon-gold/10 border-axon-gold/20",
-  cancelado: "text-red-400 bg-red-400/10 border-red-400/20",
-};
-
-const STATUS_OPTIONS: Array<{ value: EventoStatus; label: string }> = [
-  { value: "Em Montagem", label: "Rascunho / Em Montagem" },
-  { value: "inscricoes_abertas", label: "Inscrições Abertas" },
-  { value: "inscricoes_prorrogadas", label: "Inscrições Prorrogadas" },
-  { value: "adiado", label: "Adiado" },
-  { value: "cancelado", label: "Cancelado" },
-];
+const STATUS_OPTIONS = STATUS_EVENTO.map((value) => ({ value, label: INFO_STATUS[value].rotulo }));
 
 function moeda(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -594,7 +570,7 @@ function ModalConfigurarJuradosEvento({
         return {
           vinculo_id: v.id,
           jurado_id: v.jurado_id,
-          nome: jurado.nome,
+          nome: jurado.nome ?? jurado.email,
           email: jurado.email,
           telefone: jurado.telefone ?? null,
           cache_valor: v.cache_valor ?? 0,
@@ -636,7 +612,7 @@ function ModalConfigurarJuradosEvento({
       .filter((j) => {
         if (!termo) return true;
         return (
-          j.nome.toLowerCase().includes(termo) ||
+          (j.nome ?? "").toLowerCase().includes(termo) ||
           j.email.toLowerCase().includes(termo)
         );
       });
@@ -670,7 +646,7 @@ function ModalConfigurarJuradosEvento({
           {
             vinculo_id: vinculo.id,
             jurado_id: jurado.id,
-            nome: jurado.nome,
+            nome: jurado.nome ?? jurado.email,
             email: jurado.email,
             telefone: jurado.telefone ?? null,
             cache_valor: vinculo.cache_valor ?? 0,
@@ -976,7 +952,7 @@ function ModalConfigurarJuradosEvento({
                       className="bg-axon-bg border border-axon-border rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-white">{jurado.nome}</p>
+                        <p className="text-sm font-semibold text-white">{jurado.nome ?? jurado.email}</p>
                         <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1 sm:gap-3 mt-1">
                           <p className="text-xs text-gray-500 break-all">{jurado.email}</p>
                           {jurado.telefone && (
@@ -1615,7 +1591,7 @@ export default function PainelEventoPage() {
           supabase
             .from("eventos")
             .select(
-              "id, nome, data_inicio, data_fim, local, status, descricao, produtora_id, perfil_id, formato, tipo_premiacao, multilocal, logo_url, banner_url, perfis_festival:perfil_id ( slug )"
+              "id, nome, slug, data_inicio, data_fim, local, status, descricao, produtora_id, perfil_id, formato, tipo_premiacao, multilocal, logo_url, banner_url, perfis_festival:perfil_id ( slug )"
             )
             .eq("id", eventoId)
             .single(),
@@ -2135,7 +2111,7 @@ export default function PainelEventoPage() {
       />
 
       <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <Link
             href="/eventos"
             prefetch={false}
@@ -2148,9 +2124,9 @@ export default function PainelEventoPage() {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-white">{evento.nome}</h1>
               <span
-                className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_CORES[evento.status]}`}
+                className={`text-xs font-medium px-2.5 py-1 rounded-full border ${infoStatus(evento.status).cor}`}
               >
-                {STATUS_LABELS[evento.status]}
+                {infoStatus(evento.status).rotulo}
               </span>
             </div>
             <p className="text-sm text-gray-400 mt-1">
@@ -2158,6 +2134,7 @@ export default function PainelEventoPage() {
               {evento.local ? ` • ${evento.local}` : " • Local não informado"}
             </p>
           </div>
+          <LinksDivulgacao eventoId={eventoId} slug={evento.slug ?? null} addToast={addToast} />
         </div>
 
         <div className="bg-axon-panel border border-axon-border rounded-xl overflow-hidden">
@@ -2379,31 +2356,10 @@ export default function PainelEventoPage() {
                   </p>
                 </div>
 
-                <div
-                  className={`rounded-xl p-4 border text-sm flex items-start gap-2.5 ${
-                    form.status === "inscricoes_abertas"
-                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
-                      : form.status === "inscricoes_prorrogadas"
-                        ? "bg-amber-500/10 border-amber-500/20 text-amber-300"
-                        : form.status === "adiado"
-                          ? "bg-axon-gold/10 border-axon-gold/20 text-axon-gold"
-                          : form.status === "cancelado"
-                            ? "bg-red-400/10 border-red-400/20 text-red-300"
-                            : "bg-white/5 border-white/10 text-gray-400"
-                  }`}
-                >
+                <div className={`rounded-xl p-4 border text-sm flex items-start gap-2.5 ${infoStatus(form.status).cor}`}>
                   <Info size={15} className="shrink-0 mt-0.5" />
                   <span>
-                    {form.status === "Em Montagem" &&
-                      "Rascunho / Em Montagem: o formulário de inscrição permanece bloqueado para as organizações."}
-                    {form.status === "inscricoes_abertas" &&
-                      "Inscrições Abertas: as organizações já podem se inscrever neste evento."}
-                    {form.status === "inscricoes_prorrogadas" &&
-                      "Inscrições Prorrogadas: o evento segue aceitando inscrições em período estendido."}
-                    {form.status === "adiado" &&
-                      "Adiado: o evento foi postergado e pode exigir atualização de datas e comunicação pública."}
-                    {form.status === "cancelado" &&
-                      "Cancelado: o evento foi cancelado e não deve aceitar novas inscrições."}
+                    <strong>{infoStatus(form.status).rotulo}:</strong> {infoStatus(form.status).explicacao}
                   </span>
                 </div>
 

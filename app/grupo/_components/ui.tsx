@@ -34,7 +34,8 @@ export function Selo({ tom = "neutro", children }: { tom?: Tom; children: React.
 }
 
 export function tomDoEvento(status: string | null): Tom {
-  if (status === "inscricoes_abertas") return "verde";
+  if (status === "inscricoes_abertas" || status === "inscricoes_prorrogadas") return "verde";
+  if (status === "cancelado") return "vermelho";
   if (status === "em_andamento") return "azul";
   if (status === "finalizado") return "neutro";
   return "ouro";

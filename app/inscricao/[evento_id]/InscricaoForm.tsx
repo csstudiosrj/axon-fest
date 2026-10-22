@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { perfilPorSlug } from "@/lib/perfis";
-import { apiUrl, BASE_PATH } from "@/lib/base-path";
+import { apiUrl } from "@/lib/base-path";
 import { ROLES_GRUPO } from "@/lib/auth/roles";
 
 
@@ -300,35 +300,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
           return;
         }
 
-        const pendente = localStorage.getItem('cadastroPendente');
-        const cadastroPendente = pendente ? JSON.parse(pendente) : null;
-
-        if (!cadastroPendente) {
-          router.push("/grupo/dashboard");
-          return;
-        }
-
-        const erroServidor = await cadastrarNoServidor({
-          evento_id: eventoId,
-          grupo: {
-            nome: cadastroPendente.nome,
-            documento: cadastroPendente.documento,
-            tipo_documento: cadastroPendente.tipoDoc,
-            email_contato: cadastroPendente.emailContato || null,
-            responsavel: cadastroPendente.responsavel,
-            telefone: cadastroPendente.telefone,
-            cidade: cadastroPendente.cidade,
-            estado: cadastroPendente.estado,
-          },
-        });
-
-        if (erroServidor) {
-          setErroCadastro(`Sua conta foi confirmada, mas: ${erroServidor}`);
-          return;
-        }
-
-        localStorage.removeItem('cadastroPendente');
-        router.push("/grupo/dashboard");
+        router.push(`/grupo/${eventoId}/inicio`);
       } catch {
         setErroCadastro("Erro inesperado ao confirmar cadastro. Tente novamente.");
       }
@@ -343,8 +315,8 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
       return;
     }
 
-    if (senha.length < 6) {
-      setErroCadastro("A senha deve ter pelo menos 6 caracteres.");
+    if (senha.length < 8) {
+      setErroCadastro("A senha deve ter pelo menos 8 caracteres.");
       return;
     }
 
@@ -355,62 +327,30 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
 
     startTransition(async () => {
       try {
-        const supabase = createClient();
-        const documentoLimpo = onlyDigits(documento);
-
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
-          password: senha,
-          options: {
-            data: {
-              nome: responsavel,
-            },
-            emailRedirectTo: `${window.location.origin}${BASE_PATH}/inscricao/${eventoId}`,
-          },
-        });
-
-        if (authError || !authData.user) {
-          setErroCadastro(authError?.message || "Não foi possível criar sua conta agora.");
+        const res = await fetch(apiUrl("/api/grupo/novo"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            evento_id: eventoId, email, senha, nome: nomeGrupo, responsavel, telefone, cidade, estado,
+            documento: onlyDigits(documento), email_contato: emailContato || null,
+          }),
+        }).catch(() => null);
+        if (!res) {
+          setErroCadastro("Erro de conexão. Tente novamente.");
           return;
         }
-
-        if (authData.user && !authData.session) {
-          localStorage.setItem('cadastroPendente', JSON.stringify({ 
-            eventoId, nome: nomeGrupo, responsavel, 
-            email, emailContato,
-            telefone, cidade, estado,
-            documento: documento, tipoDoc: tipoDocumento 
-          }));
-          setEmailAguardando(email);
-          setEtapa("aguardando_confirmacao");
+        if (!res.ok) {
+          const json = (await res.json().catch(() => ({}))) as { error?: string };
+          setErroCadastro(json.error ?? "Não foi possível concluir o cadastro.");
           return;
         }
-
-        const erroServidor = await cadastrarNoServidor({
-          evento_id: eventoId,
-          grupo: {
-            nome: nomeGrupo,
-            documento: documentoLimpo,
-            tipo_documento: tipoDocumento,
-            email_contato: emailContato || null,
-            responsavel,
-            telefone,
-            cidade,
-            estado,
-          },
-        });
-
-        if (erroServidor) {
-          setErroCadastro(`Sua conta foi criada, mas: ${erroServidor}`);
-          return;
-        }
-
-        router.push("/grupo/dashboard");
+        setEmailAguardando(email);
+        setEtapa("aguardando_confirmacao");
       } catch {
         setErroCadastro("Erro inesperado ao criar cadastro. Tente novamente.");
       }
     });
-  }, [cidade, confirmarSenha, documento, email, emailContato, eventoId, nomeGrupo, responsavel, router, senha, estado, telefone, tipoDocumento]);
+  }, [cidade, confirmarSenha, documento, email, emailContato, eventoId, nomeGrupo, responsavel, senha, estado, telefone]);
 
   return (
     <div className={`overflow-hidden rounded-3xl border ${borderClass} ${panelClass}`} style={{ "--accent-fallback": "var(--bg-axon-gold)" } as CSSProperties}>

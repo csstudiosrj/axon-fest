@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { Tables } from "@/lib/supabase/database.types";
 import {
   Settings,
   PersonStanding,
@@ -31,45 +32,13 @@ const supabase = createClient();
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-type PerfilFestival = {
-  id: string;
-  slug: string;
-  nome: string;
-  icone: string;
-  descricao: string;
-  ordem: number;
-};
+type PerfilFestival = Tables<"perfis_festival">;
 
-type Estilo = {
-  id: string;
-  perfil_id: string;
-  nome: string;
-  slug: string;
-  descricao: string | null;
-  ativo: boolean;
-  ordem: number;
-};
+type Estilo = Tables<"estilos">;
 
-type EstiloAtivo = {
-  id: string;
-  estilo_id: string;
-  produtora_id: string;
-  ativo: boolean;
-};
+type EstiloAtivo = Tables<"tenant_estilos_ativos">;
 
-type TenantConfig = {
-  id: string;
-  produtora_id: string;
-  perfil_id: string | null;
-  nome_organizacao: string | null;
-  logo_url: string | null;
-  termo_inscricao: string | null;
-  termo_participante: string | null;
-  termo_grupo: string | null;
-  termo_apresentacao: string | null;
-  termo_evento: string | null;
-  updated_at?: string | null;
-};
+type TenantConfig = Tables<"tenant_config">;
 
 type Toast = {
   id: number;
@@ -989,7 +958,7 @@ export default function ConfiguracoesPage() {
                         )}
 
                         <div className={ativo ? "text-axon-gold" : "text-gray-600"}>
-                          {ICONE_MAP[perfil.icone] ?? <Sparkles size={26} />}
+                          {(perfil.icone && ICONE_MAP[perfil.icone]) || <Sparkles size={26} />}
                         </div>
 
                         <div>

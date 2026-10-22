@@ -43,14 +43,14 @@ interface Variacao {
 
 interface PedidoItem {
   id: string;
-  grupo_id: string;
-  apresentação_id: string | null;
+  escola_id: string;          // grupo que comprou (nome antigo da coluna)
+  coreografia_id: string | null;
   produto_id: string;
   variacao_id: string | null;
   quantidade: number;
   preco_unitario: number;
-  status: "pendente" | "entregue";
-  produtora_id?: string;
+  status: string;
+  produtora_id: string | null;
 }
 
 interface Escola {
@@ -449,7 +449,7 @@ export default function LojaPage() {
     setSalvandoToggle(id + campo);
     const { error } = await supabase
       .from("produtos")
-      .update({ [campo]: valor })
+      .update(campo === "ativo" ? { ativo: valor } : { mostrar_checkout: valor })
       .eq("id", id)
       .eq("produtora_id", produtoraId);
     if (!error) {
@@ -492,7 +492,7 @@ export default function LojaPage() {
   const pedidosPorEscola = escolas
     .map((e) => ({
       escola: e,
-      itens: pedidosFiltrados.filter((p) => p.grupo_id === e.id),
+      itens: pedidosFiltrados.filter((p) => p.escola_id === e.id),
     }))
     .filter((g) => g.itens.length > 0);
 

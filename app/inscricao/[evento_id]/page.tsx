@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { inscricoesAbertas } from "@/lib/eventos/status";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import InscricaoForm from "./InscricaoForm";
@@ -37,7 +38,7 @@ export default async function InscricaoPage({ params }: PageProps) {
     cor_secundaria: row.cor_secundaria ?? null,
     tema_escuro: row.tema_escuro ?? true,
     logo_url: row.logo_url ?? null,
-    status: row.status,
+    status: row.status ?? "Em Montagem",
     perfil_slug: (() => { const r = (row as { perfis_festival?: { slug?: string } | { slug?: string }[] | null }).perfis_festival; return (Array.isArray(r) ? r[0]?.slug : r?.slug) ?? null; })(),
   };
 
@@ -83,7 +84,7 @@ export default async function InscricaoPage({ params }: PageProps) {
 
       <div className="mx-auto flex w-full max-w-2xl justify-center px-4 py-10 sm:px-6 sm:py-14">
         <div className="w-full">
-          {evento.status !== "inscricoes_abertas" ? (
+          {!inscricoesAbertas(evento.status) ? (
             <div className={`rounded-3xl border ${borderClass} ${panelClass} p-8 sm:p-10`} style={{ borderColor: `${accent}24` }}>
               <div
                 className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-axon-border bg-axon-gold-dim"
@@ -105,6 +106,8 @@ export default async function InscricaoPage({ params }: PageProps) {
                       ? "Este festival foi finalizado."
                       : evento.status === "cancelado"
                         ? "Este festival foi cancelado."
+                        : evento.status === "adiado"
+                          ? "Este festival foi adiado. Acompanhe a página do evento para as novas datas."
                         : "As inscrições para este festival ainda não estão abertas."}
               </p>
             </div>

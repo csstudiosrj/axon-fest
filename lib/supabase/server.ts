@@ -2,12 +2,13 @@ import "server-only";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import type { Database } from "./database.types";
 
 // Client para uso em Server Components (respeita sessão do usuário)
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON!,
     {
@@ -40,7 +41,7 @@ export function createAdminClient() {
   if (!key) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY não configurada.");
   }
-  return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
+  return createSupabaseClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

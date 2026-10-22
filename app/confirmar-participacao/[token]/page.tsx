@@ -401,7 +401,7 @@ export default function ConfirmarParticipacaoPage() {
                 }`}
               >
                 <CalendarCheck className="w-3.5 h-3.5" />
-                Presença
+                Participação
               </div>
               <div className="flex-1 h-px bg-axon-border" />
               <div
@@ -440,14 +440,13 @@ export default function ConfirmarParticipacaoPage() {
           <div className="bg-axon-panel border border-axon-border rounded-2xl p-6 flex flex-col gap-5">
             <div className="flex items-center gap-2 text-axon-gold">
               <CalendarCheck className="w-5 h-5" />
-              <span className="text-sm font-semibold">Confirmar Presença</span>
+              <span className="text-sm font-semibold">Confirmar participação</span>
             </div>
 
             <p className="text-gray-400 text-sm leading-relaxed">
               Olá,{" "}
               <span className="text-zinc-100 font-medium">{participante.nome}</span>!
-              Antes de assinar o termo de participação, confirme que você estará
-              presente no evento{" "}
+              Antes de assinar o termo de participação, confirme que você faz parte de{" "}
               <span className="text-zinc-100 font-medium">{grupo.nome}</span>.
             </p>
 
@@ -461,7 +460,7 @@ export default function ConfirmarParticipacaoPage() {
               ) : (
                 <CalendarCheck className="w-4 h-4" />
               )}
-              {updateLoading ? "Confirmando..." : "Confirmar minha presença"}
+              {updateLoading ? "Confirmando..." : "Confirmar minha participação"}
             </button>
           </div>
         )}
