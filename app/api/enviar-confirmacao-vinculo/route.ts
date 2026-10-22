@@ -4,6 +4,7 @@ import { getUsuarioAtual, type UsuarioAtual } from "@/lib/auth/session";
 import { ROLES_GRUPO, ROLES_PAINEL_ADMIN } from "@/lib/auth/roles";
 import { urlAbsoluta } from "@/lib/base-path";
 import { emailComBotao, enviarEmail, escapeHtml } from "@/lib/email";
+import { nomeFuncao, perfilPorSlug } from "@/lib/perfis";
 
 // Envia o e-mail de confirmação de vínculo participante ↔ grupo.
 // Recebe só o token: destinatário, nome, grupo e função vêm do banco, e quem
@@ -11,16 +12,6 @@ import { emailComBotao, enviarEmail, escapeHtml } from "@/lib/email";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-const FUNCAO_LABEL: Record<string, string> = {
-  bailarino: "Bailarino(a)",
-  cantor: "Cantor(a)",
-  musico: "Músico(a)",
-  ator: "Ator/Atriz",
-  tecnico: "Técnico(a)",
-  producao: "Produção",
-  coreografo: "Coreógrafo(a)",
-  outro: "Outro",
-};
 
 async function podeAcessarGrupo(
   admin: Admin,
@@ -79,7 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Participante sem e-mail de contato." }, { status: 400 });
     }
 
-    const funcao = FUNCAO_LABEL[vinculo.funcao as string] ?? (vinculo.funcao as string) ?? "";
+    const funcao = nomeFuncao(perfilPorSlug(null), vinculo.funcao as string | null);
 
     await enviarEmail({
       para: participante.email_contato,

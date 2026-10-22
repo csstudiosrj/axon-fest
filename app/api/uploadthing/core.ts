@@ -1,7 +1,7 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import { createClient } from "@/lib/supabase/server";
-import { ROLES_GRUPO } from "@/lib/auth/roles";
+import { ROLES_GRUPO, ROLES_PAINEL_ADMIN } from "@/lib/auth/roles";
 
 const f = createUploadthing();
 
@@ -158,6 +158,38 @@ export const ourFileRouter = {
         tamanho: file.size,
       };
     }),
+
+  // Arquivos técnicos da apresentação (trilha, riders, mapas, cenário…).
+  // Quem envia: o grupo dono ou a equipe da produtora. O vínculo com a
+  // apresentação é gravado depois em apresentacao_arquivos (protegido por RLS).
+  arquivoTecnico: f({
+    audio: { maxFileSize: "64MB", maxFileCount: 1 },
+    pdf: { maxFileSize: "16MB", maxFileCount: 1 },
+    image: { maxFileSize: "16MB", maxFileCount: 1 },
+  })
+    .middleware(async () => {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new UploadThingError("Não autorizado");
+
+      const { data: usuario } = await supabase
+        .from("usuarios")
+        .select("role, ativo")
+        .eq("id", user.id)
+        .single();
+
+      if (!usuario || usuario.ativo === false || ![...ROLES_GRUPO, ...ROLES_PAINEL_ADMIN].includes(usuario.role)) {
+        throw new UploadThingError("Sem permissão para upload");
+      }
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => ({
+      uploadedBy: metadata.userId,
+      url: file.ufsUrl,
+      nome: file.name,
+      tamanho: file.size,
+      tipo: file.type,
+    })),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;

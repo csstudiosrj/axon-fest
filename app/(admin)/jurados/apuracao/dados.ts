@@ -11,6 +11,7 @@ export interface ApresentacaoA {
 }
 export interface FichaA { a: string; j: string; notas: Record<string, number | null>; c: string | null; f: string | null; u: string; origem?: string; pendente?: boolean }
 export interface PacoteApuracao {
+  perfil?: string | null;
   evento: { id: string; nome: string; produtora_id: string | null; metodo_apuracao: string; data_inicio: string | null; data_fim: string | null; local: string | null; liberar_comentarios: boolean; resultado_publicado_em: string | null };
   criterios: CriterioA[];
   apresentacoes: ApresentacaoA[];

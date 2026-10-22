@@ -52,7 +52,7 @@ export interface GrupoClassificacao {
   linhas: LinhaClassificacao[];
 }
 
-const FORMACAO: Record<string, string> = { solo: "Solo", duo: "Duo", conjunto: "Conjunto", grupo: "Grupo" };
+const FORMACAO_PADRAO: Record<string, string> = { solo: "Solo", duo: "Duo", conjunto: "Conjunto", grupo: "Grupo" };
 
 const arred = (v: number) => Math.round(v * 1000) / 1000;
 
@@ -88,7 +88,8 @@ export function classificar(
   apresentacoes: ApresentacaoCalc[],
   fichas: FichaCalc[],
   criterios: CriterioCalc[],
-  metodo: MetodoApuracao
+  metodo: MetodoApuracao,
+  formacoes: Record<string, string> = FORMACAO_PADRAO
 ): GrupoClassificacao[] {
   const ordenados = [...criterios].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
   const porApresentacao = new Map<string, FichaCalc[]>();
@@ -111,7 +112,7 @@ export function classificar(
     const chave = `${a.categoria_id ?? "sem"}|${a.tipo}`;
     const grupo = grupos.get(chave) ?? {
       chave,
-      titulo: `${a.categoria} · ${FORMACAO[a.tipo] ?? a.tipo}`,
+      titulo: `${a.categoria} · ${formacoes[a.tipo] ?? a.tipo}`,
       linhas: [],
     };
     grupo.linhas.push({

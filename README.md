@@ -63,6 +63,13 @@ Todas estão descritas em [`.env.example`](.env.example). Na Vercel ficam em
 - No banco, **todas as tabelas têm RLS**: cada perfil só lê/escreve o que é seu
   (`supabase/migrations/20261023000100_seguranca_rls.sql`).
 
+## Tipo de festival e vocabulário
+
+Cada evento tem um tipo (dança, música, teatro, circo, talentos estudantil, multidisciplinar).
+`lib/perfis.ts` define, para cada tipo, os termos (escola/banda/companhia, bailarino/músico/ator,
+coreografia/apresentação/espetáculo), as formações, as funções do elenco e os arquivos técnicos
+pedidos (trilha, riders de som e luz, mapa de palco, cenário…).
+
 ## Módulos offline
 
 Jurado (`/jurado`), apuração (`/jurados/apuracao`) e caixa (`/caixa`, `/bilheteria`) funcionam sem internet:
@@ -83,6 +90,7 @@ O esquema está versionado em `supabase/migrations/` (rodar em ordem):
 | `20261023000000_alinhar_colunas.sql` | Colunas que o código usa e faltavam; cargo `operador` |
 | `20261023000100_seguranca_rls.sql` | Funções auxiliares, RLS e políticas de todas as tabelas |
 | `20261024000000_avaliacao_jurados.sql` | Fichas de avaliação, chaves de transferência por QR, método de apuração, resultado publicado |
+| `20261025000000_perfil_e_arquivos.sql` | Tipo de festival por evento e arquivos técnicos por apresentação |
 
 **Aplicar uma migration nova em produção:** Supabase → *SQL Editor* → *New query* → colar o
 conteúdo do arquivo → *Run*.

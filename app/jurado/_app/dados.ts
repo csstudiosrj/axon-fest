@@ -11,6 +11,7 @@ export interface Apresentacao {
 }
 export interface FichaServidor { a: string; j: string; notas: Record<string, number>; c: string | null; f: string | null; u: string }
 export interface Pacote {
+  perfil?: string | null;
   evento: { id: string; nome: string; data_inicio: string | null; data_fim: string | null; local: string | null };
   criterios: Criterio[];
   apresentacoes: Apresentacao[];

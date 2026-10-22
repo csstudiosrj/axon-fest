@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/base-path";
 import { RegistrarOffline } from "@/lib/offline/RegistrarOffline";
 import { classificar, METODOS, notaDoJurado, type MetodoApuracao } from "@/lib/apuracao/calculo";
+import { perfilPorSlug } from "@/lib/perfis";
 import {
   apagarRecebimento, baixarPacote, enviarRecebimento, fichasMescladas, pacoteLocal, pacotesLocais, recebimentos,
   registrarRecebimento, type CriterioA, type PacoteApuracao, type Recebimento,
@@ -349,7 +350,8 @@ function AbaClassificacao({ pacote, fichas, online, onMudou, mostrar }: {
     pacote.apresentacoes,
     fichas.map((f) => ({ apresentacao_id: f.a, avaliador_id: f.j, finalizada: !!f.f, notas: f.notas })),
     pacote.criterios.map((c) => ({ id: c.id, nome: c.nome, peso: c.peso, ordem: c.ordem })),
-    metodo
+    metodo,
+    perfilPorSlug(pacote.perfil).formacoes
   ), [pacote, fichas, metodo]);
   const nomeJurado = (id: string) => pacote.jurados.find((j) => j.id === id)?.nome ?? "Jurado";
   const pendentesQr = fichas.some((f) => f.pendente);

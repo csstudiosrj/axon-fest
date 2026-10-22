@@ -11,6 +11,7 @@ interface EventoInscricao {
   tema_escuro: boolean;
   logo_url: string | null;
   status: string;
+  perfil_slug: string | null;
 }
 
 interface PageProps {
@@ -23,7 +24,7 @@ export default async function InscricaoPage({ params }: PageProps) {
 
   const { data: row, error } = await supabase
     .from("eventos")
-    .select("id, nome, cor_primaria, cor_secundaria, tema_escuro, logo_url, status")
+    .select("id, nome, cor_primaria, cor_secundaria, tema_escuro, logo_url, status, perfis_festival:perfil_id ( slug )")
     .eq("id", evento_id)
     .single();
 
@@ -37,6 +38,7 @@ export default async function InscricaoPage({ params }: PageProps) {
     tema_escuro: row.tema_escuro ?? true,
     logo_url: row.logo_url ?? null,
     status: row.status,
+    perfil_slug: (() => { const r = (row as { perfis_festival?: { slug?: string } | { slug?: string }[] | null }).perfis_festival; return (Array.isArray(r) ? r[0]?.slug : r?.slug) ?? null; })(),
   };
 
   const accent = evento.cor_primaria ?? "var(--fallback-accent)";
