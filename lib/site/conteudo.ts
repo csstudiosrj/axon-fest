@@ -7,8 +7,10 @@ export const CONTATO = {
 };
 
 export const PRECOS = {
-  // Taxa de serviço por inscrição paga online (o festival escolhe absorver ou repassar)
+  // Taxa de serviço por venda feita no sistema (inscrição, ingresso, loja): % líquido + valor fixo.
+  // O festival escolhe absorver ou repassar. Tarifas do meio de pagamento são à parte.
   taxaPercentual: 2,
+  taxaFixa: 0.99,
   // Período de uso do plano Start e prazo de guarda dos dados depois dele (meses)
   mesesStart: 3,
   mesesGuarda: 3,
@@ -29,3 +31,18 @@ export const NAV = [
   { label: "Preços", href: "/precos" },
   { label: "Contato", href: "/contato" },
 ] as const;
+
+export const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// "2% + R$ 0,99"
+export const TAXA_TEXTO = `${PRECOS.taxaPercentual}% + ${brl(PRECOS.taxaFixa)}`;
+
+// Dados da empresa exibidos nos documentos legais (preencher antes do lançamento)
+export const EMPRESA = {
+  razaoSocial: "[RAZÃO SOCIAL]",
+  cnpj: "[CNPJ]",
+  endereco: "[ENDEREÇO COMPLETO]",
+  foro: "Rio de Janeiro/RJ",
+  emailPrivacidade: "privacidade@arxum.com.br",
+  vigencia: "[DATA DE VIGÊNCIA]",
+};

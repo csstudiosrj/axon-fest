@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import { Check } from "lucide-react";
-import { PRECOS } from "@/lib/site/conteudo";
+import { PRECOS, TAXA_TEXTO } from "@/lib/site/conteudo";
 import { BotaoPrimario, BotaoSecundario, CabecalhoSecao, Container, Paragrafo, Rotulo, Titulo } from "../_components/ui";
 import { SimuladorTaxa } from "./SimuladorTaxa";
 
 export const metadata: Metadata = {
   title: "Preços",
-  description: `Grátis para criar. Taxa de ${PRECOS.taxaPercentual}% só nas inscrições pagas online — e você decide se absorve ou repassa.`,
+  description: `Grátis para criar. Taxa de ${TAXA_TEXTO} só nas vendas feitas pelo sistema — e você decide se absorve ou repassa.`,
 };
 
-const T = PRECOS.taxaPercentual;
+const T = TAXA_TEXTO;
 
 const PLANOS = [
   {
@@ -22,7 +22,7 @@ const PLANOS = [
       "Eventos, equipe e jurados sem limite",
       "Página pública com a sua marca",
       "Caixa e bilheteria no celular",
-      `Taxa de ${T}% por inscrição paga online`,
+      `Taxa de ${T} por venda feita pelo sistema`,
     ],
     nota: `Após ${PRECOS.mesesStart} meses, a conta fica em modo leitura por mais ${PRECOS.mesesGuarda} meses para você assinar o Pro. Depois disso, os dados são apagados.`,
     cta: { href: "/criar-conta", label: "Começar grátis" },
@@ -40,7 +40,7 @@ const PLANOS = [
       "Dados e histórico de todas as edições guardados",
       "Grupos e participantes reaproveitados a cada ano",
       "Atendimento prioritário",
-      `Taxa de ${T}% por inscrição paga online`,
+      `Taxa de ${T} por venda feita pelo sistema`,
     ],
     nota: "Sem fidelidade: cancele quando quiser.",
     cta: { href: "/contato?assunto=pro", label: "Falar sobre o Pro" },
@@ -51,11 +51,11 @@ const PLANOS = [
 const PERGUNTAS = [
   {
     p: "Quando a taxa é cobrada?",
-    r: "Só quando uma inscrição é paga online pela plataforma. Inscrições gratuitas, montagem do evento, convites e uso do caixa não têm taxa.",
+    r: `Em cada venda paga online pela plataforma — inscrição, ingresso ou produto: ${T} por venda. Inscrições gratuitas, montagem do evento, convites e vendas em dinheiro ou PIX direto no caixa do evento não têm taxa.`,
   },
   {
     p: "Quem paga a taxa: o festival ou o inscrito?",
-    r: "Você escolhe por evento. Repassando, o valor aparece somado na inscrição; absorvendo, ele é descontado do repasse ao festival.",
+    r: "Você escolhe por evento. Repassando, a taxa aparece somada ao valor para quem compra; absorvendo, ela é descontada do repasse ao festival. A tarifa do meio de pagamento (PIX, cartão, parcelamento) segue a mesma escolha.",
   },
   {
     p: "Como o dinheiro chega até o festival?",
@@ -82,10 +82,11 @@ export default function Precos() {
         <Container className="pb-16 pt-16 sm:pb-20 sm:pt-24">
           <Rotulo>Preços</Rotulo>
           <Titulo as="h1" className="mt-6 max-w-[860px] text-[40px] leading-[1.04] sm:text-[60px]">
-            Sem mensalidade para começar. <span className="text-arx-fest">{T}%</span> só quando você vender.
+            Sem mensalidade para começar. <span className="text-arx-fest">{T}</span> só quando você vender.
           </Titulo>
           <Paragrafo className="mt-7 max-w-[600px] sm:text-[19px]">
-            Monte e publique o evento sem custo fixo. A taxa de serviço incide apenas sobre inscrições pagas online.
+            Monte e publique o evento sem custo fixo. A taxa de serviço incide apenas sobre o que é vendido pelo
+            sistema: inscrições, ingressos e produtos da loja.
           </Paragrafo>
         </Container>
       </section>
@@ -127,9 +128,9 @@ export default function Precos() {
           <CabecalhoSecao
             rotulo="Taxa de serviço"
             titulo="Absorver ou repassar: a decisão é do festival."
-            texto={`A taxa é de ${T}% sobre o valor da inscrição paga online. Defina por evento se ela entra no preço para o inscrito ou se sai do valor que o festival recebe.`}
+            texto={`A taxa é de ${T} por venda paga online, independentemente do valor. Defina por evento se ela entra no preço para quem compra ou se sai do valor que o festival recebe.`}
           />
-          <SimuladorTaxa taxa={T} />
+          <SimuladorTaxa percentual={PRECOS.taxaPercentual} fixa={PRECOS.taxaFixa} />
         </Container>
       </section>
 
