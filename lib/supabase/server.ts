@@ -34,7 +34,9 @@ export async function createClient() {
 // Client admin com service role — ignora RLS. Só usar em rotas/server code
 // DEPOIS de validar quem está chamando. Nunca exposto ao browser.
 export function createAdminClient() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // SUPABASE_SERVICE_ROLE é o nome antigo: aceito só durante a transição,
+  // até a variável nova existir em todos os ambientes da Vercel.
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE;
   if (!key) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY não configurada.");
   }
