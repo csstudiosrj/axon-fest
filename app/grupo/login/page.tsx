@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ROLES_GRUPO } from "@/lib/auth/roles";
@@ -265,9 +266,9 @@ export default function GrupoLoginPage() {
         </form>
 
         <div className="mt-6 text-center">
-          <a href="/" className="text-axon-gold hover:underline text-sm">
+          <Link href="/" className="text-axon-gold hover:underline text-sm">
             Voltar ao início
-          </a>
+          </Link>
         </div>
       </div>
     </div>

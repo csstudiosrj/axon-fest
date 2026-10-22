@@ -40,8 +40,15 @@ const FESTIVAIS: { slug: SlugPerfil; nome: string; cidade: string; categorias: s
 
 const JURADOS = ["Helena Duarte", "Ricardo Amaral", "Marina Lopes"];
 
+// CPF fictício com dígitos verificadores válidos (passa na validação do sistema)
 function cpfAleatorio() {
-  return Array.from({ length: 11 }, () => randomInt(0, 10)).join("");
+  const d = Array.from({ length: 9 }, () => randomInt(0, 10));
+  for (const n of [10, 11]) {
+    const soma = d.reduce((s, v, i) => s + v * (n - i), 0);
+    const r = (soma * 10) % 11;
+    d.push(r === 10 ? 0 : r);
+  }
+  return d.join("");
 }
 
 async function criarUsuario(admin: Admin, email: string, senha: string, dados: Record<string, unknown>) {
@@ -142,7 +149,7 @@ export async function criarDemonstracao(admin: Admin) {
           termo_assinado: pi % 3 !== 0,
         }))).select("id"), "participantes") as { id: string }[];
         await admin.from("grupo_participante").insert(participantes.map((p, pi) => ({
-          grupo_id: grupo.id, participante_id: p.id, funcao: perfil.funcoes[pi === 0 ? 0 : pi % 2 ? 0 : 1].nome, confirmado: pi % 4 !== 3, status: "ativo",
+          grupo_id: grupo.id, participante_id: p.id, funcao: perfil.funcoes[pi === 0 ? 0 : pi % 2 ? 0 : 1].valor, confirmado: pi % 4 !== 3, status: "ativo",
         })));
 
         // Apresentações do grupo
@@ -153,6 +160,7 @@ export async function criarDemonstracao(admin: Admin) {
             evento_id: evento.id, grupo_id: grupo.id, produtora_id: pid, nome: nomeObra, categoria_id_old: "demo", tipo,
             categoria_id: categorias[(gi + oi) % categorias.length].id, ordem_apresentacao: ordem++, data_apresentacao: inicio,
             quantidade_bailarinos: tipo === "solo" ? 1 : tipo === "duo" ? 2 : participantes.length,
+            valor_total: tipo === "solo" ? 80 : tipo === "duo" ? 120 : 200,
           }).select("id").single(), "apresentacao") as { id: string };
           await admin.from("apresentacao_elenco").insert(participantes.slice(0, tipo === "solo" ? 1 : tipo === "duo" ? 2 : participantes.length).map((p) => ({ apresentacao_id: ap.id, participante_id: p.id })));
 
@@ -207,7 +215,7 @@ export async function apagarDemonstracao(admin: Admin) {
   for (const t of ["pdv_vendas", "pdv_produtos", "pdv_config", "posts_marketing", "produtos", "termos_documentos", "tenant_estilos_ativos", "tenant_config", "participantes_bloqueados"]) {
     await admin.from(t).delete().eq("produtora_id", pid);
   }
-  await admin.from("participantes").delete().eq("produtora_id", pid);
+  await admin.from("participantes").delete().or(`produtora_id.eq.${pid},origem_produtora_id.eq.${pid}`);
   if (gids.length) await admin.from("grupos").delete().in("id", gids);
   for (const u of usuarios ?? []) await admin.auth.admin.deleteUser(u.id as string);
   const { error } = await admin.from("produtoras").delete().eq("id", pid);

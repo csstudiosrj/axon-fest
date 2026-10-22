@@ -4,8 +4,12 @@ import { BASE_PATH } from "./lib/base-path";
 const nextConfig: NextConfig = {
   basePath: BASE_PATH,
   async redirects() {
-    // Página antiga, substituída pelo site institucional
-    return [{ source: "/como-funciona", destination: "/funcionalidades", permanent: true }];
+    return [
+      // Página antiga, substituída pelo site institucional
+      { source: "/como-funciona", destination: "/funcionalidades", permanent: true },
+      // Telas antigas do portal do grupo: agora ficam dentro de cada festival
+      { source: "/grupo/:pagina(apresentacoes|participantes|midias|mapas-de-luz)", destination: "/grupo/dashboard", permanent: false },
+    ];
   },
   async headers() {
     return [
