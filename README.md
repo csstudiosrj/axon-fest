@@ -9,7 +9,7 @@ No ar em **https://www.arxum.com.br/fest**.
 |---|---|---|
 | Painel da produtora | Dono do festival (`admin`), `produtor`, `marketing`, `assistente` | `/fest/login` |
 | Caixa e bilheteria (celular) | `operador` (login + PIN do PDV) | `/fest/login` → `/fest/caixa` |
-| Avaliação | `jurado` | `/fest/login` → `/fest/jurado/avaliacao` |
+| Avaliação (funciona offline) | `jurado` | `/fest/login` → `/fest/jurado` |
 | Portal do grupo/escola | `org_admin`, `org_membro` | `/fest/grupo/login` |
 | Página pública do evento | Público | `/fest/e/<slug>` |
 | Inscrição de grupos | Público | `/fest/inscricao/<id-do-evento>` |
@@ -63,6 +63,16 @@ Todas estão descritas em [`.env.example`](.env.example). Na Vercel ficam em
 - No banco, **todas as tabelas têm RLS**: cada perfil só lê/escreve o que é seu
   (`supabase/migrations/20261023000100_seguranca_rls.sql`).
 
+## Módulos offline
+
+Jurado (`/jurado`), apuração (`/jurados/apuracao`) e caixa (`/caixa`, `/bilheteria`) funcionam sem internet:
+
+- `public/sw.js` (service worker) guarda essas telas e os arquivos do Next no aparelho;
+- os dados ficam no IndexedDB (`lib/offline/idb.ts`);
+- as notas do jurado chegam à produção pela internet ou por QR code animado,
+  criptografado com AES-256-GCM e uma chave por jurado/evento (`lib/offline/transferencia.ts`).
+  O servidor abre o pacote de novo ao importar, então só aceita notas geradas no aparelho do jurado.
+
 ## Banco de dados
 
 O esquema está versionado em `supabase/migrations/` (rodar em ordem):
@@ -72,6 +82,7 @@ O esquema está versionado em `supabase/migrations/` (rodar em ordem):
 | `20261022000000_esquema_inicial.sql` | Retrato do banco original (já existe em produção — não rodar lá) |
 | `20261023000000_alinhar_colunas.sql` | Colunas que o código usa e faltavam; cargo `operador` |
 | `20261023000100_seguranca_rls.sql` | Funções auxiliares, RLS e políticas de todas as tabelas |
+| `20261024000000_avaliacao_jurados.sql` | Fichas de avaliação, chaves de transferência por QR, método de apuração, resultado publicado |
 
 **Aplicar uma migration nova em produção:** Supabase → *SQL Editor* → *New query* → colar o
 conteúdo do arquivo → *Run*.

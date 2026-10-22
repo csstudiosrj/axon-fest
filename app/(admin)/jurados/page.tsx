@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { UploadButton } from "@/utils/uploadthing";
@@ -21,6 +22,7 @@ import {
   ShieldCheck,
   Phone,
   ImageIcon,
+  Gavel,
 } from "lucide-react";
 
 interface Terminologia {
@@ -881,6 +883,12 @@ export default function JuradosPage() {
             </p>
           </div>
 
+          <div className="flex shrink-0 gap-2">
+          <Link href="/jurados/apuracao"
+            className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-axon-border px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-axon-gold/50 hover:text-white">
+            <Gavel size={15} />
+            Apuração
+          </Link>
           <button
             onClick={() => {
               setJuradoEmEdicao(null);
@@ -891,6 +899,7 @@ export default function JuradosPage() {
             <Plus size={15} />
             Adicionar Jurado
           </button>
+          </div>
         </div>
 
         <Dica>

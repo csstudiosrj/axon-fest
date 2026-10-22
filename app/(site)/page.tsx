@@ -3,7 +3,7 @@ import { ShieldCheck, Lock, FileSignature, Users } from "lucide-react";
 import { TAXA_TEXTO } from "@/lib/site/conteudo";
 import { CaixaDemo, NotasDemo, PainelDemo, TermoDemo } from "./_components/Demos";
 import {
-  BotaoPrimario, BotaoSecundario, CabecalhoSecao, Container, EmBreve, LinkSeta, Paragrafo, Rotulo, Titulo,
+  BotaoPrimario, BotaoSecundario, CabecalhoSecao, Container, LinkSeta, Paragrafo, Rotulo, Titulo,
 } from "./_components/ui";
 
 const ETAPAS = [
@@ -103,8 +103,8 @@ export default function Inicio() {
           <div className="lg:order-2">
             <CabecalhoSecao
               rotulo="Jurados e apuração"
-              titulo={<>Notas por critério, classificação na hora.<EmBreve /></>}
-              texto="Cada jurado acessa só os eventos para os quais foi designado e avalia pelo celular, critério a critério, com comentário opcional. A produção acompanha as notas e publica a classificação por categoria sem redigitar nada."
+              titulo="Notas por critério, mesmo sem internet."
+              texto="O jurado baixa o evento no celular e avalia critério a critério, com comentário, mesmo em teatro ou ginásio sem sinal. As notas chegam à produção pela internet ou por QR code criptografado lido na hora, e a classificação por categoria sai pronta para publicar."
             />
           </div>
           <div className="lg:order-1"><NotasDemo /></div>

@@ -63,7 +63,7 @@ export function podeAtribuir(quem: string | null | undefined, alvo: string | nul
 }
 
 export function destinoPorRole(role: string): string {
-  if (ROLES_JURADO.includes(role)) return "/jurado/avaliacao";
+  if (ROLES_JURADO.includes(role)) return "/jurado";
   if (ROLES_GRUPO.includes(role)) return "/grupo/dashboard";
   if (role === "operador") return "/caixa";
   return "/dashboard";

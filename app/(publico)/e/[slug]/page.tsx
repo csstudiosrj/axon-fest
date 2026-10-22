@@ -187,6 +187,11 @@ interface ProdutoPdvRow {
   ativo: boolean;
 }
 
+interface ResultadoGrupo {
+  titulo: string;
+  linhas: { posicao: number | null; apresentacao: string; grupo: string | null; nota: number | null }[];
+}
+
 interface DadosEventoPublico {
   evento: Evento;
   jurados: JuradoPublico[];
@@ -194,6 +199,7 @@ interface DadosEventoPublico {
   termos: TermoDocumento[];
   categoriasPremiacao: CategoriaPremiacao[];
   produtosLoja: ProdutoLoja[];
+  resultado: ResultadoGrupo[];
 }
 
 function formatarData(iso: string | null): string {
@@ -840,7 +846,21 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
     }
   }
 
-  return { evento: ev, jurados, locais, termos, categoriasPremiacao, produtosLoja };
+  // Resultado oficial (só existe depois que a produção publica)
+  const { data: resultadoRows } = await supabase
+    .from("resultados_publicados")
+    .select("grupo_titulo, ordem_grupo, posicao, apresentacao_nome, grupo_nome, nota")
+    .eq("evento_id", ev.id)
+    .order("ordem_grupo")
+    .order("posicao", { nullsFirst: false });
+  const resultado: ResultadoGrupo[] = [];
+  for (const r of (resultadoRows ?? []) as { grupo_titulo: string; posicao: number | null; apresentacao_nome: string; grupo_nome: string | null; nota: number | null }[]) {
+    let g = resultado.find((x) => x.titulo === r.grupo_titulo);
+    if (!g) { g = { titulo: r.grupo_titulo, linhas: [] }; resultado.push(g); }
+    g.linhas.push({ posicao: r.posicao, apresentacao: r.apresentacao_nome, grupo: r.grupo_nome, nota: r.nota === null ? null : Number(r.nota) });
+  }
+
+  return { evento: ev, jurados, locais, termos, categoriasPremiacao, produtosLoja, resultado };
 }
 
 interface PageProps {
@@ -881,7 +901,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
     notFound();
   }
 
-  const { evento, jurados, locais, termos, categoriasPremiacao, produtosLoja } = dados;
+  const { evento, jurados, locais, termos, categoriasPremiacao, produtosLoja, resultado } = dados;
   const corPrimaria = evento.cor_primaria ?? "#d4af37";
   const corSecundaria = evento.cor_secundaria ?? "#b8860b";
   const fonteFamilia = evento.fonte_familia;
@@ -1055,6 +1075,31 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
               <p className={`text-sm leading-relaxed whitespace-pre-line ${tema.text}`}>
                 {evento.descricao}
               </p>
+            </div>
+          </section>
+        )}
+
+        {resultado.length > 0 && (
+          <section aria-labelledby="secao-resultado">
+            <SectionHeader titulo="Resultado" corPrimaria={corPrimaria} headingClass={tema.heading} />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {resultado.map((g) => (
+                <div key={g.titulo} className={`rounded-2xl border p-5 ${tema.card}`} style={{ borderColor: `${corPrimaria}22` }}>
+                  <h3 className={`text-sm font-semibold ${tema.heading}`}>{g.titulo}</h3>
+                  <ol className="mt-3 space-y-2">
+                    {g.linhas.map((l, i) => (
+                      <li key={i} className="flex items-baseline gap-3 text-sm">
+                        <span className="w-8 shrink-0 font-semibold tabular-nums" style={{ color: corPrimaria }}>{l.posicao ? `${l.posicao}º` : "—"}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className={tema.heading}>{l.apresentacao}</span>
+                          {l.grupo && <span className={`block text-xs ${tema.softText}`}>{l.grupo}</span>}
+                        </span>
+                        <span className={`tabular-nums ${tema.text}`}>{l.nota?.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
             </div>
           </section>
         )}
