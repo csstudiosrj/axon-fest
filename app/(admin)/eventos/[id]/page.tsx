@@ -2228,6 +2228,7 @@ export default function PainelEventoPage() {
                       icon: Users,
                       cor: "text-axon-gold",
                       sufixo: totalInscritos === 1 ? "inscrição" : "inscrições",
+                      onClick: () => router.push(`/eventos/${eventoId}/inscricoes`),
                     },
                     {
                       label: "Pagamentos Pendentes",
@@ -2235,6 +2236,7 @@ export default function PainelEventoPage() {
                       icon: CreditCard,
                       cor: totalPendentes > 0 ? "text-red-400" : "text-emerald-400",
                       sufixo: totalPendentes > 0 ? "aguardando" : "tudo em dia",
+                      onClick: () => router.push(`/eventos/${eventoId}/inscricoes?status=pendente`),
                     },
                     {
                       label: "Jurados",
