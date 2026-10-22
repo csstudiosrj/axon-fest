@@ -63,6 +63,15 @@ Todas estão descritas em [`.env.example`](.env.example). Na Vercel ficam em
 - No banco, **todas as tabelas têm RLS**: cada perfil só lê/escreve o que é seu
   (`supabase/migrations/20261023000100_seguranca_rls.sql`).
 
+## Painel do super admin (`/super`)
+
+- **Preços e taxas, contato e dados da empresa** ficam na tabela `configuracoes_sistema` e são editados
+  no painel. O site, os Termos e a Política leem de lá (`lib/site/configuracoes.ts`, cache de 5 min
+  renovado ao salvar).
+- **Demonstração:** cria uma produtora fictícia completa (3 festivais de tipos diferentes, grupos,
+  elenco, jurados, notas, caixa e logins de teste) e apaga tudo depois (`lib/demo/demonstracao.ts`).
+  O banco de produção fica sempre zerado.
+
 ## Tipo de festival e vocabulário
 
 Cada evento tem um tipo (dança, música, teatro, circo, talentos estudantil, multidisciplinar).
@@ -91,6 +100,7 @@ O esquema está versionado em `supabase/migrations/` (rodar em ordem):
 | `20261023000100_seguranca_rls.sql` | Funções auxiliares, RLS e políticas de todas as tabelas |
 | `20261024000000_avaliacao_jurados.sql` | Fichas de avaliação, chaves de transferência por QR, método de apuração, resultado publicado |
 | `20261025000000_perfil_e_arquivos.sql` | Tipo de festival por evento e arquivos técnicos por apresentação |
+| `20261026000000_configuracoes_sistema.sql` | Valores e taxas editáveis pelo super admin; marca de produtora de demonstração |
 
 **Aplicar uma migration nova em produção:** Supabase → *SQL Editor* → *New query* → colar o
 conteúdo do arquivo → *Run*.

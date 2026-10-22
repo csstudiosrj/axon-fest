@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { CONTATO, NAV, PRODUTOS_ARXUM } from "@/lib/site/conteudo";
+import { NAV, PRODUTOS_ARXUM } from "@/lib/site/conteudo";
+import { obterConfiguracoes } from "@/lib/site/configuracoes";
 import { Marca } from "./Marca";
 
-export function Rodape() {
+export async function Rodape() {
+  const { contato: CONTATO } = await obterConfiguracoes();
   return (
     <footer className="border-t border-arx-line bg-arx-obsidian">
       <div className="mx-auto grid w-full max-w-[1200px] gap-12 px-4 py-16 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">

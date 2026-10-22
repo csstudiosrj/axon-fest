@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Mail, MessageCircle } from "lucide-react";
-import { CONTATO } from "@/lib/site/conteudo";
+import { obterConfiguracoes } from "@/lib/site/configuracoes";
 import { Container, Paragrafo, Rotulo, Titulo } from "../_components/ui";
 import { FormContato } from "./FormContato";
 
@@ -13,6 +13,7 @@ const ASSUNTOS_VALIDOS = ["conhecer", "pro", "suporte", "outro"];
 
 export default async function Contato({ searchParams }: { searchParams: Promise<{ assunto?: string }> }) {
   const { assunto } = await searchParams;
+  const { contato: CONTATO } = await obterConfiguracoes();
   const assuntoInicial = assunto && ASSUNTOS_VALIDOS.includes(assunto) ? assunto : "conhecer";
 
   return (

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Check } from "lucide-react";
-import { PRECOS, TAXA_TEXTO } from "@/lib/site/conteudo";
+import { obterConfiguracoes } from "@/lib/site/configuracoes";
 import { Container, Paragrafo, Rotulo, Titulo } from "../_components/ui";
 import { FormCriarConta } from "./FormCriarConta";
 
@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   description: "Crie a conta do seu festival no ARXUM Fest. Sem cartão de crédito.",
 };
 
-export default function CriarConta() {
+export default async function CriarConta() {
+  const { precos: PRECOS, taxaTexto: TAXA_TEXTO } = await obterConfiguracoes();
   return (
     <section>
       <Container className="grid gap-14 py-16 sm:py-24 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-20">
