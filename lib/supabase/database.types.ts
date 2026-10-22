@@ -613,14 +613,14 @@ isOneToOne: false
                   ]
                 },"pdv_vendas": {
                   Row: {
-                    "created_at": string,"evento_id": string | null,"forma_pagamento": string,"id": string,"itens": NonNullable<Json>,"operador_id": string | null,"operador_nome": string | null,"preco_unitario": number,"produto_id": string | null,"produto_nome": string | null,"produtora_id": string | null,"quantidade": number,"sincronizado": boolean,"total": number
+                    "created_at": string,"evento_id": string | null,"forma_pagamento": string,"id": string,"itens": NonNullable<Json>,"operador_id": string | null,"operador_nome": string | null,"preco_unitario": number,"produto_id": string | null,"produto_nome": string | null,"produtora_id": string | null,"quantidade": number,"sincronizado": boolean,"total": number,"venda_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"evento_id"?: string | null,"forma_pagamento": string,"id"?: string,"itens"?: NonNullable<Json>,"operador_id"?: string | null,"operador_nome"?: string | null,"preco_unitario"?: number,"produto_id"?: string | null,"produto_nome"?: string | null,"produtora_id"?: string | null,"quantidade"?: number,"sincronizado"?: boolean,"total"?: number
+                    "created_at"?: string,"evento_id"?: string | null,"forma_pagamento": string,"id"?: string,"itens"?: NonNullable<Json>,"operador_id"?: string | null,"operador_nome"?: string | null,"preco_unitario"?: number,"produto_id"?: string | null,"produto_nome"?: string | null,"produtora_id"?: string | null,"quantidade"?: number,"sincronizado"?: boolean,"total"?: number,"venda_id"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"evento_id"?: string | null,"forma_pagamento"?: string,"id"?: string,"itens"?: NonNullable<Json>,"operador_id"?: string | null,"operador_nome"?: string | null,"preco_unitario"?: number,"produto_id"?: string | null,"produto_nome"?: string | null,"produtora_id"?: string | null,"quantidade"?: number,"sincronizado"?: boolean,"total"?: number
+                    "created_at"?: string,"evento_id"?: string | null,"forma_pagamento"?: string,"id"?: string,"itens"?: NonNullable<Json>,"operador_id"?: string | null,"operador_nome"?: string | null,"preco_unitario"?: number,"produto_id"?: string | null,"produto_nome"?: string | null,"produtora_id"?: string | null,"quantidade"?: number,"sincronizado"?: boolean,"total"?: number,"venda_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -1059,6 +1059,9 @@ isOneToOne: false
 { Args: { "p_documento": string }; Returns: {
               "email_mascarado": string,"id": string,"nome": string
             }[]
+                           },
+"inscricoes_abertas":
+{ Args: { "p_status": string }; Returns: boolean
                            },
 "meu_grupo_inscrito":
 { Args: { "p_evento": string }; Returns: boolean

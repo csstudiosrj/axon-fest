@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import { Lock, Check } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
+import { baixarPacote, marcarPinValidado, pacoteLocal, pinValidoNoAparelho } from "@/lib/pdv/local";
 
 // ─── Contexto do PIN ──────────────────────────────────────────────────────────
 
@@ -44,13 +45,16 @@ function TelaPIN({ onAutenticado }: { onAutenticado: () => void }) {
         body: JSON.stringify({ pin: pinDigitado }),
       });
       if (res.ok) {
+        // Guarda o caixa no aparelho e lembra o PIN (permite reabrir sem internet)
+        const pacote = await baixarPacote().catch(() => null);
+        if (pacote) await marcarPinValidado(pacote.usuario.id);
         onAutenticado();
         return;
       }
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       falhar(json.error ?? "PIN incorreto. Tente novamente.");
     } catch {
-      falhar("Erro de conexão. Tente novamente.");
+      falhar(navigator.onLine ? "Erro de conexão. Tente novamente." : "Sem internet. Valide o PIN uma vez com conexão; depois o caixa abre mesmo offline.");
     }
   };
 
@@ -121,6 +125,19 @@ function TelaPIN({ onAutenticado }: { onAutenticado: () => void }) {
 
 export default function OperadorGate({ children }: { children: React.ReactNode }) {
   const [pinValidado, setPinValidado] = useState(false);
+  const [verificando, setVerificando] = useState(true);
+
+  // PIN já validado neste aparelho (vale algumas horas, inclusive sem internet)
+  useEffect(() => {
+    (async () => {
+      const pacote = await pacoteLocal().catch(() => undefined);
+      const valido = pacote ? await pinValidoNoAparelho(pacote.usuario.id) : false;
+      setPinValidado(valido);
+      setVerificando(false);
+    })();
+  }, []);
+
+  if (verificando) return <div className="fixed inset-0 bg-[#0d0807]" />;
 
   return (
     <OperadorContext.Provider value={{ pinValidado, setPinValidado }}>
