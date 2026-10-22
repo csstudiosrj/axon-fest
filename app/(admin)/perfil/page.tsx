@@ -7,6 +7,7 @@ import {
   Save, Eye, EyeOff, CheckCircle, AlertCircle, Loader2
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { uploadFiles } from "@/utils/uploadthing";
 
 const supabase = createClient();
 
@@ -268,38 +269,17 @@ export default function PerfilPage() {
 
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-      const path = `perfil/user-${perfil.id}-${Date.now()}.${ext}`;
-
-      const { error: upErr } = await supabase.storage
-        .from("axon-assets")
-        .upload(path, file, { upsert: true, contentType: file.type });
-
-      if (upErr) throw upErr;
-
-      const { data: urlData } = supabase.storage
-        .from("axon-assets")
-        .getPublicUrl(path);
-
-      const publicUrl = urlData.publicUrl;
+      const [enviado] = await uploadFiles("imageUploader", { files: [file] });
+      if (!enviado) throw new Error("Falha no envio da foto.");
+      const publicUrl = enviado.ufsUrl;
       setFotoUrl(publicUrl);
 
-      // Atualiza no banco
       const { error: updateError } = await supabase
         .from("usuarios")
         .update({ foto_url: publicUrl })
         .eq("id", perfil.id);
 
       if (updateError) throw updateError;
-
-      // Remove arquivo antigo do storage, se houver
-      if (fotoUrl && fotoUrl.includes("axon-assets")) {
-        const urlObj = new URL(fotoUrl);
-        const oldPath = urlObj.pathname.replace(/^\/storage\/v1\/object\/public\/axon-assets\//, "");
-        if (oldPath && oldPath !== path) {
-          await supabase.storage.from("axon-assets").remove([oldPath]);
-        }
-      }
 
       mostrarToast("Foto atualizada com sucesso!");
     } catch (err) {

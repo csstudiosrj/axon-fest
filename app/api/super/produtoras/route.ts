@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getUsuarioAtual } from "@/lib/auth/session";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 
 // Super admin muda o plano de uma produtora (até a cobrança automática existir)
 export async function POST(req: NextRequest) {
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { id?: string; acao?: string; ate?: string | null };
   if (!body.id || !/^[0-9a-f-]{36}$/i.test(body.id)) return NextResponse.json({ error: "Produtora inválida." }, { status: 400 });
 
-  let dados: Record<string, unknown>;
+  let dados: TablesUpdate<"produtoras">;
   if (body.acao === "pro") {
     const ate = body.ate ? new Date(`${body.ate}T23:59:59-03:00`) : null;
     if (ate && (Number.isNaN(ate.getTime()) || ate < new Date())) return NextResponse.json({ error: "Data de validade inválida." }, { status: 400 });

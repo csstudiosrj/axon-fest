@@ -263,6 +263,11 @@ export default function GrupoLoginPage() {
             {loading ? <Loader2 size={18} className="animate-spin" /> : null}
             {isLogin ? "Entrar" : "Cadastrar"}
           </button>
+          {isLogin && (
+            <p className="text-center text-sm">
+              <Link href="/esqueci-senha" className="text-gray-400 hover:text-axon-gold">Esqueci minha senha</Link>
+            </p>
+          )}
         </form>
 
         <div className="mt-6 text-center">

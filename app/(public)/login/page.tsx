@@ -1,6 +1,7 @@
 "use client";
 
 import React, { use, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
@@ -11,7 +12,7 @@ const ROLES_LOGIN: readonly string[] = [...ROLES, ...ROLES_PAINEL_ADMIN, ...ROLE
 
 const MENSAGENS_ERRO: Record<string, string> = {
   "sem-acesso": "Sua conta não tem acesso a esta área.",
-  "link-invalido": "Link inválido ou expirado. Peça um novo convite à organização.",
+  "link-invalido": "Link inválido ou expirado. Peça um novo convite à organização ou use “Esqueci minha senha”.",
 };
 
 // Só aceita caminhos internos em ?next= (evita open redirect)
@@ -126,6 +127,9 @@ export default function AdminLoginPage({
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : "Entrar no Sistema"}
             </button>
+            <p className="text-center text-sm">
+              <Link href="/esqueci-senha" className="text-gray-400 hover:text-axon-gold">Esqueci minha senha</Link>
+            </p>
           </form>
         </div>
 

@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getUsuarioAtual } from "@/lib/auth/session";
 import { TAG_CONFIGURACOES } from "@/lib/site/configuracoes";
+import type { Json } from "@/lib/supabase/database.types";
 
 // Salva um grupo de configurações (precos | contato | empresa). Só super admin.
 const ESQUEMA: Record<string, Record<string, "numero" | "numero_ou_nulo" | "texto">> = {
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error } = await createAdminClient().from("configuracoes_sistema").upsert({
-    chave: body.chave, valor, atualizado_em: new Date().toISOString(), atualizado_por: usuario.id,
+    chave: body.chave as string, valor: valor as { [k: string]: Json }, atualizado_em: new Date().toISOString(), atualizado_por: usuario.id,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

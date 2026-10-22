@@ -4,6 +4,7 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getUsuarioAtual, type UsuarioAtual } from "@/lib/auth/session";
 import { ROLES_GRUPO } from "@/lib/auth/roles";
 import { perfilPorSlug, type Perfil } from "@/lib/perfis";
+import { aceitaArquivos, infoStatus, inscricoesAbertas } from "@/lib/eventos/status";
 
 // Contexto das telas do portal do grupo dentro de um evento.
 // Leituras usam o cliente com RLS (o grupo só enxerga o que é dele).
@@ -94,14 +95,9 @@ export async function carregarContextoGrupo(eventoId: string): Promise<ContextoG
 // Situação do evento do ponto de vista do grupo
 export function situacaoEvento(status: string | null) {
   return {
-    podeEditar: status === "inscricoes_abertas",
-    podeEnviarArquivos: status !== "finalizado",
-    rotulo:
-      status === "inscricoes_abertas" ? "Inscrições abertas"
-      : status === "inscricoes_encerradas" ? "Inscrições encerradas"
-      : status === "em_andamento" ? "Em andamento"
-      : status === "finalizado" ? "Finalizado"
-      : "Em preparação",
+    podeEditar: inscricoesAbertas(status),
+    podeEnviarArquivos: aceitaArquivos(status),
+    rotulo: infoStatus(status).rotulo,
   };
 }
 

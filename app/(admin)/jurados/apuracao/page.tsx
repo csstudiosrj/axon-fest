@@ -6,6 +6,7 @@ import {
   AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Check, CloudOff, Download, Eye, EyeOff, Loader2, Lock, Plus, QrCode, RefreshCw, Trash2, Trophy, Unlock, Wifi,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 import { apiUrl } from "@/lib/base-path";
 import { RegistrarOffline } from "@/lib/offline/RegistrarOffline";
 import { classificar, METODOS, notaDoJurado, type MetodoApuracao } from "@/lib/apuracao/calculo";
@@ -465,7 +466,7 @@ function AbaCriterios({ pacote, online, onMudou, mostrar }: {
   const temNotas = pacote.fichas.length > 0;
   const bloqueado = !online;
 
-  const salvarEvento = async (mudanca: Record<string, unknown>) => {
+  const salvarEvento = async (mudanca: TablesUpdate<"eventos">) => {
     const { error } = await supabase.from("eventos").update(mudanca).eq("id", pacote.evento.id);
     if (error) mostrar("erro", error.message); else onMudou();
   };

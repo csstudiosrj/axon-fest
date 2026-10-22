@@ -1,6 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { BASE_PATH } from "@/lib/base-path";
 
 // Recebe os links de e-mail (convite, recuperação de senha) no formato
 // ?token_hash=...&type=...&next=/caminho, valida no Supabase e grava a sessão
@@ -14,19 +15,14 @@ export async function GET(request: NextRequest) {
   const nextParam = searchParams.get("next") ?? "/login";
   const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/login";
 
-  const destino = request.nextUrl.clone();
-  destino.search = "";
+  // Monta o endereço com o prefixo do app (/fest): a cópia de nextUrl perde o basePath
+  const ir = (caminho: string) => NextResponse.redirect(new URL(`${BASE_PATH}${caminho}`, request.url));
 
   if (tokenHash && type && TIPOS.includes(type)) {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-    if (!error) {
-      destino.pathname = next;
-      return NextResponse.redirect(destino);
-    }
+    if (!error) return ir(next);
   }
 
-  destino.pathname = "/login";
-  destino.searchParams.set("erro", "link-invalido");
-  return NextResponse.redirect(destino);
+  return ir("/login?erro=link-invalido");
 }

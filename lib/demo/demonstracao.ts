@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes, randomInt } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/server";
+import type { TablesInsert } from "@/lib/supabase/database.types";
 import { perfilPorSlug, type SlugPerfil } from "@/lib/perfis";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ function cpfAleatorio() {
   return d.join("");
 }
 
-async function criarUsuario(admin: Admin, email: string, senha: string, dados: Record<string, unknown>) {
+async function criarUsuario(admin: Admin, email: string, senha: string, dados: Omit<TablesInsert<"usuarios">, "id" | "email">) {
   const { data, error } = await admin.auth.admin.createUser({ email, password: senha, email_confirm: true });
   if (error || !data.user) throw new Error(`Usuário ${email}: ${error?.message}`);
   const { error: e2 } = await admin.from("usuarios").insert({ id: data.user.id, email, ativo: true, ...dados });
@@ -103,7 +104,7 @@ export async function criarDemonstracao(admin: Admin) {
     // PDV
     await admin.from("pdv_config").insert({ produtora_id: pid, pin_admin: "1234", pix_nome: "Produtora Demonstração", pix_cidade: "Rio de Janeiro" });
     const produtosPdv = checar(await admin.from("pdv_produtos").insert(
-      [["Água 500 ml", 5, "cantina"], ["Refrigerante", 7, "cantina"], ["Programa do festival", 15, "loja"], ["Camiseta oficial", 60, "loja"]]
+      ([["Água 500 ml", 5, "cantina"], ["Refrigerante", 7, "cantina"], ["Programa do festival", 15, "loja"], ["Camiseta oficial", 60, "loja"]] as [string, number, string][])
         .map(([nome, preco, tipo], i) => ({ nome, preco, tipo, produtora_id: pid, ativo: true, ordem: i }))
     ).select("id, nome, preco"), "pdv_produtos") as { id: string; nome: string; preco: number }[];
 
@@ -212,7 +213,7 @@ export async function apagarDemonstracao(admin: Admin) {
 
   // Ordem: dados de evento → catálogo da produtora → pessoas → logins → produtora
   await admin.from("eventos").delete().eq("produtora_id", pid);
-  for (const t of ["pdv_vendas", "pdv_produtos", "pdv_config", "posts_marketing", "produtos", "termos_documentos", "tenant_estilos_ativos", "tenant_config", "participantes_bloqueados"]) {
+  for (const t of ["pdv_vendas", "pdv_produtos", "pdv_config", "posts_marketing", "produtos", "termos_documentos", "tenant_estilos_ativos", "tenant_config", "participantes_bloqueados"] as const) {
     await admin.from(t).delete().eq("produtora_id", pid);
   }
   await admin.from("participantes").delete().or(`produtora_id.eq.${pid},origem_produtora_id.eq.${pid}`);

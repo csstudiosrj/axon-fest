@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { ROLES_GRUPO } from "@/lib/auth/roles";
+import { inscricoesAbertas } from "@/lib/eventos/status";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cadastro de grupo/escola e inscrição em evento, feito no servidor.
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
     if (body.evento_id) {
       const { data } = await admin.from("eventos").select("*").eq("id", body.evento_id).maybeSingle();
       if (!data) return erro("Evento não encontrado.", 404);
+      if (!inscricoesAbertas((data as { status?: string | null }).status)) return erro("As inscrições deste evento não estão abertas.", 409);
       evento = data as { id: string; produtora_id?: string | null };
     }
 

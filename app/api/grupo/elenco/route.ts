@@ -5,6 +5,7 @@ import { ROLES_GRUPO } from "@/lib/auth/roles";
 import { cpfValido, soDigitos } from "@/lib/documentos";
 import { enviarConfirmacaoVinculo } from "@/lib/grupo/vinculo";
 import { perfilPorSlug } from "@/lib/perfis";
+import { inscricoesAbertas } from "@/lib/eventos/status";
 
 // Elenco do grupo: adicionar, editar, trocar função, reenviar convite e remover.
 // Feito no servidor porque a mesma pessoa pode já ter cadastro (outro grupo ou
@@ -36,7 +37,7 @@ function texto(v: unknown, max = 160): string | null {
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 
-function dataValida(v: string | null): boolean {
+function dataValida(v: string | null): v is string {
   if (!v || !DATA.test(v)) return false;
   const d = new Date(`${v}T12:00:00`);
   return !Number.isNaN(d.getTime()) && d < new Date() && d.getFullYear() > 1900;
@@ -186,8 +187,8 @@ export async function POST(req: NextRequest) {
         const e = a.eventos as { status?: string } | { status?: string }[] | null;
         return Array.isArray(e) ? e[0]?.status : e?.status;
       };
-      const abertas = (aps ?? []).filter((a) => status(a) === "inscricoes_abertas").map((a) => a.id as string);
-      const fechadas = (aps ?? []).filter((a) => status(a) !== "inscricoes_abertas").map((a) => a.id as string);
+      const abertas = (aps ?? []).filter((a) => inscricoesAbertas(status(a))).map((a) => a.id as string);
+      const fechadas = (aps ?? []).filter((a) => !inscricoesAbertas(status(a))).map((a) => a.id as string);
       if (fechadas.length) {
         const { count } = await admin.from("apresentacao_elenco").select("apresentacao_id", { count: "exact", head: true })
           .eq("participante_id", vinculo.participante_id).in("apresentacao_id", fechadas);

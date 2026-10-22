@@ -1,5 +1,7 @@
 "use client";
 
+import { infoStatus } from "@/lib/eventos/status";
+import { novoSlug } from "@/lib/eventos/slug";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { SeletorPerfil } from "../_components/SeletorPerfil";
@@ -87,34 +89,11 @@ const PRESETS: Record<
 type Evento = {
   id: string;
   nome: string;
-  data_inicio: string;
-  data_fim: string;
-  local: string;
-  status: string;
-  inscritos_count: number;
-};
-
-const STATUS_CONFIG: Record<string, { label: string; cor: string }> = {
-  inscricoes_abertas: {
-    label: "Inscrições Abertas",
-    cor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  },
-  em_andamento: {
-    label: "Em Andamento",
-    cor: "text-axon-gold bg-axon-gold/10 border-axon-gold/20",
-  },
-  encerrado: {
-    label: "Encerrado",
-    cor: "text-gray-400 bg-gray-500/10 border-gray-500/20",
-  },
-  rascunho: {
-    label: "Rascunho",
-    cor: "text-gray-500 bg-white/5 border-white/10",
-  },
-  Publicado: {
-    label: "Publicado",
-    cor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  },
+  data_inicio: string | null;
+  data_fim: string | null;
+  local: string | null;
+  status: string | null;
+  inscritos_count: number | null;
 };
 
 function obterDataSegura(dataStr: string): Date {
@@ -280,6 +259,7 @@ export default function EventosPage() {
         data_fim: form.data_fim,
         perfil_id: form.perfil_id,
         status: "Em Montagem",
+        slug: novoSlug(form.nome),
         inscritos_count: 0,
         produtora_id: userData?.produtora_id ?? null,
       })
@@ -289,6 +269,7 @@ export default function EventosPage() {
     if (!error && data) {
       router.push(`/eventos/${data.id}`);
     } else {
+      window.alert(`Não foi possível criar o evento: ${error?.message ?? "tente novamente."}`);
       setCriando(false);
     }
   }
@@ -342,10 +323,8 @@ export default function EventosPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {eventos.map((evento) => {
-            const status = STATUS_CONFIG[evento.status] ?? {
-              label: evento.status,
-              cor: "text-gray-400 bg-white/5 border-white/10",
-            };
+            const info = infoStatus(evento.status);
+            const status = { label: info.rotulo, cor: info.cor };
 
             return (
               <div

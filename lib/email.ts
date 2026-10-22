@@ -14,6 +14,11 @@ export function escapeHtml(valor: string | null | undefined): string {
 }
 
 export async function enviarEmail(opcoes: { para: string; assunto: string; html: string; responderPara?: string }) {
+  // Testes locais: EMAIL_MODO=console registra o e-mail no log em vez de enviar (nunca na Vercel)
+  if (process.env.EMAIL_MODO === "console" && !process.env.VERCEL) {
+    console.log(`[email] ${JSON.stringify({ para: opcoes.para, assunto: opcoes.assunto, links: [...opcoes.html.matchAll(/href="([^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, "&")) })}`);
+    return;
+  }
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY não configurada.");
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { urlAbsoluta } from "@/lib/base-path";
 import { UploadButton } from "@/utils/uploadthing";
 import {
   Plus,
@@ -846,7 +847,7 @@ export default function MarketingPage() {
       return;
     }
 
-    const link = `https://arxum.csstudios.site/fest/e/${slug}`;
+    const link = urlAbsoluta(`/e/${slug}`);
     await navigator.clipboard.writeText(link);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 1800);
@@ -866,7 +867,7 @@ export default function MarketingPage() {
   const totalPublicados = posts.filter((p) => p.status === "publicado").length;
   const proximoPost = posts.find((p) => p.status === "agendado");
 
-  const urlFinal = `https://arxum.csstudios.site/fest/e/${slugifyEvento(identidadeForm.slug)}`;
+  const urlFinal = urlAbsoluta(`/e/${slugifyEvento(identidadeForm.slug)}`);
   const previewFonteClass = classeFontePreview(identidadeForm.fonte_familia);
   const previewTema = getPreviewTema(identidadeForm.tema_escuro);
 

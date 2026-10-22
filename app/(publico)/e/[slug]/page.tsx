@@ -23,13 +23,11 @@ import {
   Download,
   Shield,
   Instagram,
-  Camera,
-  Video,
-  BadgeCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 type EventoStatus =
+  | "adiado"
   | "rascunho"
   | "inscricoes_abertas"
   | "inscricoes_encerradas"
@@ -142,7 +140,7 @@ interface EventoRow {
 
 interface JuradoPublicoRow {
   jurado_id: string;
-  nome: string;
+  nome: string | null;
   foto_url: string | null;
   especialidade: string | null;
   mini_bio: string | null;
@@ -252,7 +250,11 @@ function normalizarStatus(status: string): EventoStatus {
     case "finalizado":
     case "cancelado":
     case "rascunho":
+    case "adiado":
       return status;
+    // Prorrogadas seguem aceitando inscrições como abertas
+    case "inscricoes_prorrogadas":
+      return "inscricoes_abertas";
     default:
       return "rascunho";
   }
@@ -355,6 +357,12 @@ function statusLabel(status: Evento["status"]): {
         texto: "Finalizado",
         cor: "bg-gray-500/20 text-gray-400 border-gray-500/30",
         icone: <CheckCircle2 size={13} />,
+      };
+    case "adiado":
+      return {
+        texto: "Adiado",
+        cor: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+        icone: <Clock size={13} />,
       };
     case "cancelado":
       return {
@@ -481,7 +489,7 @@ function AvatarJurado({
   tema: ReturnType<typeof getThemeClasses>;
 }) {
   const cor = corPrimaria ?? "#d4af37";
-  const iniciais = jurado.nome
+  const iniciais = (jurado.nome ?? "Jurado")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -781,7 +789,7 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
         (row) =>
           ({
             id: row.jurado_id,
-            nome: row.nome,
+            nome: row.nome?.trim() || "Jurado(a)",
             foto_url: row.foto_url,
             especialidade: row.especialidade,
             mini_bio: row.mini_bio,
@@ -1208,16 +1216,13 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
                           {produto.descricao}
                         </p>
                       )}
-                      <button
-                        className="mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
-                        style={{
-                          background: corPrimaria,
-                          color: corTextoContraste(corPrimaria),
-                        }}
+                      <p
+                        className="mt-5 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold"
+                        style={{ borderColor: `${corPrimaria}40`, color: corPrimaria }}
                       >
-                        Ver detalhes
-                        <ArrowRight size={14} />
-                      </button>
+                        <ShoppingBag size={13} />
+                        À venda no evento
+                      </p>
                     </div>
                   </div>
                 );
@@ -1225,63 +1230,6 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
             </div>
           </section>
         )}
-
-        <section aria-labelledby="secao-participante">
-          <SectionHeader
-            titulo="Área do Participante"
-            corPrimaria={corPrimaria}
-            headingClass={tema.heading}
-          />
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className={`rounded-2xl border p-6 ${tema.card}`} style={{ borderColor: `${corPrimaria}22` }}>
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-xl p-3" style={{ background: `${corPrimaria}16` }}>
-                  <Download size={18} style={{ color: corPrimaria }} />
-                </div>
-                <div>
-                  <h3 className={`text-base font-bold ${tema.heading}`}>Certificado de Participação</h3>
-                  <p className={`text-sm ${tema.softText}`}>
-                    Disponível para emissão digital após validação da presença no evento.
-                  </p>
-                </div>
-              </div>
-              <p className={`mb-5 text-sm leading-relaxed ${tema.text}`}>
-                Participantes, grupos e responsáveis poderão acessar a área autenticada para baixar o certificado oficial em PDF com assinatura digital da organização.
-              </p>
-              <button
-                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
-                style={{
-                  background: corPrimaria,
-                  color: corTextoContraste(corPrimaria),
-                }}
-              >
-                <Download size={15} />
-                Baixar certificado
-              </button>
-            </div>
-
-            <div className={`rounded-2xl border p-6 ${tema.card}`} style={{ borderColor: `${corPrimaria}22` }}>
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-xl p-3" style={{ background: `${corPrimaria}16` }}>
-                  <Camera size={18} style={{ color: corPrimaria }} />
-                </div>
-                <div>
-                  <h3 className={`text-base font-bold ${tema.heading}`}>Retirada de Fotos e Vídeos</h3>
-                  <p className={`text-sm ${tema.softText}`}>
-                    Cobertura oficial da participação e registros do palco.
-                  </p>
-                </div>
-              </div>
-              <p className={`text-sm leading-relaxed ${tema.text}`}>
-                Os arquivos de foto e vídeo estarão liberados na data configurada pela organização do festival. Assim que a liberação ocorrer, o participante poderá acessar este espaço para download dos materiais.
-              </p>
-              <div className={`mt-5 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${tema.cardSoft}`} style={{ borderColor: `${corPrimaria}18` }}>
-                <Video size={16} style={{ color: corPrimaria }} />
-                <span className={tema.softText}>Liberação prevista conforme cronograma oficial do evento.</span>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <section aria-labelledby="secao-menores">
           <SectionHeader
@@ -1307,21 +1255,11 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
                   </h3>
                 </div>
                 <p className={`text-sm leading-relaxed ${tema.text}`}>
-                  Responsáveis legais poderão assinar digitalmente ou baixar a autorização oficial de participação e uso de imagem para menores de idade, garantindo conformidade documental antes da apresentação.
+                  Quando o grupo cadastra um participante menor de idade, o responsável legal recebe um link por e-mail para assinar digitalmente o termo de participação e uso de imagem. Não é preciso imprimir nada.
                 </p>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold"
-                  style={{
-                    background: corPrimaria,
-                    color: corTextoContraste(corPrimaria),
-                  }}
-                >
-                  <CheckCircle2 size={15} />
-                  Assinar digitalmente
-                </button>
                 {evento.autorizacao_menor_url && (
                   <a
                     href={evento.autorizacao_menor_url}
