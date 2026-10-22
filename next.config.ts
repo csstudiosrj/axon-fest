@@ -3,6 +3,10 @@ import { BASE_PATH } from "./lib/base-path";
 
 const nextConfig: NextConfig = {
   basePath: BASE_PATH,
+  async redirects() {
+    // Página antiga, substituída pelo site institucional
+    return [{ source: "/como-funciona", destination: "/funcionalidades", permanent: true }];
+  },
   async headers() {
     return [
       {
