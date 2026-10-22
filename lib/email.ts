@@ -13,7 +13,7 @@ export function escapeHtml(valor: string | null | undefined): string {
     .replace(/'/g, "&#39;");
 }
 
-export async function enviarEmail(opcoes: { para: string; assunto: string; html: string }) {
+export async function enviarEmail(opcoes: { para: string; assunto: string; html: string; responderPara?: string }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY não configurada.");
 
@@ -23,6 +23,7 @@ export async function enviarEmail(opcoes: { para: string; assunto: string; html:
     to: opcoes.para,
     subject: opcoes.assunto,
     html: opcoes.html,
+    ...(opcoes.responderPara ? { replyTo: opcoes.responderPara } : {}),
   });
   if (error) throw new Error(error.message);
 }

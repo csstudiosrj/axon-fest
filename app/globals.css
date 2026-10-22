@@ -11,6 +11,23 @@
   --color-axon-gold-dim:     rgba(197, 160, 89, 0.12);
   --color-axon-green:        #138946;
   --color-axon-green-dim:    rgba(19, 137, 70, 0.12);
+
+  /* ── Site institucional (Manual de Marca ARXUM v1.0) ── */
+  --color-arx-obsidian:      #07090c;
+  --color-arx-surface:       #111820;
+  --color-arx-surface-2:     #182030;
+  --color-arx-slate:         #5e7a94;
+  --color-arx-frost:         #d8e4f0;
+  --color-arx-mist:          #9aabbd;  /* texto de apoio legível sobre Obsidian */
+  --color-arx-fest:          #d4af37;
+  --color-arx-jade:          #1db954;
+  --color-arx-line:          rgba(216, 228, 240, 0.08);
+}
+
+/* inline: a variável da fonte (next/font) é resolvida no elemento, não no :root */
+@theme inline {
+  --font-site: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-logo: var(--font-syne), var(--font-dm-sans), sans-serif;
 }
 
 body {
