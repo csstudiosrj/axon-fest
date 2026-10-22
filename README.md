@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ARXUM Fest
 
-## Getting Started
+Sistema de gestão de festivais (dança, música, teatro e afins) da **ARXUM**, desenvolvido pela CS Studios.
+No ar em **https://www.arxum.com.br/fest**.
 
-First, run the development server:
+## O que o sistema faz
+
+| Área | Quem usa | Onde entra |
+|---|---|---|
+| Painel da produtora | Dono do festival (`admin`), `produtor`, `marketing`, `assistente` | `/fest/login` |
+| Caixa e bilheteria (celular) | `operador` (login + PIN do PDV) | `/fest/login` → `/fest/caixa` |
+| Avaliação | `jurado` | `/fest/login` → `/fest/jurado/avaliacao` |
+| Portal do grupo/escola | `org_admin`, `org_membro` | `/fest/grupo/login` |
+| Página pública do evento | Público | `/fest/e/<slug>` |
+| Inscrição de grupos | Público | `/fest/inscricao/<id-do-evento>` |
+| Confirmação de participante | Participante (link por e-mail) | `/fest/confirmar-participacao/<token>` |
+| Administração do SaaS | `super_admin` (dono da ARXUM) | `/fest/login` |
+
+Cargos, permissões e quem pode convidar quem: `lib/auth/roles.ts`.
+
+## Tecnologias
+
+- **Next.js 16** (App Router) com `basePath: /fest` — ver `lib/base-path.ts`
+- **Supabase**: autenticação e banco Postgres com RLS
+- **Resend**: e-mails (convites, vínculo de participantes, autorização de responsável)
+- **UploadThing**: upload de áudios, mapas de luz e imagens
+- **Vercel**: hospedagem (deploy automático a cada merge na `main`)
+
+## Rodando localmente
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # preencha as chaves
+npm run dev                  # http://localhost:3000/fest
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Antes de abrir um PR:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx tsc --noEmit
+npm run lint
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Variáveis de ambiente
 
-## Learn More
+Todas estão descritas em [`.env.example`](.env.example). Na Vercel ficam em
+*Settings → Environment Variables* (Production e Preview).
 
-To learn more about Next.js, take a look at the following resources:
+| Variável | Para quê |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Endereço do projeto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON` | Chave pública (navegador) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave secreta (só servidor; ignora RLS) |
+| `NEXT_PUBLIC_APP_URL` | Origem pública, sem `/fest` (links dos e-mails) |
+| `RESEND_API_KEY` / `RESEND_FROM` | Envio de e-mails |
+| `UPLOADTHING_TOKEN` | Uploads |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Segurança
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- O proxy (`proxy.ts`) renova a sessão e barra áreas restritas sem login.
+- Os layouts checam o cargo no servidor (`lib/auth/guards.ts`, `getUser()`).
+- Rotas em `app/api` que usam a service role validam sessão, cargo e produtora antes de agir.
+- No banco, **todas as tabelas têm RLS**: cada perfil só lê/escreve o que é seu
+  (`supabase/migrations/20261023000100_seguranca_rls.sql`).
 
-## Deploy on Vercel
+## Banco de dados
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+O esquema está versionado em `supabase/migrations/` (rodar em ordem):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Arquivo | O que faz |
+|---|---|
+| `20261022000000_esquema_inicial.sql` | Retrato do banco original (já existe em produção — não rodar lá) |
+| `20261023000000_alinhar_colunas.sql` | Colunas que o código usa e faltavam; cargo `operador` |
+| `20261023000100_seguranca_rls.sql` | Funções auxiliares, RLS e políticas de todas as tabelas |
+
+**Aplicar uma migration nova em produção:** Supabase → *SQL Editor* → *New query* → colar o
+conteúdo do arquivo → *Run*.
+
+**Tipos TypeScript** (`lib/supabase/database.types.ts`) são gerados a partir das migrations.
+Com o [Supabase CLI](https://supabase.com/docs/guides/cli):
+`npx supabase gen types typescript --project-id <id> > lib/supabase/database.types.ts`.
+
+## Deploy
+
+A Vercel publica automaticamente:
+- **Produção**: a cada merge na branch `main`;
+- **Preview**: a cada pull request (link aparece no PR).
+
+Variáveis novas só valem depois de um novo deploy (*Deployments → … → Redeploy*).
