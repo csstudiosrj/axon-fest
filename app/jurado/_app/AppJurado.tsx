@@ -8,6 +8,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/base-path";
 import { limparDadosOffline } from "@/lib/offline/RegistrarOffline";
+import { contar, perfilPorSlug } from "@/lib/perfis";
 import { criptografarPacote, montarQuadros, type PacoteNotas } from "@/lib/offline/transferencia";
 import {
   apagarTudo, baixarPacote, fichasDoEvento, listarPacotes, pendentes, salvarFicha, sincronizar,
@@ -22,7 +23,6 @@ type Tela =
   | { nome: "ficha"; eventoId: string; apresentacaoId: string }
   | { nome: "qr"; eventoId: string };
 
-const FORMACAO: Record<string, string> = { solo: "Solo", duo: "Duo", conjunto: "Conjunto", grupo: "Grupo" };
 
 const dataCurta = (iso: string | null) =>
   iso ? new Date(iso + (iso.length === 10 ? "T12:00:00" : "")).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "";
@@ -286,7 +286,7 @@ function TelaEvento({ pacote, fichas, online, ocupado, onAtualizar, onSincroniza
       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-arx-surface-2">
         <div className="h-full rounded-full bg-arx-fest transition-all" style={{ width: `${total ? (finalizadas / total) * 100 : 0}%` }} />
       </div>
-      <p className="mt-2 text-[13px] text-arx-mist">{finalizadas} de {total} finalizadas</p>
+      <p className="mt-2 text-[13px] text-arx-mist">{finalizadas} de {contar(total, perfilPorSlug(pacote.perfil).termos.apresentacao)} avaliadas</p>
 
       <div className="mt-5 grid grid-cols-2 gap-2">
         <button type="button" onClick={onQr}
@@ -322,7 +322,7 @@ function TelaEvento({ pacote, fichas, online, ocupado, onAtualizar, onSincroniza
                     <span className="w-7 shrink-0 text-[12px] tabular-nums text-arx-slate">{a.ordem_apresentacao ?? "—"}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] text-white">{a.nome}</span>
-                      <span className="block truncate text-[12px] text-arx-slate">{a.grupo} · {a.categoria} · {FORMACAO[a.tipo] ?? a.tipo}</span>
+                      <span className="block truncate text-[12px] text-arx-slate">{a.grupo} · {a.categoria} · {perfilPorSlug(pacote.perfil).formacoes[a.tipo as "solo"] ?? a.tipo}</span>
                     </span>
                     {estado === "finalizada" && <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-arx-fest/15 text-arx-fest"><Check size={14} /></span>}
                     {estado === "andamento" && <span className="h-2 w-2 rounded-full bg-amber-300" aria-label="Em andamento" />}
@@ -380,7 +380,7 @@ function TelaFicha({ pacote, apresentacaoId, ficha, onSalvar, onFinalizada, onIr
 
   return (
     <>
-      <p className="text-[12px] text-arx-slate">{a.ordem_apresentacao ? `#${a.ordem_apresentacao} · ` : ""}{a.categoria} · {FORMACAO[a.tipo] ?? a.tipo}</p>
+      <p className="text-[12px] text-arx-slate">{a.ordem_apresentacao ? `#${a.ordem_apresentacao} · ` : ""}{a.categoria} · {perfilPorSlug(pacote.perfil).formacoes[a.tipo as "solo"] ?? a.tipo}</p>
       <h1 className="mt-1 text-[24px] font-medium leading-[1.15] tracking-[-0.02em] text-white">{a.nome}</h1>
       <p className="mt-1 text-[14px] text-arx-mist">{a.grupo}</p>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { SeletorPerfil } from "../../_components/SeletorPerfil";
 import {
   DragDropContext,
   Droppable,
@@ -187,6 +188,7 @@ type Evento = {
   produtora_id: string | null;
   formato: EventoFormato | null;
   tipo_premiacao: TipoPremiacao | null;
+  perfil_id?: string | null;
   multilocal: boolean | null;
   logo_url: string | null;
   banner_url: string | null;
@@ -1613,7 +1615,7 @@ export default function PainelEventoPage() {
           supabase
             .from("eventos")
             .select(
-              "id, nome, data_inicio, data_fim, local, status, descricao, produtora_id, formato, tipo_premiacao, multilocal, logo_url, banner_url"
+              "id, nome, data_inicio, data_fim, local, status, descricao, produtora_id, perfil_id, formato, tipo_premiacao, multilocal, logo_url, banner_url, perfis_festival:perfil_id ( slug )"
             )
             .eq("id", eventoId)
             .single(),
@@ -1634,29 +1636,11 @@ export default function PainelEventoPage() {
         setEvento(eventoAtual);
         setForm(eventoAtual);
 
-        if (eventoAtual.produtora_id) {
-          try {
-            const { data: config } = await supabase
-              .from("tenant_config")
-              .select("*")
-              .eq("produtora_id", eventoAtual.produtora_id)
-              .maybeSingle();
+        // Vocabulário e presets seguem o tipo do festival do evento
+        const perfilEv = (eventoAtual as unknown as { perfis_festival?: { slug?: string } | { slug?: string }[] | null }).perfis_festival;
+        const slugEv = Array.isArray(perfilEv) ? perfilEv[0]?.slug : perfilEv?.slug;
+        setPerfilSlug(slugEv ?? "default");
 
-            const slug = (() => {
-              if (!config) return null;
-              return (
-                (config as any).settings?.perfis_festival?.slug ||
-                (config as any).settings?.perfil_festival?.slug ||
-                (config as any).perfil_slug ||
-                (config as any).slug
-              );
-            })();
-
-            setPerfilSlug(slug && typeof slug === "string" ? slug : "default");
-          } catch {
-            setPerfilSlug("default");
-          }
-        }
 
         const cats = (catsRes.data ?? []) as Categoria[];
         let apres = (apresRes.data ?? []) as Apresentacao[];
@@ -1757,6 +1741,7 @@ export default function PainelEventoPage() {
         descricao: form.descricao ?? null,
         formato: (form.formato ?? "competitivo") as EventoFormato,
         tipo_premiacao: (form.tipo_premiacao ?? "sem_premiacao") as TipoPremiacao,
+        perfil_id: form.perfil_id ?? null,
         multilocal: Boolean(form.multilocal),
         logo_url: evento?.logo_url ?? null,
         banner_url: evento?.banner_url ?? null,
@@ -2497,6 +2482,12 @@ export default function PainelEventoPage() {
                       <option value="mostra">Mostra</option>
                       <option value="misto">Misto</option>
                     </select>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm text-gray-400 font-medium">Tipo do festival</label>
+                    <SeletorPerfil valor={form.perfil_id}
+                      onChange={(perfil) => { setForm({ ...form, perfil_id: perfil.id }); setPerfilSlug(perfil.slug); }} />
                   </div>
 
                   <div className="space-y-2">

@@ -19,6 +19,7 @@ import {
   User,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { perfilPorSlug } from "@/lib/perfis";
 import { apiUrl, BASE_PATH } from "@/lib/base-path";
 import { ROLES_GRUPO } from "@/lib/auth/roles";
 
@@ -38,6 +39,7 @@ async function cadastrarNoServidor(corpo: Record<string, unknown>): Promise<stri
 }
 
 interface EventoInscricao {
+  perfil_slug?: string | null;
   id: string;
   nome: string;
   cor_primaria: string | null;
@@ -136,6 +138,7 @@ function StepBadge({ active, done, accent, label, isDark }: { active: boolean; d
 }
 
 export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) {
+  const termos = perfilPorSlug(evento.perfil_slug).termos;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [etapa, setEtapa] = useState<Etapa>("identificacao");
@@ -262,7 +265,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
         }
 
         if (!usuario.organizacao_id) {
-          setErroLogin("Sua conta não está vinculada a nenhum grupo.");
+          setErroLogin(`Sua conta não está vinculada a nenhum(a) ${termos.grupo.singular}.`);
           return;
         }
 
@@ -626,7 +629,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
           <div className="space-y-5">
             <div>
               <h3 className={`text-lg font-bold ${headingClass}`}>Vamos criar seu cadastro</h3>
-              <p className={`mt-1 text-sm ${textClass}`}>Preencha os dados do grupo para continuar a inscrição.</p>
+              <p className={`mt-1 text-sm ${textClass}`}>Cadastre {termos.grupo.genero === "f" ? "a sua" : "o seu"} {termos.grupo.singular} para continuar a inscrição.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -639,7 +642,7 @@ export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) 
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Nome do grupo</label>
+                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Nome {termos.grupo.genero === "f" ? "da" : "do"} {termos.grupo.singular}</label>
                 <div className="relative">
                   <Building2 size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
                   <input type="text" value={nomeGrupo} onChange={(e) => { setErroCadastro(""); setNomeGrupo(e.target.value); }} className={`${inputBase} pl-10`} style={{ borderColor: nomeGrupo ? `${accent}30` : undefined }} />

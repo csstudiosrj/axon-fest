@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { maiuscula, perfilPorSlug } from "@/lib/perfis";
 import { apiUrl } from "@/lib/base-path";
 import {
   Search,
@@ -71,10 +72,6 @@ interface VinculoComGrupo {
   grupos: { nome: string } | null;
 }
 
-interface TenantEstiloAtivo {
-  estilos: { nome: string } | null;
-}
-
 // ============================================================
 // UTILITÁRIOS
 // ============================================================
@@ -103,7 +100,7 @@ function formatarData(data: string) {
 
 // ============================================================
 // REFATORAÇÃO #3 — obterOpcoesFuncao e presetMap REMOVIDOS.
-// opcoesFuncao agora vem do banco via tenant_estilos_ativos.
+// opcoesFuncao vem do tipo de festival da produtora (lib/perfis.ts).
 // ============================================================
 
 // ============================================================
@@ -1467,7 +1464,6 @@ export default function InscricoesPage() {
   // REFATORAÇÃO #3 — opcoesFuncao agora vem do banco (tenant_estilos_ativos + estilos)
   const [opcoesFuncao, setOpcoesFuncao] = useState<string[]>([]);
 
-  const FALLBACK_OPCOES_FUNCAO = ["Participante", "Direção", "Produção", "Outro"];
 
   const mostrarToast = (msg: string, tipo: "ok" | "erro" = "ok") => {
     setToast({ msg, tipo });
@@ -1490,30 +1486,19 @@ export default function InscricoesPage() {
           setUserRole(data.role);
           setProdutoraId(data.produtora_id || "");
           if (data.produtora_id) {
+            // Vocabulário e funções seguem o tipo de festival da produtora
             const { data: config } = await supabase
               .from("tenant_config")
-              .select("termo_participante")
+              .select("perfis_festival:perfil_id ( slug )")
               .eq("produtora_id", data.produtora_id)
-              .single();
-            setTermoParticipante(config?.termo_participante || null);
-
-            // Busca os estilos ativos desta produtora com join na tabela estilos
-            const { data: estilosAtivos } = await supabase
-              .from("tenant_estilos_ativos")
-              .select("estilos:estilo_id (nome)")
-              .eq("produtora_id", data.produtora_id)
-              .eq("ativo", true)
-              .returns<TenantEstiloAtivo[]>();
-
-            const nomes: string[] =
-              estilosAtivos
-                ?.map((e: TenantEstiloAtivo) => e.estilos?.nome as string)
-                .filter(Boolean) ?? [];
-
-            setOpcoesFuncao(nomes.length > 0 ? nomes : FALLBACK_OPCOES_FUNCAO);
+              .maybeSingle();
+            const rel = (config as { perfis_festival?: { slug?: string } | { slug?: string }[] | null } | null)?.perfis_festival;
+            const perfil = perfilPorSlug(Array.isArray(rel) ? rel[0]?.slug : rel?.slug);
+            setTermoParticipante(maiuscula(perfil.termos.participante.singular));
+            setOpcoesFuncao(perfil.funcoes.map((f) => f.nome));
           } else {
             setTermoParticipante(null);
-            setOpcoesFuncao(FALLBACK_OPCOES_FUNCAO);
+            setOpcoesFuncao(perfilPorSlug(null).funcoes.map((f) => f.nome));
           }
         }
       }

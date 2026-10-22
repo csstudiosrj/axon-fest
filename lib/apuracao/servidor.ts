@@ -15,6 +15,7 @@ export interface FichaEntrada {
 export type ResultadoFicha = { a: string; status: "ok" | "ignorada" | "invalida"; motivo?: string };
 
 export interface DadosEvento {
+  perfil: string | null;
   evento: { id: string; nome: string; produtora_id: string | null; metodo_apuracao: string; data_inicio: string | null; data_fim: string | null; local: string | null; liberar_comentarios: boolean; resultado_publicado_em: string | null };
   criterios: { id: string; nome: string; nota_min: number; nota_max: number; peso: number; ordem: number | null }[];
   apresentacoes: {
@@ -26,7 +27,7 @@ export interface DadosEvento {
 export async function carregarDadosEvento(admin: Admin, eventoId: string): Promise<DadosEvento | null> {
   const { data: evento } = await admin
     .from("eventos")
-    .select("id, nome, produtora_id, metodo_apuracao, data_inicio, data_fim, local, liberar_comentarios, resultado_publicado_em")
+    .select("id, nome, produtora_id, metodo_apuracao, data_inicio, data_fim, local, liberar_comentarios, resultado_publicado_em, perfis_festival:perfil_id ( slug )")
     .eq("id", eventoId)
     .maybeSingle();
   if (!evento) return null;
@@ -52,8 +53,12 @@ export async function carregarDadosEvento(admin: Admin, eventoId: string): Promi
   };
   const nomeLocal = new Map((locais ?? []).map((l) => [l.id as string, l.nome_local as string]));
 
+  const rel = (evento as { perfis_festival?: { slug?: string } | { slug?: string }[] | null }).perfis_festival;
+  const { perfis_festival: _rel, ...eventoSemRel } = evento as Record<string, unknown>;
+  void _rel;
   return {
-    evento: evento as DadosEvento["evento"],
+    perfil: (Array.isArray(rel) ? rel[0]?.slug : rel?.slug) ?? null,
+    evento: eventoSemRel as DadosEvento["evento"],
     criterios: (criterios ?? []).map((c) => ({ ...c, nota_min: Number(c.nota_min), nota_max: Number(c.nota_max), peso: Number(c.peso) })) as DadosEvento["criterios"],
     apresentacoes: (apresentacoes ?? []).map((a) => {
       const g = a.grupos as unknown as { nome: string } | { nome: string }[] | null;

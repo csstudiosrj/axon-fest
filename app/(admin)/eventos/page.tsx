@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { SeletorPerfil } from "../_components/SeletorPerfil";
 import { createClient } from "@/lib/supabase/client";
 import {
   CalendarDays,
@@ -165,6 +166,7 @@ export default function EventosPage() {
     nome: "",
     data_inicio: "",
     data_fim: "",
+    perfil_id: "",
   });
 
   const carregarEventos = useCallback(
@@ -215,7 +217,7 @@ export default function EventosPage() {
 
         const { data: config } = await supabase
           .from("tenant_config")
-          .select("perfis_festival:perfil_id ( slug )")
+          .select("perfil_id, perfis_festival:perfil_id ( slug )")
           .eq("produtora_id", userData.produtora_id)
           .maybeSingle();
 
@@ -225,6 +227,9 @@ export default function EventosPage() {
         if (slugConfig) {
           setPerfilSlug(slugConfig);
         }
+        // O tipo da produtora vira o padrão do novo evento
+        const perfilPadrao = (config as { perfil_id?: string | null } | null)?.perfil_id;
+        if (perfilPadrao) setForm((f) => ({ ...f, perfil_id: f.perfil_id || perfilPadrao }));
 
         await carregarEventos(userData.produtora_id);
       } else {
@@ -248,7 +253,7 @@ export default function EventosPage() {
   }, [modalNovo, criando]);
 
   async function criarEvento() {
-    if (!form.nome.trim() || !form.data_inicio || !form.data_fim) return;
+    if (!form.nome.trim() || !form.data_inicio || !form.data_fim || !form.perfil_id) return;
 
     setCriando(true);
 
@@ -273,7 +278,8 @@ export default function EventosPage() {
         nome: form.nome,
         data_inicio: form.data_inicio,
         data_fim: form.data_fim,
-        status: "rascunho",
+        perfil_id: form.perfil_id,
+        status: "Em Montagem",
         inscritos_count: 0,
         produtora_id: userData?.produtora_id ?? null,
       })
@@ -509,6 +515,12 @@ export default function EventosPage() {
                   />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">Tipo do festival *</label>
+                <SeletorPerfil valor={form.perfil_id} disabled={criando}
+                  onChange={(perfil) => { setForm({ ...form, perfil_id: perfil.id }); setPerfilSlug(perfil.slug); }} />
+              </div>
             </div>
 
             <div className="flex gap-3 justify-end pt-2">
@@ -527,7 +539,8 @@ export default function EventosPage() {
                   criando ||
                   !form.nome.trim() ||
                   !form.data_inicio ||
-                  !form.data_fim
+                  !form.data_fim ||
+                  !form.perfil_id
                 }
                 className="flex items-center gap-2 bg-axon-gold text-black font-semibold px-5 py-2.5 rounded-md hover:bg-axon-gold/90 transition-all duration-200 active:scale-95 text-sm disabled:opacity-50 min-w-[140px] justify-center"
               >

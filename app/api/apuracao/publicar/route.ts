@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { equipeDoEvento, getUsuarioAtual } from "@/lib/apuracao/acesso";
 import { carregarDadosEvento, carregarFichas } from "@/lib/apuracao/servidor";
 import { classificar, type MetodoApuracao } from "@/lib/apuracao/calculo";
+import { perfilPorSlug } from "@/lib/perfis";
 
 // Publica (ou retira) o resultado: grava o retrato da classificação atual
 export async function POST(req: NextRequest) {
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest) {
     dados.apresentacoes,
     fichas.map((f) => ({ apresentacao_id: f.a, avaliador_id: f.j, finalizada: !!f.f, notas: f.notas })),
     dados.criterios.map((c) => ({ id: c.id, nome: c.nome, peso: c.peso, ordem: c.ordem })),
-    dados.evento.metodo_apuracao as MetodoApuracao
+    dados.evento.metodo_apuracao as MetodoApuracao,
+    perfilPorSlug(dados.perfil).formacoes
   );
 
   const empates = grupos.flatMap((g) => g.linhas.filter((l) => l.empatada).map((l) => `${g.titulo}: ${l.apresentacao.nome}`));

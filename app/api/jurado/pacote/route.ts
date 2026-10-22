@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       evento: { id: dados.evento.id, nome: dados.evento.nome, data_inicio: dados.evento.data_inicio, data_fim: dados.evento.data_fim, local: dados.evento.local },
+      perfil: dados.perfil,
       criterios: dados.criterios,
       apresentacoes: dados.apresentacoes.map((a) => ({
         id: a.id, nome: a.nome, tipo: a.tipo, grupo: a.grupo, categoria: a.categoria, categoria_id: a.categoria_id,
