@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ShieldCheck, Lock, FileSignature, Users } from "lucide-react";
-import { PRECOS } from "@/lib/site/conteudo";
+import { TAXA_TEXTO } from "@/lib/site/conteudo";
 import { CaixaDemo, NotasDemo, PainelDemo, TermoDemo } from "./_components/Demos";
 import {
   BotaoPrimario, BotaoSecundario, CabecalhoSecao, Container, EmBreve, LinkSeta, Paragrafo, Rotulo, Titulo,
@@ -158,11 +158,11 @@ export default function Inicio() {
             <Rotulo>Preço</Rotulo>
             <Titulo className="mt-4 text-[32px] leading-[1.08] sm:text-[52px]">
               Grátis para criar.<br />
-              <span className="text-arx-fest">{PRECOS.taxaPercentual}%</span> quando você vender.
+              <span className="text-arx-fest">{TAXA_TEXTO}</span> quando você vender.
             </Titulo>
             <Paragrafo className="mt-6 max-w-[560px]">
-              Monte o evento, personalize a página e convide a equipe sem pagar nada. Nas inscrições pagas online, a taxa
-              de serviço é de {PRECOS.taxaPercentual}% — e você decide se absorve ou repassa ao inscrito.
+              Monte o evento, personalize a página e convide a equipe sem pagar nada. Em cada venda feita pelo sistema —
+              inscrição, ingresso ou produto — a taxa de serviço é de {TAXA_TEXTO}, e você decide se absorve ou repassa.
             </Paragrafo>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">

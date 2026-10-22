@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Check } from "lucide-react";
-import { PRECOS } from "@/lib/site/conteudo";
+import { PRECOS, TAXA_TEXTO } from "@/lib/site/conteudo";
 import { Container, Paragrafo, Rotulo, Titulo } from "../_components/ui";
 import { FormCriarConta } from "./FormCriarConta";
 
@@ -24,7 +24,7 @@ export default function CriarConta() {
             {[
               "Todos os módulos liberados desde o primeiro dia",
               `${PRECOS.mesesStart} meses de uso no plano Start`,
-              `Taxa de ${PRECOS.taxaPercentual}% apenas sobre inscrições pagas online`,
+              `Taxa de ${TAXA_TEXTO} apenas sobre vendas feitas pelo sistema`,
               "Equipe, jurados e operadores convidados por e-mail",
             ].map((item) => (
               <li key={item} className="flex gap-3 text-[15px] text-arx-frost">

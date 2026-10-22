@@ -69,6 +69,11 @@ export function FormCriarConta() {
         {enviando && <Loader2 size={16} className="animate-spin" />}
         {enviando ? "Criando conta…" : "Criar conta grátis"}
       </button>
+      <p className="text-center text-[12px] leading-[1.6] text-arx-slate">
+        Ao criar a conta, você concorda com os{" "}
+        <Link href="/termos-de-uso" className="text-arx-mist underline underline-offset-4 hover:text-white">Termos de Uso</Link> e a{" "}
+        <Link href="/privacidade" className="text-arx-mist underline underline-offset-4 hover:text-white">Política de Privacidade</Link>.
+      </p>
       <p className="text-center text-[13px] text-arx-slate">
         Já tem conta? <Link href="/login" className="text-arx-mist underline-offset-4 hover:text-white hover:underline">Entrar</Link>
       </p>

@@ -2,14 +2,14 @@
 
 import { useId, useState } from "react";
 
-const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+import { brl } from "@/lib/site/conteudo";
 
-export function SimuladorTaxa({ taxa }: { taxa: number }) {
+export function SimuladorTaxa({ percentual, fixa }: { percentual: number; fixa: number }) {
   const [valor, setValor] = useState(150);
   const [modo, setModo] = useState<"absorver" | "repassar">("repassar");
   const id = useId();
 
-  const tarifa = Math.round(valor * taxa) / 100;
+  const tarifa = valor > 0 ? Math.round(valor * percentual) / 100 + fixa : 0;
   const inscritoPaga = modo === "repassar" ? valor + tarifa : valor;
   const voceRecebe = modo === "repassar" ? valor : valor - tarifa;
 
@@ -26,7 +26,7 @@ export function SimuladorTaxa({ taxa }: { taxa: number }) {
       </div>
 
       <fieldset className="mt-5">
-        <legend className="text-[14px] text-arx-frost">A taxa de {taxa}% fica com</legend>
+        <legend className="text-[14px] text-arx-frost">A taxa de {percentual}% + {brl(fixa)} fica com</legend>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {([["repassar", "O inscrito"], ["absorver", "O festival"]] as const).map(([v, label]) => (
             <label key={v}
@@ -43,6 +43,7 @@ export function SimuladorTaxa({ taxa }: { taxa: number }) {
         <div className="flex justify-between"><dt className="text-arx-mist">Taxa de serviço</dt><dd className="tabular-nums text-arx-mist">{brl(tarifa)}</dd></div>
         <div className="flex items-baseline justify-between pt-2"><dt className="text-arx-frost">O festival recebe</dt><dd className="text-[24px] font-medium tabular-nums text-arx-fest">{brl(voceRecebe)}</dd></div>
       </dl>
+      <p className="mt-5 text-[12px] leading-[1.6] text-arx-slate">Não inclui a tarifa do meio de pagamento, que segue a mesma escolha.</p>
     </div>
   );
 }
