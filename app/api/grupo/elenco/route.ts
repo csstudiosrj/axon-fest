@@ -7,7 +7,10 @@ import { enviarConfirmacaoVinculo } from "@/lib/grupo/vinculo";
 import { perfilPorSlug } from "@/lib/perfis";
 import { inscricoesAbertas } from "@/lib/eventos/status";
 
-// Elenco do grupo: adicionar, editar, trocar função, reenviar convite e remover.
+// Elenco do grupo: verificar CPF, adicionar, editar, trocar função, reenviar convite e remover.
+// Cadastro único: CPF que já existe no ARXUM Fest vira convite por e-mail (a
+// pessoa confirma se faz parte do grupo); CPF novo é cadastrado e a pessoa
+// confirma pelo e-mail. Fica registrado por qual grupo e produtora ela chegou.
 // Feito no servidor porque a mesma pessoa pode já ter cadastro (outro grupo ou
 // outra produtora): o grupo vincula pelo CPF sem ver os dados dela, e a pessoa
 // confirma pelo e-mail que ela mesma cadastrou.
@@ -15,7 +18,7 @@ import { inscricoesAbertas } from "@/lib/eventos/status";
 type Admin = ReturnType<typeof createAdminClient>;
 
 interface Corpo {
-  acao?: "adicionar" | "editar" | "funcao" | "reenviar" | "remover";
+  acao?: "verificar" | "adicionar" | "editar" | "funcao" | "reenviar" | "remover";
   evento_id?: string;
   vinculo_id?: string;
   nome?: string;
@@ -78,12 +81,14 @@ export async function POST(req: NextRequest) {
     const funcao = texto(body.funcao, 60);
     if (funcao && !funcoesValidas.has(funcao)) return erro("Função inválida para este tipo de festival.");
 
-    // ── Adicionar pessoa ao elenco ──────────────────────────────────────────
-    if (body.acao === "adicionar") {
+    // ── Verificar CPF / adicionar pessoa ao elenco ──────────────────────────
+    if (body.acao === "verificar" || body.acao === "adicionar") {
       const documento = soDigitos(body.documento);
       if (!cpfValido(documento)) return erro("CPF inválido.");
 
       const { data: existente } = await admin.from("participantes").select("id, email_contato").eq("documento", documento).maybeSingle();
+      // CPF novo: a tela pede os dados para o cadastro
+      if (body.acao === "verificar" && !existente) return NextResponse.json({ existe: false });
 
       let participanteId: string;
       let jaTinhaCadastro = false;
@@ -102,11 +107,16 @@ export async function POST(req: NextRequest) {
         if (!email || !EMAIL.test(email)) return erro("Informe um e-mail válido: é por ele que a pessoa confirma a participação.");
         if (!dataValida(nascimento)) return erro("Data de nascimento inválida.");
 
+        // Origem: produtora do festival em que o grupo está agora (ou a de origem do grupo) e o próprio grupo
         let origem: string | null = null;
         if (body.evento_id) {
           const { data: ev } = await admin.from("eventos").select("produtora_id").eq("id", body.evento_id).maybeSingle();
           const { data: insc } = await admin.from("inscricoes_grupo_evento").select("id").eq("grupo_id", grupoId).eq("evento_id", body.evento_id).maybeSingle();
           if (ev && insc) origem = (ev.produtora_id as string | null) ?? null;
+        }
+        if (!origem) {
+          const { data: g } = await admin.from("grupos").select("origem_produtora_id").eq("id", grupoId).maybeSingle();
+          origem = g?.origem_produtora_id ?? null;
         }
 
         const { data: novo, error } = await admin.from("participantes").insert({
@@ -117,6 +127,7 @@ export async function POST(req: NextRequest) {
           tipo_documento: "cpf",
           email_contato: email,
           origem_produtora_id: origem,
+          origem_grupo_id: grupoId,
           criado_por: usuario.id,
         }).select("id").single();
         if (error || !novo) {
@@ -136,7 +147,9 @@ export async function POST(req: NextRequest) {
       }
 
       const enviado = await enviarSemFalhar(admin, token, perfil);
-      return NextResponse.json({ success: true, jaTinhaCadastro, emailEnviado: enviado });
+      const emailMascarado = jaTinhaCadastro && existente?.email_contato
+        ? (existente.email_contato as string).replace(/^(.)[^@]*(@.)[^.]*(.*)$/, "$1***$2***$3") : null;
+      return NextResponse.json({ success: true, existe: jaTinhaCadastro, jaTinhaCadastro, emailEnviado: enviado, emailMascarado });
     }
 
     // As demais ações atuam sobre um vínculo deste grupo
@@ -164,7 +177,13 @@ export async function POST(req: NextRequest) {
 
     if (body.acao === "editar") {
       const { data: p } = await admin.from("participantes").select("id, criado_por, termo_assinado").eq("id", vinculo.participante_id).maybeSingle();
-      if (!p || p.criado_por !== usuario.id) return erro("Só quem fez o cadastro pode editá-lo.", 403);
+      // Quem cadastrou, ou o(a) diretor(a) quando o cadastro foi feito por alguém do grupo
+      let pode = !!p && p.criado_por === usuario.id;
+      if (p && !pode && usuario.role !== "org_membro" && p.criado_por) {
+        const { data: autor } = await admin.from("usuarios").select("organizacao_id").eq("id", p.criado_por).maybeSingle();
+        pode = autor?.organizacao_id === grupoId;
+      }
+      if (!p || !pode) return erro("Só quem fez o cadastro (ou o diretor do grupo) pode editá-lo.", 403);
       if (p.termo_assinado) return erro("O termo já foi assinado: peça à produção para corrigir os dados.", 409);
       const nome = texto(body.nome);
       const email = texto(body.email, 320)?.toLowerCase() ?? null;
@@ -180,6 +199,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.acao === "remover") {
+      if (usuario.role === "org_membro") return erro("Só o diretor do grupo remove integrantes.", 403);
       // Tira das apresentações do grupo em eventos ainda abertos; se a pessoa
       // estiver em apresentação de evento fechado, quem remove é a produção.
       const { data: aps } = await admin.from("apresentacoes").select("id, eventos ( status )").eq("grupo_id", grupoId);

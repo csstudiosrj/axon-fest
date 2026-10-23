@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { Building2, Camera, CheckCircle2, CreditCard, FileText, Loader2, QrCode, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadFiles } from "@/utils/uploadthing";
-import { formatarCpf, soDigitos } from "@/lib/documentos";
+import { cpfValido, soDigitos } from "@/lib/documentos";
+import { cnpjValido, mascaraCpfCnpj, mascaraTelefone, telefoneValido } from "@/lib/mascaras";
+import { colunasEndereco, enderecoDe, type Endereco } from "@/lib/endereco";
+import { CamposEndereco } from "@/app/_components/CamposEndereco";
 
 interface Produtora {
   id: string;
@@ -15,17 +18,16 @@ interface Produtora {
   email: string | null;
   telefone: string | null;
   logo_url: string | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
 }
 
 const campo = "w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold disabled:opacity-60";
-
-function formatarDocumento(valor: string) {
-  const d = soDigitos(valor).slice(0, 14);
-  if (d.length <= 11) return formatarCpf(d);
-  // CNPJ: 00.000.000/0000-00
-  const partes = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 8), d.slice(8, 12), d.slice(12)];
-  return `${partes[0]}.${partes[1]}.${partes[2]}/${partes[3]}${partes[4] ? `-${partes[4]}` : ""}`;
-}
 
 function Aviso({ aviso }: { aviso: { ok: boolean; texto: string } | null }) {
   if (!aviso) return null;
@@ -36,11 +38,12 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
   const router = useRouter();
   const [f, setF] = useState({
     nome: produtora.nome,
-    documento: produtora.documento ? formatarDocumento(produtora.documento) : "",
+    documento: mascaraCpfCnpj(produtora.documento),
     email: produtora.email ?? "",
-    telefone: produtora.telefone ?? "",
+    telefone: mascaraTelefone(produtora.telefone),
     logo_url: produtora.logo_url,
   });
+  const [endereco, setEndereco] = useState<Endereco>(enderecoDe(produtora));
   const [texto, setTexto] = useState(termo);
   const [salvando, setSalvando] = useState<"dados" | "termo" | "logo" | null>(null);
   const [avisoDados, setAvisoDados] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -66,7 +69,8 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
     e.preventDefault();
     const documento = soDigitos(f.documento);
     if (!f.nome.trim()) return setAvisoDados({ ok: false, texto: "Informe o nome da produtora." });
-    if (documento && documento.length !== 11 && documento.length !== 14) return setAvisoDados({ ok: false, texto: "CPF ou CNPJ incompleto." });
+    if (documento && !(documento.length === 11 ? cpfValido(documento) : cnpjValido(documento))) return setAvisoDados({ ok: false, texto: "CPF ou CNPJ inválido. Confira os números." });
+    if (f.telefone && !telefoneValido(f.telefone)) return setAvisoDados({ ok: false, texto: "Telefone incompleto: informe DDD e número." });
     setSalvando("dados");
     setAvisoDados(null);
     const { error } = await createClient().from("produtoras").update({
@@ -75,6 +79,7 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
       email: f.email.trim().toLowerCase() || null,
       telefone: soDigitos(f.telefone) || null,
       logo_url: f.logo_url,
+      ...colunasEndereco(endereco),
     }).eq("id", produtora.id);
     setAvisoDados(error ? { ok: false, texto: error.message } : { ok: true, texto: "Dados salvos." });
     setSalvando(null);
@@ -131,7 +136,7 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
           <div className="grid gap-4 sm:grid-cols-3">
             <label className="block">
               <span className="text-xs text-gray-400">CPF ou CNPJ</span>
-              <input inputMode="numeric" value={f.documento} onChange={(e) => setF({ ...f, documento: formatarDocumento(e.target.value) })} className={`${campo} mt-1.5`} />
+              <input inputMode="numeric" value={f.documento} onChange={(e) => setF({ ...f, documento: mascaraCpfCnpj(e.target.value) })} placeholder="000.000.000-00 ou 00.000.000/0000-00" className={`${campo} mt-1.5`} />
             </label>
             <label className="block">
               <span className="text-xs text-gray-400">E-mail de contato</span>
@@ -139,8 +144,12 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
             </label>
             <label className="block">
               <span className="text-xs text-gray-400">Telefone / WhatsApp</span>
-              <input inputMode="tel" value={f.telefone} onChange={(e) => setF({ ...f, telefone: e.target.value })} maxLength={20} className={`${campo} mt-1.5`} />
+              <input inputMode="tel" autoComplete="tel" value={f.telefone} onChange={(e) => setF({ ...f, telefone: mascaraTelefone(e.target.value) })} placeholder="(00) 00000-0000" className={`${campo} mt-1.5`} />
             </label>
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Endereço</p>
+            <CamposEndereco valor={endereco} onChange={setEndereco} disabled={!podeEditar} classeCampo={campo} />
           </div>
           {podeEditar && (
             <div className="flex items-center justify-end gap-3">

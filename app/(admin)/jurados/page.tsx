@@ -1,21 +1,19 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ClipboardCheck } from "lucide-react";
-import { getUsuarioAtual } from "@/lib/auth/session";
+import { exigirAcesso } from "@/lib/auth/guards";
 import { podeAtribuir } from "@/lib/auth/roles";
-import { carregarEquipe } from "@/lib/equipe";
+import { carregarJurados } from "@/lib/equipe";
 import { createClient } from "@/lib/supabase/server";
 import { CadastroJurados } from "./CadastroJurados";
 
 export const dynamic = "force-dynamic";
 
 export default async function PaginaJurados() {
-  const usuario = await getUsuarioAtual();
-  if (!usuario) redirect("/login");
+  const usuario = await exigirAcesso("jurados");
   if (!usuario.produtora_id) {
     return <p className="mx-auto max-w-3xl text-sm text-gray-400">Os jurados são cadastrados por produtora. Sua conta não está ligada a uma produtora; use o Super Admin.</p>;
   }
-  const jurados = await carregarEquipe(usuario.produtora_id, ["jurado"]);
+  const jurados = await carregarJurados(usuario.produtora_id);
   const supabase = await createClient();
   const { data: vinculos } = jurados.length
     ? await supabase.from("evento_jurados").select("jurado_id, eventos ( id, nome )").in("jurado_id", jurados.map((j) => j.id))

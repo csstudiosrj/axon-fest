@@ -72,7 +72,12 @@ async function resolverProdutora(
 }
 
 // Carrega o alvo e confirma que quem chama pode mexer nele
-async function carregarAlvo(admin: Admin, caller: UsuarioAtual, userId: string | undefined) {
+interface Alvo { id: string; role: string; produtora_id: string | null; origem: boolean }
+
+// Carrega o alvo e confirma que quem chama pode mexer nele.
+// Jurado é único no ARXUM Fest: a produtora alcança os jurados ligados a ela
+// (produtora_jurados); "origem" = é a produtora por onde ele chegou.
+async function carregarAlvo(admin: Admin, caller: UsuarioAtual, userId: string | undefined): Promise<Alvo | NextResponse> {
   if (!userId) return erro("userId ausente.", 400);
   if (userId === caller.id) return erro("Você não pode alterar o seu próprio acesso.", 403);
 
@@ -84,14 +89,57 @@ async function carregarAlvo(admin: Admin, caller: UsuarioAtual, userId: string |
 
   if (!alvo) return erro("Usuário alvo não encontrado.", 404);
 
-  const mesmaProdutora = !!alvo.produtora_id && alvo.produtora_id === caller.produtora_id;
-  if (caller.role !== "super_admin" && !mesmaProdutora) {
+  const origem = !!alvo.produtora_id && alvo.produtora_id === caller.produtora_id;
+  let alcanca = origem;
+  if (!alcanca && alvo.role === "jurado" && caller.produtora_id) {
+    const { data: link } = await admin.from("produtora_jurados").select("id")
+      .eq("produtora_id", caller.produtora_id).eq("jurado_id", alvo.id).maybeSingle();
+    alcanca = !!link;
+  }
+  if (caller.role !== "super_admin" && !alcanca) {
     return erro("Usuário não pertence à sua organização.", 403);
   }
   if (!podeAtribuir(caller.role, alvo.role)) {
     return erro("Sem permissão para gerenciar este usuário.", 403);
   }
-  return alvo as { id: string; role: string; produtora_id: string | null };
+  return { ...(alvo as { id: string; role: string; produtora_id: string | null }), origem: origem || caller.role === "super_admin" };
+}
+
+// Jurado de outra produtora: só a produtora de origem altera a conta dele
+function exigirOrigem(alvo: Alvo): NextResponse | null {
+  if (alvo.role === "jurado" && !alvo.origem) {
+    return erro("Este jurado chegou ao ARXUM Fest por outra produtora: o perfil e o acesso dele são cuidados por ela. Você pode tirá-lo da sua equipe.", 403);
+  }
+  return null;
+}
+
+async function convidarJuradoExistente(admin: Admin, caller: UsuarioAtual, produtoraId: string, jurado: { id: string; email: string; nome: string | null }) {
+  const { data: link } = await admin.from("produtora_jurados").select("id, status")
+    .eq("produtora_id", produtoraId).eq("jurado_id", jurado.id).maybeSingle();
+  if (link?.status === "aceito") return erro("Este jurado já está na sua equipe.", 409);
+  await admin.from("produtora_jurados").upsert(
+    { produtora_id: produtoraId, jurado_id: jurado.id, status: "pendente", convidado_por: caller.id, respondido_em: null },
+    { onConflict: "produtora_id,jurado_id" }
+  );
+  const { data: produtora } = await admin.from("produtoras").select("nome").eq("id", produtoraId).maybeSingle();
+  try {
+    await enviarEmail({
+      para: jurado.email,
+      assunto: `${produtora?.nome ?? "Uma produtora"} convidou você para ser jurado(a)`,
+      html: emailComBotao({
+        titulo: jurado.nome ? `Olá, ${escapeHtml(jurado.nome.split(" ")[0])}!` : "Olá!",
+        paragrafos: [
+          `<strong>${escapeHtml(produtora?.nome ?? "Uma produtora")}</strong> convidou você para ser jurado(a) nos festivais dela no ARXUM Fest.`,
+          "Entre com o seu login de sempre e aceite (ou recuse) o convite na sua área de jurado.",
+        ],
+        botaoTexto: "Ver convite",
+        botaoUrl: urlAbsoluta("/jurado"),
+      }),
+    });
+  } catch {
+    // o convite fica pendente na área do jurado mesmo sem o e-mail
+  }
+  return NextResponse.json({ success: true, convitePendente: true, userId: jurado.id });
 }
 
 async function enviarConvite(
@@ -183,6 +231,24 @@ export async function POST(req: NextRequest) {
       const alvo = await carregarAlvo(admin, caller, body.userId);
       if (alvo instanceof NextResponse) return alvo;
 
+      // Jurado: tira da equipe desta produtora; a conta só é apagada se ele não
+      // estiver em nenhuma outra produtora
+      if (alvo.role === "jurado" && caller.produtora_id) {
+        const { data: eventos } = await admin.from("eventos").select("id").eq("produtora_id", caller.produtora_id);
+        const ids = (eventos ?? []).map((e) => e.id);
+        if (ids.length) {
+          const { count } = await admin.from("evento_jurados").select("id", { count: "exact", head: true }).eq("jurado_id", alvo.id).in("evento_id", ids);
+          if (count) return erro("Este jurado está escalado em eventos seus. Tire-o dos eventos (aba Jurados) antes.", 409);
+        }
+        await admin.from("produtora_jurados").delete().eq("produtora_id", caller.produtora_id).eq("jurado_id", alvo.id);
+        const { data: outros } = await admin.from("produtora_jurados").select("produtora_id").eq("jurado_id", alvo.id).eq("status", "aceito").limit(1);
+        if (outros?.length) {
+          if (alvo.origem) await admin.from("usuarios").update({ produtora_id: outros[0].produtora_id }).eq("id", alvo.id);
+          return NextResponse.json({ success: true, desvinculado: true });
+        }
+        if (!alvo.origem) return NextResponse.json({ success: true, desvinculado: true });
+      }
+
       const { error: deleteError } = await admin.from("usuarios").delete().eq("id", alvo.id);
 
       if (deleteError) {
@@ -206,6 +272,8 @@ export async function POST(req: NextRequest) {
     if (action === "perfil") {
       const alvo = await carregarAlvo(admin, caller, body.userId);
       if (alvo instanceof NextResponse) return alvo;
+      const semOrigem = exigirOrigem(alvo);
+      if (semOrigem) return semOrigem;
       const { error: perfilError } = await admin.from("usuarios").update({
         nome: texto(body.nome, 200),
         telefone: texto(body.telefone, 20)?.replace(/\D/g, "") || null,
@@ -221,6 +289,8 @@ export async function POST(req: NextRequest) {
     if (action === "ativo") {
       const alvo = await carregarAlvo(admin, caller, body.userId);
       if (alvo instanceof NextResponse) return alvo;
+      const semOrigem = exigirOrigem(alvo);
+      if (semOrigem) return semOrigem;
       const ativo = body.ativo === true;
       await admin.from("usuarios").update({ ativo }).eq("id", alvo.id);
       await admin.auth.admin.updateUserById(alvo.id, { ban_duration: ativo ? "none" : "876000h" });
@@ -231,6 +301,8 @@ export async function POST(req: NextRequest) {
     if (action === "reenviar") {
       const alvo = await carregarAlvo(admin, caller, body.userId);
       if (alvo instanceof NextResponse) return alvo;
+      const semOrigem = exigirOrigem(alvo);
+      if (semOrigem) return semOrigem;
       const { data: conta } = await admin.auth.admin.getUserById(alvo.id);
       const emailAlvo = conta.user?.email;
       if (!emailAlvo) return erro("Conta sem e-mail.", 400);
@@ -308,8 +380,13 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existente) {
+      // Jurado que já existe no ARXUM Fest: a produtora não vincula sozinha, ele precisa aceitar
+      if (role === "jurado" && existente.role === "jurado" && existente.produtora_id && existente.produtora_id !== produtoraId) {
+        const { data: conta } = await admin.from("usuarios").select("id, email, nome").eq("id", existente.id).single();
+        return convidarJuradoExistente(admin, caller, produtoraId, conta!);
+      }
       if (existente.produtora_id || existente.role !== role) {
-        return erro("Este e-mail já pertence a outra conta. Use outro e-mail.", 409);
+        return erro(existente.produtora_id === produtoraId ? "Esta pessoa já está na sua equipe." : "Este e-mail já pertence a outra conta. Use outro e-mail.", 409);
       }
       const { error: vinculoError } = await admin
         .from("usuarios")
@@ -318,6 +395,9 @@ export async function POST(req: NextRequest) {
           ...Object.fromEntries(Object.entries(perfil).filter(([, v]) => v !== null)) })
         .eq("id", existente.id);
       if (vinculoError) return erro(vinculoError.message, 400);
+      if (role === "jurado") {
+        await admin.from("produtora_jurados").upsert({ produtora_id: produtoraId, jurado_id: existente.id, status: "aceito", convidado_por: caller.id, respondido_em: new Date().toISOString() }, { onConflict: "produtora_id,jurado_id" });
+      }
       return NextResponse.json({ success: true, vinculado: true, userId: existente.id });
     }
 
@@ -356,6 +436,9 @@ export async function POST(req: NextRequest) {
 
     if (upsertError) {
       return erro("Usuário criado, mas erro ao salvar dados complementares: " + upsertError.message, 500);
+    }
+    if (role === "jurado") {
+      await admin.from("produtora_jurados").upsert({ produtora_id: produtoraId, jurado_id: newUserId, status: "aceito", convidado_por: caller.id, respondido_em: new Date().toISOString() }, { onConflict: "produtora_id,jurado_id" });
     }
 
     return NextResponse.json({ success: true, userId: newUserId });

@@ -14,7 +14,7 @@ export default async function GrupoProtectedLayout({ children }: { children: Rea
   }
 
   return (
-    <GrupoShell usuario={{ nome: usuario.nome, email: usuario.email }} grupoNome={grupoNome}>
+    <GrupoShell usuario={{ nome: usuario.nome, email: usuario.email }} grupoNome={grupoNome} diretor={usuario.role !== "org_membro"}>
       {children}
     </GrupoShell>
   );

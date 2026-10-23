@@ -1,5 +1,6 @@
 "use client";
 
+import { mascaraTelefone } from "@/lib/mascaras";
 import { useState, useEffect, useRef } from "react";
 import { PlanoAssinatura } from "./PlanoAssinatura";
 import {
@@ -241,7 +242,7 @@ export default function PerfilPage() {
       if (data) {
         setPerfil(data as Perfil);
         setNome(data.nome ?? "");
-        setTelefone(data.telefone ?? "");
+        setTelefone(mascaraTelefone(data.telefone));
         setFotoUrl(data.foto_url ?? "");
       }
       setCarregando(false);
@@ -297,7 +298,7 @@ export default function PerfilPage() {
     try {
       const { error } = await supabase
         .from("usuarios")
-        .update({ nome, telefone })
+        .update({ nome, telefone: telefone.replace(/\D/g, "") || null })
         .eq("id", perfil.id);
 
       if (error) throw error;
@@ -394,7 +395,7 @@ export default function PerfilPage() {
               icon={Phone}
               type="tel"
               value={telefone}
-              onChange={setTelefone}
+              onChange={(v: string) => setTelefone(mascaraTelefone(v))}
               placeholder="(00) 00000-0000"
             />
             <div className="space-y-1.5">

@@ -3,192 +3,159 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Crown, FileSignature, Gavel, History,
+  LayoutDashboard, LogOut, Menu, Mic2, Settings, ShieldCheck, Ticket, User, UserRound, Users, UsersRound, X,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { nomeCargo } from "@/lib/auth/cargos";
-import {
-  LayoutDashboard,
-  CalendarDays,
-  Users,
-  Mic2,
-  Ticket,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  User,
-  Gavel,
-  FileSignature,
-  ShieldCheck,
-  Crown,
-} from "lucide-react";
+import { pode, type Area } from "@/lib/auth/permissoes";
+import { Direitos } from "@/app/_components/Direitos";
 
-const navLinks = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Line-up & Eventos", href: "/eventos", icon: CalendarDays },
-  { name: "Inscrições & Elenco", href: "/inscricoes", icon: Users },
-  { name: "Mídias & Áudio", href: "/midias", icon: Mic2 },
-  { name: "Jurados & Apuração", href: "/jurados", icon: Gavel },
-  { name: "PDV & Bilheteria", href: "/pdv", icon: Ticket },
-  { name: "Termos & Regulamento", href: "/termos", icon: FileSignature },
+interface ItemMenu { nome: string; href: string; icone: React.ElementType; area: Area }
+
+const MENU_PRODUTORA: ItemMenu[] = [
+  { nome: "Dashboard", href: "/dashboard", icone: LayoutDashboard, area: "dashboard" },
+  { nome: "Eventos", href: "/eventos", icone: CalendarDays, area: "eventos" },
+  { nome: "Inscrições", href: "/inscricoes", icone: Users, area: "evento_inscricoes" },
+  { nome: "Mídias & Áudio", href: "/midias", icone: Mic2, area: "midias" },
+  { nome: "Jurados & Apuração", href: "/jurados", icone: Gavel, area: "jurados" },
+  { nome: "PDV & Bilheteria", href: "/pdv", icone: Ticket, area: "pdv" },
+  { nome: "Termos & Regulamento", href: "/termos", icone: FileSignature, area: "termos" },
 ];
 
-interface AdminShellProps {
+const MENU_SUPER: ItemMenu[] = [
+  { nome: "Visão geral", href: "/super", icone: BarChart3, area: "super" },
+  { nome: "Produtoras", href: "/super/produtoras", icone: Building2, area: "super" },
+  { nome: "Pessoas", href: "/super/pessoas", icone: UserRound, area: "super" },
+  { nome: "Grupos", href: "/super/grupos", icone: UsersRound, area: "super" },
+  { nome: "Participantes", href: "/super/participantes", icone: Users, area: "super" },
+  { nome: "Planos e taxas", href: "/super/planos", icone: CreditCard, area: "super" },
+  { nome: "Registro de ações", href: "/super/registro", icone: History, area: "super" },
+];
+
+// Telas fora do menu lateral (aparecem no topo com o nome certo)
+const OUTRAS: { href: string; nome: string }[] = [
+  { href: "/perfil", nome: "Meu perfil" },
+  { href: "/usuarios", nome: "Equipe" },
+  { href: "/configuracoes", nome: "Configurações da produtora" },
+  { href: "/jurados/apuracao", nome: "Apuração das notas" },
+];
+
+function tituloDa(pathname: string, menu: ItemMenu[]): string {
+  const candidatos = [...OUTRAS, ...menu.map((m) => ({ href: m.href, nome: m.nome }))]
+    .filter((c) => pathname === c.href || pathname.startsWith(c.href + "/"))
+    .sort((a, b) => b.href.length - a.href.length);
+  return candidatos[0]?.nome ?? "ARXUM Fest";
+}
+
+export default function AdminShell({ children, userEmail, userName, userRole }: {
   children: React.ReactNode;
   userEmail: string;
   userName: string;
   userRole: string;
-}
-
-export default function AdminShell({
-  children,
-  userEmail,
-  userName,
-  userRole,
-}: AdminShellProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+}) {
+  const [aberto, setAberto] = useState(true);
+  const [menuCelular, setMenuCelular] = useState(false);
+  const [menuUsuario, setMenuUsuario] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const ehSuper = userRole === "super_admin";
+  const menu = ehSuper ? MENU_SUPER : MENU_PRODUTORA.filter((m) => pode(userRole, m.area));
+  const titulo = tituloDa(pathname, menu);
 
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+  const sair = async () => {
+    await createClient().auth.signOut();
     router.push("/login");
-  }
+  };
 
-  const roleDisplay = nomeCargo(userRole);
+  const ativo = (href: string) => (href === "/super" ? pathname === "/super" : pathname === href || pathname.startsWith(href + "/"));
+
+  const navegacao = (compacto: boolean) => (
+    <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
+      {menu.map((m) => {
+        const Icone = m.icone;
+        return (
+          <Link key={m.href} href={m.href} onClick={() => setMenuCelular(false)} title={compacto ? m.nome : undefined}
+            className={`flex items-center gap-3 rounded-lg transition-colors ${ativo(m.href) ? "bg-axon-gold/10 font-medium text-axon-gold" : "text-gray-400 hover:bg-white/5 hover:text-white"} ${compacto ? "justify-center p-3" : "px-3 py-2"}`}>
+            <Icone size={20} className="shrink-0" />
+            {!compacto && <span className="text-sm">{m.nome}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
+  const logo = (compacto: boolean) => (
+    <span className="truncate px-2 text-xl font-bold tracking-wider">
+      <span className="text-axon-gold">{compacto ? "AR" : "ARXUM"}</span>{!compacto && <span className="font-light text-white"> Fest</span>}
+    </span>
+  );
+
+  const itemUsuario = "flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 transition-colors hover:bg-white/5 hover:text-white";
 
   return (
     <div className="flex h-screen overflow-hidden bg-axon-bg text-white">
-      <aside
-        className={`${
-          isSidebarOpen ? "w-64" : "w-20"
-        } bg-axon-panel border-r border-axon-border flex flex-col transition-all duration-300 ease-in-out relative z-20`}
-      >
-        <div className="h-16 flex items-center justify-between px-4 border-b border-axon-border">
-          {isSidebarOpen ? (
-            <span className="text-xl font-bold tracking-wider truncate px-2">
-              <span className="text-axon-gold">ARXUM</span>
-              <span className="text-white font-light"> Fest</span>
-            </span>
-          ) : (
-            <span className="text-xl font-bold tracking-wider mx-auto text-axon-gold">
-              AR
-            </span>
-          )}
-        </div>
-
-        <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="absolute -right-3 top-20 bg-axon-panel border border-axon-border rounded-full p-1 text-gray-400 hover:text-white hover:border-axon-gold transition-colors z-30"
-        >
-          {isSidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+      {/* Menu lateral (computador) */}
+      <aside className={`${aberto ? "w-64" : "w-20"} relative z-20 hidden flex-col border-r border-axon-border bg-axon-panel transition-all duration-300 lg:flex`}>
+        <div className="flex h-16 items-center border-b border-axon-border px-4">{logo(!aberto)}</div>
+        <button type="button" onClick={() => setAberto(!aberto)} aria-label={aberto ? "Recolher menu" : "Abrir menu"}
+          className="absolute -right-3.5 top-20 z-30 flex h-7 w-7 items-center justify-center rounded-full border border-axon-border bg-axon-panel text-gray-400 hover:text-white">
+          {aberto ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
         </button>
-
-        <nav className="flex-1 py-6 flex flex-col gap-1 px-3 overflow-y-auto">
-          {[...navLinks, ...(userRole === "super_admin" ? [{ name: "Super Admin", href: "/super", icon: Crown }] : [])].map((link) => {
-            const isActive =
-              pathname === link.href || pathname.startsWith(link.href + "/");
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-3 rounded-md transition-all duration-200 active:scale-95 ${
-                  isActive
-                    ? "bg-axon-gold/10 text-axon-gold font-medium"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                } ${isSidebarOpen ? "px-3 py-2" : "p-3 justify-center"}`}
-              >
-                <Icon size={20} className="shrink-0" />
-                {isSidebarOpen && <span className="text-sm">{link.name}</span>}
-              </Link>
-            );
-          })}
-        </nav>
+        {navegacao(!aberto)}
       </aside>
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="h-16 bg-axon-panel/80 backdrop-blur-md border-b border-axon-border flex items-center justify-between px-8 sticky top-0 z-10">
-          <div className="text-gray-400 text-sm font-medium">{roleDisplay}</div>
+      {/* Menu do celular */}
+      {menuCelular && (
+        <div className="fixed inset-0 z-50 flex lg:hidden">
+          <div className="flex w-72 flex-col border-r border-axon-border bg-axon-panel">
+            <div className="flex h-16 items-center justify-between border-b border-axon-border px-4">
+              {logo(false)}
+              <button type="button" onClick={() => setMenuCelular(false)} aria-label="Fechar menu" className="text-gray-400"><X size={20} /></button>
+            </div>
+            {navegacao(false)}
+          </div>
+          <div className="flex-1 bg-black/60" onClick={() => setMenuCelular(false)} />
+        </div>
+      )}
+
+      <main className="relative flex h-screen flex-1 flex-col overflow-hidden">
+        <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-3 border-b border-axon-border bg-axon-panel/80 px-4 backdrop-blur-md sm:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <button type="button" onClick={() => setMenuCelular(true)} aria-label="Abrir menu" className="text-gray-400 lg:hidden"><Menu size={22} /></button>
+            <h1 className="truncate text-base font-semibold text-white sm:text-lg" data-titulo-tela>{titulo}</h1>
+          </div>
 
           <div className="relative">
-            <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-3 hover:bg-white/5 p-1.5 pr-3 rounded-full transition-colors border border-transparent hover:border-axon-border"
-            >
-              <div className="w-9 h-9 rounded-full bg-axon-bg border border-axon-gold/30 flex items-center justify-center text-axon-gold font-bold text-sm uppercase">
+            <button type="button" onClick={() => setMenuUsuario(!menuUsuario)}
+              className="flex items-center gap-3 rounded-full border border-transparent p-1.5 pr-3 transition-colors hover:border-axon-border hover:bg-white/5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-axon-gold/30 bg-axon-bg text-sm font-bold uppercase text-axon-gold">
                 {(userName || userEmail).substring(0, 2)}
               </div>
-              <div className="text-left hidden sm:block">
-                <div className="text-sm font-medium text-white leading-tight">
-                  {userName}
-                </div>
-                <div className="text-xs text-gray-500 leading-tight truncate max-w-[140px]">
-                  {userEmail}
-                </div>
+              <div className="hidden text-left sm:block">
+                <div className="text-sm font-medium leading-tight text-white">{userName}</div>
+                <div className="text-xs leading-tight text-gray-500">{nomeCargo(userRole)}</div>
               </div>
-              <ChevronDown
-                size={16}
-                className={`text-gray-400 transition-transform duration-200 ${
-                  isUserMenuOpen ? "rotate-180" : ""
-                }`}
-              />
+              <ChevronDown size={16} className={`text-gray-400 transition-transform ${menuUsuario ? "rotate-180" : ""}`} />
             </button>
 
-            {isUserMenuOpen && (
+            {menuUsuario && (
               <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsUserMenuOpen(false)}
-                />
-                <div className="fixed top-16 right-6 w-64 bg-axon-panel border border-axon-border rounded-xl shadow-2xl z-50 py-2 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-axon-border mb-1">
-                    <p className="text-sm text-white font-medium">{userName}</p>
-                    <p className="text-xs text-gray-400 truncate">{userEmail}</p>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuUsuario(false)} />
+                <div className="fixed right-4 top-16 z-50 w-64 overflow-hidden rounded-xl border border-axon-border bg-axon-panel py-2 shadow-2xl">
+                  <div className="mb-1 border-b border-axon-border px-4 py-3">
+                    <p className="text-sm font-medium text-white">{userName}</p>
+                    <p className="truncate text-xs text-gray-400">{userEmail}</p>
+                    <p className="mt-1 text-xs text-axon-gold">{nomeCargo(userRole)}</p>
                   </div>
-
-                  <Link
-                    href="/perfil"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
-                  >
-                    <User size={16} />
-                    <span>Meu Perfil</span>
-                  </Link>
-
-                  <div className="h-px bg-axon-border my-1" />
-                  <p className="px-4 py-1.5 text-xs text-gray-600 font-medium uppercase tracking-wider">
-                    Gestão
-                  </p>
-
-                  <Link
-                    href="/usuarios"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
-                  >
-                    <ShieldCheck size={16} />
-                    <span>Usuários & Permissões</span>
-                  </Link>
-
-                  <Link
-                    href="/configuracoes"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
-                  >
-                    <Settings size={16} />
-                    <span>Configurações</span>
-                  </Link>
-
-                  <div className="h-px bg-axon-border my-1" />
-
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors"
-                  >
-                    <LogOut size={16} />
-                    <span>Sair da plataforma</span>
+                  <Link href="/perfil" onClick={() => setMenuUsuario(false)} className={itemUsuario}><User size={16} /> Meu perfil</Link>
+                  {pode(userRole, "equipe") && <Link href="/usuarios" onClick={() => setMenuUsuario(false)} className={itemUsuario}><ShieldCheck size={16} /> Equipe e permissões</Link>}
+                  {pode(userRole, "configuracoes") && <Link href="/configuracoes" onClick={() => setMenuUsuario(false)} className={itemUsuario}><Settings size={16} /> Configurações</Link>}
+                  {ehSuper && <Link href="/super" onClick={() => setMenuUsuario(false)} className={itemUsuario}><Crown size={16} /> Super Admin</Link>}
+                  <div className="my-1 h-px bg-axon-border" />
+                  <button type="button" onClick={sair} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-red-400/10 hover:text-red-300">
+                    <LogOut size={16} /> Sair
                   </button>
                 </div>
               </>
@@ -196,7 +163,10 @@ export default function AdminShell({
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-6 sm:p-8">
+          {children}
+          <Direitos className="mt-12 text-center text-xs text-gray-600" />
+        </div>
       </main>
     </div>
   );

@@ -9,7 +9,7 @@ export default async function PaginaDadosGrupo() {
   const supabase = await createClient();
   const { data: grupo } = await supabase
     .from("grupos")
-    .select("id, nome, responsavel, telefone, email, email_contato, cidade, estado, documento, tipo_documento")
+    .select("id, nome, responsavel, telefone, email, email_contato, cidade, estado, cep, logradouro, numero, complemento, bairro, documento, tipo_documento")
     .eq("id", usuario.organizacao_id)
     .maybeSingle();
 

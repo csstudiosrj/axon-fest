@@ -1,5 +1,7 @@
 "use client";
 
+import { colunasEndereco, enderecoDe, type Endereco } from "@/lib/endereco";
+import { CamposEndereco } from "@/app/_components/CamposEndereco";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowDown, ArrowUp, Check, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
@@ -31,11 +33,50 @@ function diasEntre(inicio: string | null, fim: string | null) {
   return lista;
 }
 
+export interface LocalPalco {
+  id: string;
+  nome_local: string;
+  cep: string | null;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
+}
+
+// Endereço de um palco/local (aparece na página pública quando o festival tem vários locais)
+function EnderecoLocal({ local, onFechar, onSalvo }: { local: LocalPalco; onFechar: () => void; onSalvo: () => void }) {
+  const [end, setEnd] = useState<Endereco>(enderecoDe({ ...local, logradouro: local.endereco }));
+  const [erro, setErro] = useState<string | null>(null);
+  const salvar = async () => {
+    const { logradouro, ...resto } = colunasEndereco(end);
+    const { error } = await createClient().from("locais_evento").update({ ...resto, endereco: logradouro }).eq("id", local.id);
+    if (error) return setErro(error.message);
+    onSalvo();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:p-4" onClick={onFechar}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl rounded-t-2xl border border-axon-border bg-axon-panel sm:rounded-2xl">
+        <h2 className="border-b border-axon-border px-5 py-4 font-semibold text-white">Endereço de {local.nome_local}</h2>
+        <div className="space-y-3 px-5 py-5">
+          <CamposEndereco valor={end} onChange={setEnd} classeCampo={campo} />
+          {erro && <p className="text-sm text-red-300">{erro}</p>}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-axon-border px-5 py-4">
+          <button type="button" onClick={onFechar} className="rounded-lg px-4 py-2 text-sm text-gray-300">Cancelar</button>
+          <button type="button" onClick={salvar} className="rounded-lg bg-axon-gold px-4 py-2 text-sm font-semibold text-black">Salvar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Programacao({ eventoId, perfilSlug, itens, locais, podeGerir, dias }: {
   eventoId: string;
   perfilSlug: string;
   itens: ItemProgramacao[];
-  locais: { id: string; nome_local: string }[];
+  locais: LocalPalco[];
   podeGerir: boolean;
   dias: { inicio: string | null; fim: string | null };
 }) {
@@ -47,6 +88,7 @@ export function Programacao({ eventoId, perfilSlug, itens, locais, podeGerir, di
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [novoLocal, setNovoLocal] = useState("");
+  const [editandoLocal, setEditandoLocal] = useState<LocalPalco | null>(null);
   const datas = diasEntre(dias.inicio, dias.fim);
 
   // Mesma pessoa em cena em apresentações seguidas (no mesmo dia e palco)
@@ -165,6 +207,8 @@ export function Programacao({ eventoId, perfilSlug, itens, locais, podeGerir, di
               {locais.map((l) => (
                 <li key={l.id} className="inline-flex items-center gap-2 rounded-full border border-axon-border px-3 py-1 text-sm text-gray-200">
                   <MapPin size={12} className="text-gray-500" /> {l.nome_local}
+                  {l.cidade && <span className="text-xs text-gray-500">· {l.cidade}</span>}
+                  {podeGerir && <button type="button" onClick={() => setEditandoLocal(l)} className="text-xs text-axon-gold hover:underline">endereço</button>}
                   {podeGerir && <button type="button" onClick={() => removerLocal(l.id)} aria-label={`Remover ${l.nome_local}`} className="text-gray-500 hover:text-red-300"><Trash2 size={12} /></button>}
                 </li>
               ))}
@@ -179,6 +223,7 @@ export function Programacao({ eventoId, perfilSlug, itens, locais, podeGerir, di
           <p className="text-xs text-gray-500">{maiuscula(T.apresentacao.plural)} sem dia definido aparecem na data de início do evento.</p>
         </div>
       </Cartao>
+      {editandoLocal && <EnderecoLocal local={editandoLocal} onFechar={() => setEditandoLocal(null)} onSalvo={() => { setEditandoLocal(null); router.refresh(); }} />}
     </div>
   );
 }

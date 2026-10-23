@@ -68,7 +68,8 @@ function avisosElenco(c: CategoriaEvento | undefined, tipo: Tipo, escolhidos: In
 
 // ── Formulário de nova/editar apresentação ──────────────────────────────────
 
-function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onFechar, onSalvo }: {
+function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onFechar, onSalvo, verValores }: {
+  verValores: boolean;
   perfil: Perfil;
   evento: { id: string; data_inicio: string | null };
   grupoId: string;
@@ -201,7 +202,7 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
 
           {categoria && (
             <div className="flex flex-wrap gap-x-5 gap-y-1 rounded-lg border border-axon-border bg-axon-bg px-4 py-3 text-xs text-gray-400">
-              <span>Taxa de inscrição: <strong className="text-white">{brl(valorDe(categoria, tipoValido))}</strong></span>
+              {verValores && <span>Taxa de inscrição: <strong className="text-white">{brl(valorDe(categoria, tipoValido))}</strong></span>}
               {(categoria.faixa_etaria_label || categoria.faixa_etaria_min != null || categoria.faixa_etaria_max != null) && (
                 <span>Idade: {categoria.faixa_etaria_label ?? `${categoria.faixa_etaria_min ?? 0}–${categoria.faixa_etaria_max ?? "∞"} anos`}</span>
               )}
@@ -359,7 +360,8 @@ function LinhaArquivo({ def, enviado, apresentacaoId, podeEnviar, onMudou }: {
 
 // ── Página ─────────────────────────────────────────────────────────────────
 
-export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresentacoes, elenco, podeEditar, podeEnviarArquivos, abrirNova }: {
+export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresentacoes, elenco, podeEditar, podeEnviarArquivos, abrirNova, verValores }: {
+  verValores: boolean; // o coreógrafo não vê valores
   evento: { id: string; data_inicio: string | null };
   grupoId: string;
   perfilSlug: string;
@@ -433,7 +435,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
                   <h3 className="font-semibold text-white">{a.nome}</h3>
                   <p className="mt-0.5 text-xs text-gray-400">{nomeCategoria(cat)} · {nomeFormacao(a.tipo)}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    <Selo tom={pago(a.status_pagamento) ? "verde" : "ouro"}>{brl(a.valor_total)} · {pago(a.status_pagamento) ? a.status_pagamento : "Pagamento pendente"}</Selo>
+                    {verValores && <Selo tom={pago(a.status_pagamento) ? "verde" : "ouro"}>{brl(a.valor_total)} · {pago(a.status_pagamento) ? a.status_pagamento : "Pagamento pendente"}</Selo>}
                     {a.ordem_apresentacao != null && <Selo tom="azul">Ordem nº {a.ordem_apresentacao}</Selo>}
                     {a.data_apresentacao && <Selo>{dataCurta(a.data_apresentacao)}</Selo>}
                   </div>
@@ -473,7 +475,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
       )}
 
       {form && (
-        <Formulario perfil={perfil} evento={evento} grupoId={grupoId} categorias={categorias} elenco={elenco} editando={form.editando}
+        <Formulario verValores={verValores} perfil={perfil} evento={evento} grupoId={grupoId} categorias={categorias} elenco={elenco} editando={form.editando}
           onFechar={() => setForm(null)}
           onSalvo={() => { setForm(null); setAviso({ ok: true, texto: "Salvo." }); router.refresh(); }} />
       )}

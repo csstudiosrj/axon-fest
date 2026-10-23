@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   const { evento_id = "", jurado_id = "", dados = "" } = body;
   const usuario = await getUsuarioAtual();
   const admin = createAdminClient();
-  if (!(await equipeDoEvento(admin, usuario, evento_id, true))) {
+  if (!(await equipeDoEvento(admin, usuario, evento_id))) {
     return NextResponse.json({ error: "Sem permissão para este evento." }, { status: 403 });
   }
 

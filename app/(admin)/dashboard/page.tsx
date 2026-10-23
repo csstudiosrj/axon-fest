@@ -1,8 +1,8 @@
+import { pode } from "@/lib/auth/permissoes";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { CalendarDays, CircleDollarSign, FileAudio, Hourglass, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getUsuarioAtual } from "@/lib/auth/session";
+import { exigirAcesso } from "@/lib/auth/guards";
 import { GraficoSemanal, type PontoSemana } from "./GraficoSemanal";
 import { PrimeirosPassos } from "./PrimeirosPassos";
 
@@ -22,8 +22,7 @@ function inicioSemana(d: Date) {
 const dm = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
 
 export default async function DashboardPage() {
-  const usuario = await getUsuarioAtual();
-  if (!usuario) redirect("/login");
+  const usuario = await exigirAcesso("dashboard");
   const supabase = await createClient();
   const filtrar = usuario.role !== "super_admin";
   const pid = usuario.produtora_id ?? "00000000-0000-0000-0000-000000000000";
@@ -60,12 +59,14 @@ export default async function DashboardPage() {
     }
   }
 
+  // Cada cargo vê só os números da sua área (valores: admin e financeiro)
+  const verValores = pode(usuario.role, "valores");
   const kpis = [
-    { rotulo: "Inscrições", valor: String(lista.length), sub: "apresentações inscritas", icone: Users, href: "/eventos" },
-    { rotulo: "Recebido", valor: brl(recebido), sub: "inscrições pagas", icone: CircleDollarSign, href: "/eventos" },
-    { rotulo: "A receber", valor: brl(aReceber), sub: "pagamentos pendentes", icone: Hourglass, href: "/eventos" },
-    { rotulo: "Arquivos para conferir", valor: String(arquivosAnalise ?? 0), sub: arquivosAnalise ? "enviados pelos grupos" : "nada pendente", icone: FileAudio, href: "/midias" },
-  ];
+    { rotulo: "Inscrições", valor: String(lista.length), sub: "apresentações inscritas", icone: Users, href: "/eventos", ver: true },
+    { rotulo: "Recebido", valor: brl(recebido), sub: "inscrições pagas", icone: CircleDollarSign, href: "/eventos", ver: verValores },
+    { rotulo: "A receber", valor: brl(aReceber), sub: "pagamentos pendentes", icone: Hourglass, href: "/eventos", ver: verValores },
+    { rotulo: "Arquivos para conferir", valor: String(arquivosAnalise ?? 0), sub: arquivosAnalise ? "enviados pelos grupos" : "nada pendente", icone: FileAudio, href: "/midias", ver: pode(usuario.role, "midias") },
+  ].filter((k) => k.ver);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -74,9 +75,9 @@ export default async function DashboardPage() {
         <p className="mt-1 text-sm text-gray-400">Visão geral dos seus festivais.</p>
       </div>
 
-      {usuario.produtora_id && ["admin", "produtora_admin"].includes(usuario.role) && <PrimeirosPassos produtoraId={usuario.produtora_id} />}
+      {usuario.produtora_id && pode(usuario.role, "configuracoes") && <PrimeirosPassos produtoraId={usuario.produtora_id} />}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className={`grid grid-cols-2 gap-4 ${kpis.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
         {kpis.map(({ rotulo, valor: v, sub, icone: Icone, href }) => (
           <Link key={rotulo} href={href} className="flex flex-col gap-3 rounded-xl border border-axon-border bg-axon-panel p-5 transition-colors hover:border-axon-gold/40">
             <div className="flex items-center justify-between text-gray-400">
@@ -91,9 +92,9 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className={`grid gap-4 ${verValores ? "lg:grid-cols-2" : ""}`}>
         <GraficoSemanal titulo="Inscrições" pontos={qtd} formatar="numero" />
-        <GraficoSemanal titulo="Valor inscrito" pontos={valor} formatar="moeda" />
+        {verValores && <GraficoSemanal titulo="Valor inscrito" pontos={valor} formatar="moeda" />}
       </div>
 
       <section className="rounded-xl border border-axon-border bg-axon-panel">

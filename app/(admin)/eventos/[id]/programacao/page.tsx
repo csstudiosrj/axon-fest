@@ -10,7 +10,7 @@ function um<T>(v: T | T[] | null | undefined): T | null {
 
 export default async function PaginaProgramacao({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { evento, perfil, podeGerir } = await carregarEvento(id);
+  const { evento, perfil, podeGerir } = await carregarEvento(id, "evento_programacao");
   const supabase = await createClient();
   const [{ data: aps }, { data: locais }] = await Promise.all([
     supabase.from("apresentacoes")
@@ -18,7 +18,7 @@ export default async function PaginaProgramacao({ params }: { params: Promise<{ 
       .eq("evento_id", evento.id)
       .order("ordem_apresentacao", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true }),
-    supabase.from("locais_evento").select("id, nome_local").eq("evento_id", evento.id).order("nome_local"),
+    supabase.from("locais_evento").select("id, nome_local, cep, endereco, numero, complemento, bairro, cidade, estado").eq("evento_id", evento.id).order("nome_local"),
   ]);
   const itens: ItemProgramacao[] = (aps ?? []).map((a) => ({
     id: a.id, nome: a.nome, tipo: a.tipo as ItemProgramacao["tipo"], ordem: a.ordem_apresentacao, data: a.data_apresentacao, local: a.local_id,

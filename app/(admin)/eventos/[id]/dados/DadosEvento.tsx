@@ -66,7 +66,7 @@ function Enviar({ rotulo, tipo, url, onEnviado, disabled }: {
   );
 }
 
-export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: EventoPainel; podeGerir: boolean; temInscricoes: boolean }) {
+export function DadosEvento({ evento, podeGerir, podePagina, temInscricoes }: { evento: EventoPainel; podeGerir: boolean; podePagina: boolean; temInscricoes: boolean }) {
   const router = useRouter();
   const [f, setF] = useState({
     nome: evento.nome,
@@ -103,7 +103,13 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
     const instagram = f.instagram_handle.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^@/, "").replace(/[/?#].*$/, "").replace(/[^a-zA-Z0-9_.]/g, "").slice(0, 30);
     if (f.data_inicio && f.data_fim && f.data_fim < f.data_inicio) return setMsg({ tipo: "erro", texto: "A data de fim é anterior à de início." });
     setSalvando(true);
-    const { error } = await createClient().from("eventos").update({
+    // Marketing altera só a página pública; o banco também garante isso
+    const pagina = {
+      descricao: f.descricao.trim() || null, slug, cor_primaria: f.cor_primaria, tema_escuro: f.tema_escuro,
+      cor_secundaria: f.cor_secundaria, fonte_familia: f.fonte_familia, instagram_handle: instagram || null, exibir_feed_instagram: !!instagram,
+      logo_url: f.logo_url, banner_url: f.banner_url, regulamento_url: f.regulamento_url,
+    };
+    const { error } = await createClient().from("eventos").update(!podeGerir ? pagina : {
       nome: f.nome.trim(), perfil_id: f.perfil_id, formato: f.formato, tipo_premiacao: f.tipo_premiacao,
       data_inicio: f.data_inicio || null, data_fim: f.data_fim || null, local: f.local.trim() || null,
       vagas_total: f.vagas_total ? Number(f.vagas_total) : null,
@@ -131,9 +137,10 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
   };
 
   const dis = !podeGerir;
+  const disPagina = !podeGerir && !podePagina;
   return (
     <form onSubmit={salvar} className="space-y-5">
-      {!podeGerir && <Aviso tipo="info">Somente a gestão da produtora (admin e produtor) altera os dados do evento.</Aviso>}
+      {!podeGerir && <Aviso tipo="info">{podePagina ? "Você altera a página pública do evento (textos, cores, imagens e Instagram). Os demais dados são da produção." : "Somente a produção altera os dados do evento."}</Aviso>}
 
       <Cartao titulo="Situação do evento">
         <div className="grid gap-4 px-5 py-5 md:grid-cols-[260px_1fr]">
@@ -166,31 +173,32 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
           <Rotulo texto="Vagas no evento" ajuda="Máximo de apresentações no festival inteiro. Em branco = sem limite. Também dá para limitar por categoria.">
             <input inputMode="numeric" value={f.vagas_total} onChange={(e) => set("vagas_total", e.target.value.replace(/\D/g, "").replace(/^0+/, ""))} disabled={dis} placeholder="Sem limite" className={campo} />
           </Rotulo>
-          <div className="md:col-span-2"><Rotulo texto="Descrição (aparece na página pública)"><textarea rows={4} value={f.descricao} onChange={(e) => set("descricao", e.target.value)} disabled={dis} maxLength={4000} className={`${campo} resize-y`} /></Rotulo></div>
         </div>
       </Cartao>
 
       <Cartao titulo="Página pública" descricao="Endereço, identidade visual e regulamento.">
         <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
+          <div className="md:col-span-2"><Rotulo texto="Descrição (aparece na página pública)"><textarea rows={4} value={f.descricao} onChange={(e) => set("descricao", e.target.value)} disabled={disPagina} maxLength={4000} className={`${campo} resize-y`} /></Rotulo></div>
+
           <div className="md:col-span-2">
             <Rotulo texto="Endereço da página" ajuda={`${urlAbsoluta("/e/")}${slugificar(f.slug) || "…"}`}>
-              <input value={f.slug} onChange={(e) => set("slug", e.target.value)} disabled={dis} maxLength={60} className={campo} />
+              <input value={f.slug} onChange={(e) => set("slug", e.target.value)} disabled={disPagina} maxLength={60} className={campo} />
             </Rotulo>
           </div>
           <Rotulo texto="Cor principal">
             <div className="flex items-center gap-2">
-              <input type="color" value={f.cor_primaria} onChange={(e) => set("cor_primaria", e.target.value)} disabled={dis} className="h-10 w-14 rounded border border-axon-border bg-transparent" />
-              <input value={f.cor_primaria} onChange={(e) => set("cor_primaria", e.target.value)} disabled={dis} maxLength={7} className={campo} />
+              <input type="color" value={f.cor_primaria} onChange={(e) => set("cor_primaria", e.target.value)} disabled={disPagina} className="h-10 w-14 rounded border border-axon-border bg-transparent" />
+              <input value={f.cor_primaria} onChange={(e) => set("cor_primaria", e.target.value)} disabled={disPagina} maxLength={7} className={campo} />
             </div>
           </Rotulo>
           <Rotulo texto="Cor secundária">
             <div className="flex items-center gap-2">
-              <input type="color" value={f.cor_secundaria} onChange={(e) => set("cor_secundaria", e.target.value)} disabled={dis} className="h-10 w-14 rounded border border-axon-border bg-transparent" />
-              <input value={f.cor_secundaria} onChange={(e) => set("cor_secundaria", e.target.value)} disabled={dis} maxLength={7} className={campo} />
+              <input type="color" value={f.cor_secundaria} onChange={(e) => set("cor_secundaria", e.target.value)} disabled={disPagina} className="h-10 w-14 rounded border border-axon-border bg-transparent" />
+              <input value={f.cor_secundaria} onChange={(e) => set("cor_secundaria", e.target.value)} disabled={disPagina} maxLength={7} className={campo} />
             </div>
           </Rotulo>
           <Rotulo texto="Fonte dos títulos">
-            <select value={f.fonte_familia} onChange={(e) => set("fonte_familia", e.target.value)} disabled={dis} className={campo}>
+            <select value={f.fonte_familia} onChange={(e) => set("fonte_familia", e.target.value)} disabled={disPagina} className={campo}>
               <option value="sans">Moderna (sem serifa)</option>
               <option value="serif">Clássica (com serifa)</option>
               <option value="montserrat">Montserrat</option>
@@ -198,21 +206,21 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
             </select>
           </Rotulo>
           <Rotulo texto="Instagram do festival" ajuda="Opcional. Aparece como botão “Ver perfil” na página.">
-            <input value={f.instagram_handle} onChange={(e) => set("instagram_handle", e.target.value)} disabled={dis} maxLength={80} placeholder="@seufestival" className={campo} />
+            <input value={f.instagram_handle} onChange={(e) => set("instagram_handle", e.target.value)} disabled={disPagina} maxLength={80} placeholder="@seufestival" className={campo} />
           </Rotulo>
           <Rotulo texto="Tema">
-            <select value={f.tema_escuro ? "escuro" : "claro"} onChange={(e) => set("tema_escuro", e.target.value === "escuro")} disabled={dis} className={campo}>
+            <select value={f.tema_escuro ? "escuro" : "claro"} onChange={(e) => set("tema_escuro", e.target.value === "escuro")} disabled={disPagina} className={campo}>
               <option value="escuro">Escuro</option>
               <option value="claro">Claro</option>
             </select>
           </Rotulo>
-          <Enviar rotulo="Logo (quadrada)" tipo="imagem" url={f.logo_url} onEnviado={(u) => set("logo_url", u)} disabled={dis} />
-          <Enviar rotulo="Banner (largo, topo da página)" tipo="imagem" url={f.banner_url} onEnviado={(u) => set("banner_url", u)} disabled={dis} />
-          <div className="md:col-span-2"><Enviar rotulo="Regulamento (PDF)" tipo="pdf" url={f.regulamento_url} onEnviado={(u) => set("regulamento_url", u)} disabled={dis} /></div>
+          <Enviar rotulo="Logo (quadrada)" tipo="imagem" url={f.logo_url} onEnviado={(u) => set("logo_url", u)} disabled={disPagina} />
+          <Enviar rotulo="Banner (largo, topo da página)" tipo="imagem" url={f.banner_url} onEnviado={(u) => set("banner_url", u)} disabled={disPagina} />
+          <div className="md:col-span-2"><Enviar rotulo="Regulamento (PDF)" tipo="pdf" url={f.regulamento_url} onEnviado={(u) => set("regulamento_url", u)} disabled={disPagina} /></div>
         </div>
       </Cartao>
 
-      {podeGerir && (
+      {(podeGerir || podePagina) && (
         <div className="sticky bottom-0 -mx-1 flex items-center justify-between gap-4 rounded-xl border border-axon-border bg-axon-panel/95 px-5 py-3 backdrop-blur">
           <span className="text-sm">{msg && <span className={msg.tipo === "ok" ? "text-emerald-300" : "text-red-300"}>{msg.texto}</span>}</span>
           <button type="submit" disabled={salvando} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-5 py-2 text-sm font-semibold text-black disabled:opacity-50">

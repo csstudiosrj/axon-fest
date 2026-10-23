@@ -1,8 +1,8 @@
+import { pode } from "@/lib/auth/permissoes";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { CalendarDays, MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getUsuarioAtual } from "@/lib/auth/session";
+import { exigirAcesso } from "@/lib/auth/guards";
 import { infoStatus } from "@/lib/eventos/status";
 import { perfilPorSlug } from "@/lib/perfis";
 import { NovoEvento } from "./NovoEvento";
@@ -12,15 +12,14 @@ export const dynamic = "force-dynamic";
 const data = (iso: string | null) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : null);
 
 export default async function ListaEventos() {
-  const usuario = await getUsuarioAtual();
-  if (!usuario) redirect("/login");
+  const usuario = await exigirAcesso("eventos");
   const supabase = await createClient();
   let q = supabase.from("eventos").select("id, nome, status, data_inicio, data_fim, local, logo_url, perfis_festival:perfil_id ( slug )").order("data_inicio", { ascending: false, nullsFirst: true });
   if (usuario.role !== "super_admin") q = q.eq("produtora_id", usuario.produtora_id ?? "");
   const { data: eventos } = await q;
   const ids = (eventos ?? []).map((e) => e.id);
   const { data: aps } = ids.length ? await supabase.from("apresentacoes").select("evento_id").in("evento_id", ids) : { data: [] };
-  const podeCriar = !!usuario.produtora_id && ["admin", "produtor", "produtora_admin", "super_admin"].includes(usuario.role);
+  const podeCriar = !!usuario.produtora_id && pode(usuario.role, "evento_dados");
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

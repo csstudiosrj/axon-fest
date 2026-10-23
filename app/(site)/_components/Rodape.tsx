@@ -52,7 +52,8 @@ export async function Rodape() {
       <div className="border-t border-arx-line">
         <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-2 px-4 py-6 text-[12px] text-arx-slate sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <p>
-            © {new Date().getFullYear()} ARXUM. Todos os direitos reservados.
+            © {new Date().getFullYear()} ARXUM Fest, todos os direitos reservados ao{" "}
+            <a href="https://arxum.com.br" target="_blank" rel="noopener noreferrer" className="text-arx-mist hover:text-white">ARXUM group</a>
             <Link href="/termos-de-uso" className="ml-4 text-arx-mist hover:text-white">Termos de Uso</Link>
             <Link href="/privacidade" className="ml-4 text-arx-mist hover:text-white">Privacidade</Link>
           </p>

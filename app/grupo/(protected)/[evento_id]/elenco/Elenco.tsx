@@ -15,7 +15,7 @@ async function chamar(corpo: Record<string, unknown>) {
   const res = await fetch(apiUrl("/api/grupo/elenco"), {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo),
   });
-  const json = (await res.json().catch(() => ({}))) as { error?: string; jaTinhaCadastro?: boolean; emailEnviado?: boolean };
+  const json = (await res.json().catch(() => ({}))) as { error?: string; existe?: boolean; jaTinhaCadastro?: boolean; emailEnviado?: boolean; emailMascarado?: string | null };
   if (!res.ok) throw new Error(json.error ?? "Não foi possível concluir.");
   return json;
 }
@@ -40,15 +40,27 @@ function Formulario({ perfilSlug, eventoId, editando, onFechar, onFeito }: {
   });
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // Cadastro novo: 1º o CPF (se já existir no ARXUM Fest, vira convite); 2º os dados
+  const [etapa, setEtapa] = useState<"cpf" | "dados">(editando ? "dados" : "cpf");
   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setF({ ...f, [k]: k === "documento" ? formatarCpf(e.target.value) : e.target.value });
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro(null);
-    if (!editando && !cpfValido(f.documento)) return setErro("CPF inválido.");
+    if (!editando && !cpfValido(f.documento)) return setErro("CPF inválido. Confira os números.");
     setSalvando(true);
     try {
+      if (!editando && etapa === "cpf") {
+        const r = await chamar({ acao: "verificar", evento_id: eventoId, documento: f.documento, funcao: f.funcao });
+        if (r.existe) {
+          onFeito(`Esta pessoa já tem cadastro no ARXUM Fest. Convite enviado para o e-mail dela${r.emailMascarado ? ` (${r.emailMascarado})` : ""}: ela confirma se faz parte do grupo e os dados aparecem aqui.`);
+          return;
+        }
+        setEtapa("dados");
+        setSalvando(false);
+        return;
+      }
       if (editando) {
         await chamar({ acao: "editar", evento_id: eventoId, vinculo_id: editando.vinculo_id, ...f });
         onFeito("Cadastro atualizado.");
@@ -56,7 +68,7 @@ function Formulario({ perfilSlug, eventoId, editando, onFechar, onFeito }: {
         const r = await chamar({ acao: "adicionar", evento_id: eventoId, ...f });
         onFeito(r.jaTinhaCadastro
           ? "Esta pessoa já tinha cadastro no ARXUM Fest. Enviamos o convite para o e-mail que ela cadastrou; os dados aparecem aqui quando ela confirmar."
-          : r.emailEnviado ? `Adicionado(a). Enviamos o convite para ${f.email}.` : "Adicionado(a), mas o e-mail não pôde ser enviado agora. Use “Reenviar convite” em instantes.");
+          : r.emailEnviado ? `Cadastro feito. A pessoa recebe em ${f.email} o link para confirmar o cadastro e assinar o termo.` : "Cadastrado(a), mas o e-mail não pôde ser enviado agora. Use “Reenviar convite” em instantes.");
       }
     } catch (err) {
       setErro((err as Error).message);
@@ -76,10 +88,21 @@ function Formulario({ perfilSlug, eventoId, editando, onFechar, onFeito }: {
           {!editando && (
             <label className="block">
               <span className="text-xs text-gray-400">CPF</span>
-              <input required inputMode="numeric" value={f.documento} onChange={set("documento")} placeholder="000.000.000-00" className={`${campo} mt-1.5`} />
-              <span className="mt-1 block text-[11px] text-gray-500">Se a pessoa já tiver cadastro no ARXUM Fest, ela recebe o convite no e-mail dela e os dados abaixo não são alterados.</span>
+              <input required autoFocus inputMode="numeric" value={f.documento} onChange={set("documento")} disabled={etapa === "dados"} placeholder="000.000.000-00" className={`${campo} mt-1.5`} />
+              <span className="mt-1 block text-[11px] text-gray-500">
+                {etapa === "cpf" ? "Primeiro procuramos o CPF no ARXUM Fest. Se a pessoa já tiver cadastro, ela recebe um convite no e-mail dela." : "CPF sem cadastro: preencha os dados. A pessoa confirma o cadastro pelo e-mail."}
+              </span>
             </label>
           )}
+          {etapa === "cpf" && (
+            <label className="block">
+              <span className="text-xs text-gray-400">Função no grupo</span>
+              <select value={f.funcao} onChange={set("funcao")} className={`${campo} mt-1.5`}>
+                {perfil.funcoes.map((fn) => <option key={fn.valor} value={fn.valor}>{fn.nome}</option>)}
+              </select>
+            </label>
+          )}
+          {etapa === "dados" && (<>
           <label className="block">
             <span className="text-xs text-gray-400">Nome completo</span>
             <input required minLength={3} value={f.nome} onChange={set("nome")} className={`${campo} mt-1.5`} />
@@ -105,12 +128,13 @@ function Formulario({ perfilSlug, eventoId, editando, onFechar, onFeito }: {
             <input required type="email" value={f.email} onChange={set("email")} className={`${campo} mt-1.5`} />
             <span className="mt-1 block text-[11px] text-gray-500">A pessoa confirma a participação e assina o termo por este e-mail. Para menores, use o e-mail do responsável.</span>
           </label>
+          </>)}
           {erro && <p className="text-sm text-red-300">{erro}</p>}
         </div>
         <div className="flex justify-end gap-2 border-t border-axon-border px-5 py-4">
           <button type="button" onClick={onFechar} className="rounded-lg px-4 py-2 text-sm text-gray-300 hover:text-white">Cancelar</button>
           <button type="submit" disabled={salvando} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
-            {salvando && <Loader2 size={15} className="animate-spin" />} {editando ? "Salvar" : "Adicionar e enviar convite"}
+            {salvando && <Loader2 size={15} className="animate-spin" />} {editando ? "Salvar" : etapa === "cpf" ? "Continuar" : "Cadastrar e enviar confirmação"}
           </button>
         </div>
       </form>
@@ -118,7 +142,8 @@ function Formulario({ perfilSlug, eventoId, editando, onFechar, onFeito }: {
   );
 }
 
-export function Elenco({ eventoId, perfilSlug, integrantes, dataEvento }: {
+export function Elenco({ eventoId, perfilSlug, integrantes, dataEvento , podeRemover }: {
+  podeRemover: boolean;
   eventoId: string;
   perfilSlug: string;
   integrantes: IntegranteElenco[];
@@ -200,11 +225,11 @@ export function Elenco({ eventoId, perfilSlug, integrantes, dataEvento }: {
                     {p.editavel && (
                       <button type="button" onClick={() => setForm({ editando: p })} title="Editar" className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"><Pencil size={14} /></button>
                     )}
-                    <button type="button" disabled={ocupado === p.vinculo_id} title="Remover do grupo"
+                    {podeRemover && <button type="button" disabled={ocupado === p.vinculo_id} title="Remover do grupo"
                       onClick={() => window.confirm("Remover esta pessoa do grupo? Ela também sai das apresentações com inscrições abertas.") && acao(p, { acao: "remover" }, "Removido(a) do grupo.")}
                       className="rounded-lg p-2 text-gray-400 hover:bg-red-400/10 hover:text-red-300">
                       {ocupado === p.vinculo_id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                    </button>
+                    </button>}
                   </div>
                 </li>
               );

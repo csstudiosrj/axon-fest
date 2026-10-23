@@ -4,12 +4,16 @@ import Link from "next/link";
 import { useState } from "react";
 import { Loader2, MailCheck } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
-import { Campo, Entrada, Isca } from "../_components/Formulario";
+import { Campo, Entrada, Isca, base } from "../_components/Formulario";
+import { CampoSenha } from "@/app/_components/CampoSenha";
+import { mascaraTelefone } from "@/lib/mascaras";
 
 export function FormCriarConta() {
   const [enviando, setEnviando] = useState(false);
   const [emailEnviado, setEmailEnviado] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [senha, setSenha] = useState("");
+  const [confirmar, setConfirmar] = useState("");
 
   async function enviar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -57,12 +61,13 @@ export function FormCriarConta() {
       <Campo label="Nome do festival ou produtora"><Entrada name="festival" required autoComplete="organization" /></Campo>
       <div className="grid gap-5 sm:grid-cols-2">
         <Campo label="E-mail"><Entrada name="email" type="email" required autoComplete="email" /></Campo>
-        <Campo label="WhatsApp" opcional><Entrada name="telefone" type="tel" autoComplete="tel" placeholder="(00) 00000-0000" /></Campo>
+        <Campo label="WhatsApp" opcional><Entrada name="telefone" type="tel" autoComplete="tel" placeholder="(00) 00000-0000" onChange={(e) => { e.currentTarget.value = mascaraTelefone(e.currentTarget.value); }} /></Campo>
       </div>
       <div className="grid gap-5 sm:grid-cols-2">
-        <Campo label="Senha"><Entrada name="senha" type="password" required minLength={8} autoComplete="new-password" placeholder="Mínimo de 8 caracteres" /></Campo>
-        <Campo label="Confirmar senha"><Entrada name="confirmar" type="password" required minLength={8} autoComplete="new-password" /></Campo>
+        <Campo label="Senha"><CampoSenha name="senha" value={senha} onChange={setSenha} minLength={8} autoComplete="new-password" placeholder="Mínimo de 8 caracteres" className={base} /></Campo>
+        <Campo label="Repita a senha"><CampoSenha name="confirmar" value={confirmar} onChange={setConfirmar} minLength={8} autoComplete="new-password" className={base} /></Campo>
       </div>
+      {confirmar && senha !== confirmar && <p className="text-[13px] text-red-300">As senhas não são iguais.</p>}
       {erro && <p className="text-[14px] text-red-300" role="alert">{erro}</p>}
       <button type="submit" disabled={enviando}
         className="mt-2 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-arx-fest px-6 text-[14px] font-semibold text-arx-obsidian transition-colors hover:bg-[#e2c255] disabled:opacity-60">

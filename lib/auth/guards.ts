@@ -1,6 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { destinoPorRole } from "@/lib/auth/roles";
+import { inicioDe, pode, type Area } from "@/lib/auth/permissoes";
 import { getUsuarioAtual, type UsuarioAtual } from "@/lib/auth/session";
 
 // Garante usuário logado com um dos cargos da área. Quem está logado com outro
@@ -19,5 +20,13 @@ export async function exigirArea(
     redirect(destino);
   }
 
+  return usuario;
+}
+
+// Garante que o usuário do painel tenha acesso à área; senão vai para a tela inicial do cargo
+export async function exigirAcesso(area: Area): Promise<UsuarioAtual> {
+  const usuario = await getUsuarioAtual();
+  if (!usuario) redirect("/login");
+  if (!pode(usuario.role, area)) redirect(inicioDe(usuario.role));
   return usuario;
 }

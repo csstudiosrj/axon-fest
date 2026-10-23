@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { CampoSenha } from "@/app/_components/CampoSenha";
 import { createClient } from "@/lib/supabase/client";
 import { destinoPorRole } from "@/lib/auth/roles";
 
@@ -92,13 +93,11 @@ export default function DefinirSenhaPage() {
             )}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Nova senha</label>
-              <input type="password" required autoComplete="new-password" value={senha}
-                onChange={(e) => setSenha(e.target.value)} className={inputClass} placeholder="••••••••" />
+              <CampoSenha value={senha} onChange={setSenha} autoComplete="new-password" minLength={8} className={inputClass} placeholder="Mínimo 8 caracteres" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Confirmar senha</label>
-              <input type="password" required autoComplete="new-password" value={confirmar}
-                onChange={(e) => setConfirmar(e.target.value)} className={inputClass} placeholder="••••••••" />
+              <label className="block text-sm font-medium text-gray-400 mb-1">Repita a senha</label>
+              <CampoSenha value={confirmar} onChange={setConfirmar} autoComplete="new-password" name="confirmar" className={inputClass} placeholder="••••••••" />
             </div>
           </div>
 

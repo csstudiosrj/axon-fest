@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const eventoId = req.nextUrl.searchParams.get("evento") ?? "";
   const usuario = await getUsuarioAtual();
   const admin = createAdminClient();
-  if (!(await equipeDoEvento(admin, usuario, eventoId, true))) {
+  if (!(await equipeDoEvento(admin, usuario, eventoId))) {
     return NextResponse.json({ error: "Sem permissão para este evento." }, { status: 403 });
   }
   const dados = await carregarDadosEvento(admin, eventoId);

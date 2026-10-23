@@ -31,6 +31,7 @@ export interface ContextoGrupo {
   evento: EventoGrupo;
   perfil: Perfil;
   inscricao: { id: string; status: string | null };
+  diretor: boolean; // false = coreógrafo: só as próprias apresentações, sem valores
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -71,6 +72,7 @@ export async function carregarContextoGrupo(eventoId: string): Promise<ContextoG
 
   return {
     usuario,
+    diretor: usuario.role !== "org_membro",
     grupo: { id: grupo.id as string, nome: grupo.nome as string },
     evento: {
       id: evento.id as string,

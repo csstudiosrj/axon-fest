@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
+import { CampoSenha } from "@/app/_components/CampoSenha";
+import { Direitos } from "@/app/_components/Direitos";
 import { ROLES, ROLES_GRUPO, ROLES_PAINEL_ADMIN, destinoPorRole } from "@/lib/auth/roles";
 
 // Login único: produção, equipe, operador (caixa), jurado e grupos. Cada um vai para a sua área.
@@ -50,13 +52,22 @@ export default function AdminLoginPage({
       if (authData.session) {
         const { data: userData, error: userError } = await supabase
           .from("usuarios")
-          .select("role")
+          .select("role, ativo, produtoras:produtora_id ( ativo ), grupos:organizacao_id ( ativo )")
           .eq("id", authData.session.user.id)
           .single();
 
         if (userError || !userData) {
           await supabase.auth.signOut();
           setError("Erro ao verificar permissões. Contate o suporte.");
+          setLoading(false);
+          return;
+        }
+
+        const bloqueada = userData.ativo === false || userData.grupos?.ativo === false
+          || (!["jurado", "super_admin"].includes(userData.role) && userData.produtoras?.ativo === false);
+        if (bloqueada) {
+          await supabase.auth.signOut();
+          setError("Este acesso está bloqueado. Fale com o suporte do ARXUM Fest.");
           setLoading(false);
           return;
         }
@@ -94,6 +105,8 @@ export default function AdminLoginPage({
                 <label className="block text-sm font-medium text-gray-400 mb-1">E-mail</label>
                 <input
                   type="email"
+                  name="email"
+                  autoComplete="username"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -103,11 +116,9 @@ export default function AdminLoginPage({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Senha</label>
-                <input
-                  type="password"
-                  required
+                <CampoSenha
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={setPassword}
                   className="block w-full rounded-md border border-axon-border bg-axon-panel px-4 py-3 text-white focus:border-axon-gold focus:outline-none focus:ring-1 focus:ring-axon-gold transition-colors"
                   placeholder="••••••••"
                 />
@@ -139,9 +150,7 @@ export default function AdminLoginPage({
         </div>
 
         <div className="absolute bottom-6 w-full text-center px-4">
-          <p className="text-xs text-gray-500">
-            &copy; {new Date().getFullYear()} ARXUM Fest. Todos os direitos reservados.
-          </p>
+          <Direitos className="text-xs text-gray-500" />
         </div>
       </div>
 

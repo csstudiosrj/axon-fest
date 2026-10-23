@@ -13,7 +13,7 @@ export default async function PaginaInscricoes({ params, searchParams }: {
   searchParams: Promise<{ status?: string }>;
 }) {
   const [{ id }, { status }] = await Promise.all([params, searchParams]);
-  const { evento, perfil, podeGerir } = await carregarEvento(id);
+  const { evento, perfil, pode } = await carregarEvento(id, "evento_inscricoes");
   const supabase = await createClient();
 
   const [{ data: inscricoes }, { data: aps }] = await Promise.all([
@@ -55,5 +55,5 @@ export default async function PaginaInscricoes({ params, searchParams }: {
     };
   });
 
-  return <Inscricoes eventoId={evento.id} eventoNome={evento.nome} perfilSlug={perfil.slug} grupos={grupos} podeGerir={podeGerir} filtroInicial={status === "Pendente" ? "Pendente" : "todos"} />;
+  return <Inscricoes eventoNome={evento.nome} perfilSlug={perfil.slug} grupos={grupos} podePagar={pode("pagamentos")} verValores={pode("valores")} filtroInicial={status === "Pendente" ? "Pendente" : "todos"} />;
 }

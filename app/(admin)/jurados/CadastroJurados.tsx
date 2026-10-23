@@ -5,14 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Camera, Loader2, Mail, Pencil, Trash2, UserPlus, X } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
+import { mascaraTelefone } from "@/lib/mascaras";
 import { uploadFiles } from "@/utils/uploadthing";
-import type { Membro } from "@/lib/equipe";
+import type { JuradoEquipe as Membro } from "@/lib/equipe";
 
 const campo = "w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold";
 
 async function chamar(corpo: Record<string, unknown>) {
   const res = await fetch(apiUrl("/api/invite"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
-  const json = (await res.json().catch(() => ({}))) as { error?: string; desativado?: boolean; vinculado?: boolean };
+  const json = (await res.json().catch(() => ({}))) as { error?: string; desativado?: boolean; vinculado?: boolean; convitePendente?: boolean; desvinculado?: boolean };
   if (!res.ok) throw new Error(json.error ?? "Não foi possível concluir.");
   return json;
 }
@@ -33,7 +34,7 @@ function Avatar({ nome, foto, tamanho = 48 }: { nome: string; foto: string | nul
 function EditarPerfil({ jurado, onFechar, onSalvo }: { jurado: Membro; onFechar: () => void; onSalvo: () => void }) {
   const [f, setF] = useState({
     nome: jurado.nome ?? "",
-    telefone: jurado.telefone ?? "",
+    telefone: mascaraTelefone(jurado.telefone),
     especialidade: jurado.especialidade ?? "",
     mini_bio: jurado.mini_bio ?? "",
     foto_url: jurado.foto_url,
@@ -104,7 +105,7 @@ function EditarPerfil({ jurado, onFechar, onSalvo }: { jurado: Membro; onFechar:
             </label>
             <label className="block">
               <span className="text-xs text-gray-400">Telefone (não aparece no site)</span>
-              <input inputMode="tel" value={f.telefone} onChange={(e) => setF({ ...f, telefone: e.target.value })} maxLength={20} className={`${campo} mt-1.5`} />
+              <input inputMode="tel" placeholder="(00) 00000-0000" value={f.telefone} onChange={(e) => setF({ ...f, telefone: mascaraTelefone(e.target.value) })} className={`${campo} mt-1.5`} />
             </label>
           </div>
           <label className="block">
@@ -141,7 +142,7 @@ export function CadastroJurados({ jurados, eventos, podeGerir }: {
     setAviso(null);
     try {
       const r = await chamar({ userId: id, ...corpo });
-      setAviso({ ok: true, texto: r.desativado ? "O jurado já tem notas lançadas e foi desativado em vez de excluído." : sucesso });
+      setAviso({ ok: true, texto: r.desativado ? "O jurado já tem notas lançadas e foi desativado em vez de excluído." : r.desvinculado ? "Jurado retirado da sua equipe." : sucesso });
       router.refresh();
     } catch (e) {
       setAviso({ ok: false, texto: (e as Error).message });
@@ -155,7 +156,9 @@ export function CadastroJurados({ jurados, eventos, podeGerir }: {
     setAviso(null);
     try {
       const r = await chamar({ action: "invite", role: "jurado", email: f.email, nome: f.nome || undefined, especialidade: f.especialidade || undefined });
-      setAviso({ ok: true, texto: r.vinculado ? `${f.email} já tinha conta de jurado e foi ligado(a) à sua produtora.` : `Convite enviado para ${f.email}. O jurado cria a senha pelo link do e-mail.` });
+      setAviso({ ok: true, texto: r.convitePendente
+        ? `${f.email} já é jurado(a) no ARXUM Fest. Enviamos o convite: assim que aceitar, aparece pronto para escalar.`
+        : r.vinculado ? `${f.email} já tinha conta de jurado e foi ligado(a) à sua produtora.` : `Convite enviado para ${f.email}. O jurado cria a senha pelo link do e-mail.` });
       setF({ nome: "", email: "", especialidade: "" });
       router.refresh();
     } catch (err) {
@@ -200,7 +203,7 @@ export function CadastroJurados({ jurados, eventos, podeGerir }: {
                   <div className="min-w-[220px] flex-1">
                     <p className="font-medium text-white">{nome}</p>
                     <p className="text-xs text-gray-500">
-                      {j.especialidade ? `${j.especialidade} · ` : ""}{j.email} · {!j.ativo ? "acesso desativado" : j.pendente ? "ainda não acessou" : `último acesso ${new Date(j.ultimoAcesso!).toLocaleDateString("pt-BR")}`}
+                      {j.especialidade ? `${j.especialidade} · ` : ""}{j.email} · {j.vinculo === "pendente" ? "aguardando aceitar o convite" : j.vinculo === "recusado" ? "recusou o convite" : !j.ativo ? "acesso desativado" : j.pendente ? "ainda não acessou" : `último acesso ${new Date(j.ultimoAcesso!).toLocaleDateString("pt-BR")}`}
                     </p>
                     {j.mini_bio && <p className="mt-1.5 line-clamp-2 text-sm text-gray-300">{j.mini_bio}</p>}
                     <p className="mt-1.5 text-xs text-gray-400">
@@ -214,13 +217,13 @@ export function CadastroJurados({ jurados, eventos, podeGerir }: {
                   {podeGerir && (
                     <span className="flex items-center gap-1">
                       {ocupado === j.id && <Loader2 size={14} className="animate-spin text-gray-400" />}
-                      <button type="button" onClick={() => setEditando(j)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-gray-200 hover:bg-white/5"><Pencil size={12} /> Perfil</button>
-                      {j.pendente && j.ativo && (
+                      {j.origem && <button type="button" onClick={() => setEditando(j)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-gray-200 hover:bg-white/5"><Pencil size={12} /> Perfil</button>}
+                      {j.origem && j.pendente && j.ativo && (
                         <button type="button" onClick={() => executar(j.id, { action: "reenviar" }, "Link de acesso reenviado.")} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-axon-gold hover:bg-axon-gold/10"><Mail size={12} /> Reenviar</button>
                       )}
-                      <button type="button" onClick={() => executar(j.id, { action: "ativo", ativo: !j.ativo }, j.ativo ? "Acesso desativado." : "Acesso reativado.")}
-                        className="rounded-lg px-2 py-1.5 text-xs text-gray-300 hover:bg-white/5">{j.ativo ? "Desativar" : "Reativar"}</button>
-                      <button type="button" title="Excluir" onClick={() => window.confirm(`Excluir o jurado ${nome}? Se já tiver notas lançadas, ele será apenas desativado.`) && executar(j.id, { action: "remove" }, "Jurado excluído.")}
+                      {j.origem && <button type="button" onClick={() => executar(j.id, { action: "ativo", ativo: !j.ativo }, j.ativo ? "Acesso desativado." : "Acesso reativado.")}
+                        className="rounded-lg px-2 py-1.5 text-xs text-gray-300 hover:bg-white/5">{j.ativo ? "Desativar" : "Reativar"}</button>}
+                      <button type="button" title="Excluir" onClick={() => window.confirm(j.origem ? `Excluir o jurado ${nome}? Se já tiver notas lançadas ou trabalhar com outras produtoras, ele só sai da sua equipe.` : `Tirar ${nome} da sua equipe?`) && executar(j.id, { action: "remove" }, "Jurado excluído.")}
                         className="rounded-lg p-2 text-gray-400 hover:text-red-300"><Trash2 size={14} /></button>
                     </span>
                   )}

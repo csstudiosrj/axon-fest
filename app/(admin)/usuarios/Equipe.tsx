@@ -121,7 +121,7 @@ export function Equipe({ membros, euId, atribuiveis, podeGerir }: { membros: Mem
       <section className="rounded-xl border border-axon-border bg-axon-panel">
         <h2 className="border-b border-axon-border px-5 py-3.5 font-semibold text-white">O que cada cargo acessa</h2>
         <dl className="divide-y divide-axon-border">
-          {["admin", "produtor", "marketing", "assistente", "operador", "jurado"].map((r) => (
+          {["admin", "produtor", "financeiro", "marketing", "operador", "jurado"].map((r) => (
             <div key={r} className="flex flex-wrap gap-x-4 gap-y-1 px-5 py-3 text-sm">
               <dt className="w-28 shrink-0 font-medium text-white">{nomeCargo(r)}</dt>
               <dd className="flex-1 text-gray-400">{CARGOS[r].alcance}</dd>

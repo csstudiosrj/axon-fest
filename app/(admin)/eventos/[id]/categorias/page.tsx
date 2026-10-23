@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PaginaCategorias({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { evento, perfil, podeGerir } = await carregarEvento(id);
+  const { evento, perfil, podeGerir } = await carregarEvento(id, "evento_categorias");
   const supabase = await createClient();
   const [{ data: cats }, { data: aps }] = await Promise.all([
     supabase.from("categorias").select("*").eq("evento_id", evento.id).order("nome"),

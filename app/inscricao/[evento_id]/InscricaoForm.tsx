@@ -1,695 +1,264 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertCircle,
-  ArrowRight,
-  Building2,
-  CheckCircle2,
-  ChevronRight,
-  Eye,
-  EyeOff,
-  Loader2,
-  Lock,
-  Mail,
-  MapPin,
-  Phone,
-  User,
-} from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, ArrowRight, CheckCircle2, Loader2, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { perfilPorSlug } from "@/lib/perfis";
-import { apiUrl } from "@/lib/base-path";
-import { ROLES_GRUPO } from "@/lib/auth/roles";
+import { BASE_PATH, apiUrl } from "@/lib/base-path";
+import { cpfValido, soDigitos } from "@/lib/documentos";
+import { cnpjValido, mascaraCpfCnpj, mascaraTelefone, telefoneValido } from "@/lib/mascaras";
+import { enderecoVazio, type Endereco } from "@/lib/endereco";
+import { CampoSenha } from "@/app/_components/CampoSenha";
+import { CamposEndereco } from "@/app/_components/CamposEndereco";
 
-
-// Cadastro do grupo/vínculo/inscrição é feito no servidor (valida a sessão e
-// impede vincular a conta a um grupo de outra pessoa)
-async function cadastrarNoServidor(corpo: Record<string, unknown>): Promise<string | null> {
-  const res = await fetch(apiUrl("/api/grupo/cadastro"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(corpo),
-  }).catch(() => null);
-  if (!res) return "Erro de conexão. Tente novamente.";
-  if (res.ok) return null;
-  const json = (await res.json().catch(() => ({}))) as { error?: string };
-  return json.error ?? "Não foi possível concluir o cadastro.";
-}
+// Inscrição pela página pública do festival (portal único):
+//   1. CPF/CNPJ do grupo;
+//   2a. grupo já existe no ARXUM Fest → entra com o próprio login e dá o aceite;
+//   2b. grupo novo → cadastro completo + aceite; confirma o e-mail e cai no portal.
+// A produtora não inscreve nem convida grupos: o vínculo é sempre feito por eles.
 
 interface EventoInscricao {
-  perfil_slug?: string | null;
   id: string;
   nome: string;
   cor_primaria: string | null;
-  cor_secundaria: string | null;
   tema_escuro: boolean;
-  logo_url: string | null;
-  status: string;
+  perfil_slug: string | null;
+  slug: string | null;
+  regulamento_url: string | null;
 }
 
-interface GrupoEncontrado {
-  id: string;
-  nome: string;
-  email: string | null;
-  documento: string;
+type Etapa = "documento" | "login" | "aceite" | "cadastro" | "enviado";
+
+async function postar(caminho: `/${string}`, corpo: Record<string, unknown>): Promise<string | null> {
+  const res = await fetch(apiUrl(caminho), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) }).catch(() => null);
+  if (!res) return "Erro de conexão. Tente novamente.";
+  if (res.ok) return null;
+  const json = (await res.json().catch(() => ({}))) as { error?: string };
+  return json.error ?? "Não foi possível concluir.";
 }
 
-interface InscricaoFormProps {
-  eventoId: string;
-  evento: EventoInscricao;
-}
-
-type Etapa = "identificacao" | "login" | "cadastro" | "aguardando_confirmacao";
-
-const ESTADOS = [
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
-  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
-];
-
-function onlyDigits(value: string) {
-  return value.replace(/\D/g, "");
-}
-
-function formatDocumento(value: string) {
-  const digits = onlyDigits(value).slice(0, 14);
-  if (digits.length <= 11) {
-    return digits
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-  }
-  return digits
-    .replace(/(\d{2})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1/$2")
-    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
-}
-
-function formatPhone(value: string) {
-  const digits = onlyDigits(value).slice(0, 11);
-  if (digits.length <= 10) {
-    return digits.replace(/(\d{2})(\d{0,4})(\d{0,4})/, (_, a, b, c) => {
-      if (!b) return `(${a}`;
-      if (!c) return `(${a}) ${b}`;
-      return `(${a}) ${b}-${c}`;
-    });
-  }
-  return digits.replace(/(\d{2})(\d{0,5})(\d{0,4})/, (_, a, b, c) => {
-    if (!b) return `(${a}`;
-    if (!c) return `(${a}) ${b}`;
-    return `(${a}) ${b}-${c}`;
-  });
-}
-
-function StepSkeleton({ isDark }: { isDark: boolean }) {
-
-
-  return (
-    <div className="space-y-4">
-      <div className="animate-pulse rounded-xl border border-axon-border bg-axon-panel p-5">
-        <div className="mb-4 h-5 w-40 rounded-lg bg-axon-bg/60" />
-        <div className="h-11 rounded-xl bg-axon-bg/60" />
-      </div>
-      <div className="animate-pulse rounded-xl border border-axon-border bg-axon-panel p-5">
-        <div className="mb-3 h-4 w-28 rounded-lg bg-axon-bg/60" />
-        <div className="mb-3 h-11 rounded-xl bg-axon-bg/60" />
-        <div className="h-11 rounded-xl bg-axon-bg/60" />
-      </div>
-    </div>
-  );
-}
-
-function StepBadge({ active, done, accent, label, isDark }: { active: boolean; done: boolean; accent: string; label: string; isDark: boolean }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div
-        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold"
-        style={active || done
-          ? { background: accent, color: "rgba(255,255,255,1)" }
-          : { background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)" }}
-      >
-        {done ? <CheckCircle2 size={12} /> : null}
-        {!done ? label : null}
-      </div>
-    </div>
-  );
-}
-
-export default function InscricaoForm({ eventoId, evento }: InscricaoFormProps) {
-  const termos = perfilPorSlug(evento.perfil_slug).termos;
+export default function InscricaoForm({ evento }: { eventoId: string; evento: EventoInscricao }) {
+  const T = perfilPorSlug(evento.perfil_slug).termos;
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [etapa, setEtapa] = useState<Etapa>("identificacao");
+  const [etapa, setEtapa] = useState<Etapa>("documento");
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const [documento, setDocumento] = useState("");
-  const [grupoEncontrado, setGrupoEncontrado] = useState<GrupoEncontrado | null>(null);
-  const [erroIdentificacao, setErroIdentificacao] = useState("");
-  const [erroLogin, setErroLogin] = useState("");
-  const [erroCadastro, setErroCadastro] = useState("");
-  const [buscando, setBuscando] = useState(false);
-  const [emailAguardando, setEmailAguardando] = useState("");
+  const [grupo, setGrupo] = useState<{ id: string; nome: string; email: string } | null>(null);
+  const [login, setLogin] = useState({ email: "", senha: "" });
+  const [aceite, setAceite] = useState(false);
+  const [f, setF] = useState({ nome: "", responsavel: "", email: "", email_contato: "", telefone: "", senha: "", confirmar: "" });
+  const [endereco, setEndereco] = useState<Endereco>(enderecoVazio);
 
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginSenha, setLoginSenha] = useState("");
-  const [mostrarSenhaLogin, setMostrarSenhaLogin] = useState(false);
+  const accent = evento.cor_primaria || "#d4af37";
+  const escuro = evento.tema_escuro;
+  const painel = escuro ? "bg-axon-panel" : "bg-white";
+  const titulo = escuro ? "text-white" : "text-black";
+  const texto = escuro ? "text-gray-400" : "text-gray-600";
+  const campo = `w-full rounded-xl border border-axon-border ${escuro ? "bg-axon-bg text-white" : "bg-white text-black"} px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none`;
+  const rotulo = `text-xs font-semibold uppercase tracking-[0.14em] ${texto}`;
+  const botao = "inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40";
+  const linkRegulamento = evento.regulamento_url ?? (evento.slug ? `${BASE_PATH}/e/${evento.slug}#secao-regulamento` : null);
+  const docOk = (() => { const d = soDigitos(documento); return d.length === 11 ? cpfValido(d) : d.length === 14 ? cnpjValido(d) : false; })();
 
-  const [nomeGrupo, setNomeGrupo] = useState("");
-  const [responsavel, setResponsavel] = useState("");
-  const [email, setEmail] = useState("");
-  const [emailContato, setEmailContato] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [cidade, setCidade] = useState("");
-  const [estado, setEstado] = useState("");
-  const [senha, setSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [mostrarSenhaCadastro, setMostrarSenhaCadastro] = useState(false);
-  const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
+  const blocoAceite = (nomeGrupo: string) => (
+    <label className={`flex items-start gap-3 rounded-xl border border-axon-border p-4 text-sm ${titulo}`} style={{ borderColor: `${accent}40` }}>
+      <input type="checkbox" checked={aceite} onChange={(e) => setAceite(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" style={{ accentColor: accent }} />
+      <span>
+        Confirmo a inscrição de <strong>{nomeGrupo || `meu ${T.grupo.singular}`}</strong> em <strong>{evento.nome}</strong> e aceito o{" "}
+        {linkRegulamento ? <a href={linkRegulamento} target="_blank" rel="noreferrer" className="underline" style={{ color: accent }}>regulamento do festival</a> : "regulamento do festival"}.
+      </span>
+    </label>
+  );
 
-  const accent = evento.cor_primaria || "var(--accent-fallback)";
-  const isDark = evento.tema_escuro;
+  const blocoErro = erro ? <p className="flex items-center gap-1.5 text-sm text-red-400"><AlertCircle size={14} /> {erro}</p> : null;
 
-  const panelClass = isDark ? "bg-axon-panel" : "bg-white";
-  const mutedPanelClass = isDark ? "bg-axon-bg" : "bg-white";
-  const borderClass = "border-axon-border";
-  const headingClass = isDark ? "text-white" : "text-black";
-  const textClass = isDark ? "text-gray-400" : "text-gray-600";
-  const faintClass = isDark ? "text-gray-500" : "text-gray-500";
-
-  const docDigits = useMemo(() => onlyDigits(documento), [documento]);
-  const tipoDocumento = docDigits.length > 11 ? "cnpj" : "cpf";
-
-  const inputBase = `w-full rounded-xl border ${borderClass} ${mutedPanelClass} px-4 py-3 text-sm ${headingClass} placeholder:text-gray-500 focus:outline-none`;
-  const iconClass = faintClass;
-
-  const handleBuscarDocumento = useCallback(async () => {
-    const doc = onlyDigits(documento);
-    if (doc.length !== 11 && doc.length !== 14) {
-      setErroIdentificacao("Informe um CPF com 11 dígitos ou CNPJ com 14 dígitos.");
-      return;
-    }
-
-    setErroIdentificacao("");
-    setBuscando(true);
-
-    try {
-      const supabase = createClient();
-      // Função do banco que devolve só nome e e-mail mascarado (a tabela grupos não é pública)
-      const { data, error } = await supabase
-        .rpc("grupo_por_documento", { p_documento: doc })
-        .maybeSingle();
-
-      if (error) {
-        setErroIdentificacao("Não foi possível verificar o documento agora. Tente novamente.");
-        return;
-      }
-
-      const encontrado = data as { id: string; nome: string; email_mascarado: string } | null;
-      if (encontrado) {
-        setGrupoEncontrado({ id: encontrado.id, nome: encontrado.nome, email: encontrado.email_mascarado, documento: doc });
-        setLoginEmail("");
-        setEtapa("login");
-        return;
-      }
-
-      setGrupoEncontrado(null);
+  // 1. CPF/CNPJ
+  const buscar = async () => {
+    setErro(null);
+    if (!docOk) return setErro("CPF ou CNPJ inválido. Confira os números.");
+    setOcupado(true);
+    const { data, error } = await createClient().rpc("grupo_por_documento", { p_documento: soDigitos(documento) }).maybeSingle();
+    setOcupado(false);
+    if (error) return setErro("Não foi possível verificar agora. Tente novamente.");
+    const achado = data as { id: string; nome: string; email_mascarado: string } | null;
+    if (achado) {
+      setGrupo({ id: achado.id, nome: achado.nome, email: achado.email_mascarado });
+      setEtapa("login");
+    } else {
       setEtapa("cadastro");
-    } catch {
-      setErroIdentificacao("Erro inesperado ao verificar documento.");
-    } finally {
-      setBuscando(false);
     }
-  }, [documento]);
+  };
 
-  const handleLogin = useCallback(() => {
-    setErroLogin("");
-    if (!loginEmail || !loginSenha) {
-      setErroLogin("Preencha e-mail e senha.");
-      return;
+  // 2a. Grupo existente: entra com o próprio login
+  const entrar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErro(null);
+    setOcupado(true);
+    const supabase = createClient();
+    const { data: sessao, error } = await supabase.auth.signInWithPassword({ email: login.email.trim(), password: login.senha });
+    if (error || !sessao.user) { setOcupado(false); return setErro("E-mail ou senha incorretos."); }
+    const { data: u } = await supabase.from("usuarios").select("role, organizacao_id").eq("id", sessao.user.id).maybeSingle();
+    setOcupado(false);
+    if (!u || u.organizacao_id !== grupo?.id) {
+      await supabase.auth.signOut();
+      return setErro(`Este login não é do ${T.grupo.singular} ${grupo?.nome}. Entre com o e-mail de acesso do ${T.grupo.singular}.`);
     }
+    if (u.role !== "org_admin" && u.role !== "escola_admin") {
+      return setErro(`Só o responsável pelo ${T.grupo.singular} confirma a inscrição em um festival.`);
+    }
+    setEtapa("aceite");
+  };
 
-    startTransition(async () => {
-      try {
-        const supabase = createClient();
+  const confirmarExistente = async () => {
+    setErro(null);
+    if (!aceite) return setErro("Marque o aceite para confirmar a inscrição.");
+    setOcupado(true);
+    const falha = await postar("/api/grupo/cadastro", { evento_id: evento.id, aceite: true });
+    if (falha) { setOcupado(false); return setErro(falha); }
+    router.push(`/grupo/${evento.id}/inicio`);
+  };
 
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: loginEmail,
-          password: loginSenha,
-        });
-
-        if (signInError) {
-          setErroLogin("E-mail ou senha inválidos.");
-          return;
-        }
-
-        const { data: authUser, error: authUserError } = await supabase.auth.getUser();
-        if (authUserError || !authUser.user) {
-          setErroLogin("Não foi possível validar sua sessão.");
-          return;
-        }
-
-        const { data: usuario, error: usuarioError } = await supabase
-          .from("usuarios")
-          .select("role, organizacao_id")
-          .eq("id", authUser.user.id)
-          .single();
-
-        if (usuarioError || !usuario) {
-          setErroLogin("Não foi possível validar o vínculo da sua conta.");
-          return;
-        }
-
-        if (!ROLES_GRUPO.includes(usuario.role)) {
-          setErroLogin("Sua conta não possui permissão para continuar esta inscrição.");
-          return;
-        }
-
-        if (!usuario.organizacao_id) {
-          setErroLogin(`Sua conta não está vinculada a nenhum(a) ${termos.grupo.singular}.`);
-          return;
-        }
-
-        const inscricaoError = await cadastrarNoServidor({ evento_id: eventoId });
-
-        if (inscricaoError) {
-          setErroLogin("Seu login foi realizado, mas não foi possível registrar a inscrição.");
-          return;
-        }
-
-        router.push("/grupo/dashboard");
-      } catch {
-        setErroLogin("Erro inesperado ao entrar. Tente novamente.");
-      }
+  // 2b. Grupo novo
+  const cadastrar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErro(null);
+    if (!f.nome.trim() || !f.responsavel.trim()) return setErro("Preencha o nome e o responsável.");
+    if (!telefoneValido(f.telefone)) return setErro("Telefone incompleto: informe DDD e número.");
+    if (!endereco.estado || !endereco.cidade) return setErro("Informe estado e cidade.");
+    if (f.senha.length < 8) return setErro("A senha precisa ter pelo menos 8 caracteres.");
+    if (f.senha !== f.confirmar) return setErro("As senhas não são iguais.");
+    if (!aceite) return setErro("Marque o aceite para confirmar a inscrição.");
+    setOcupado(true);
+    const falha = await postar("/api/grupo/novo", {
+      evento_id: evento.id, documento: soDigitos(documento), nome: f.nome, responsavel: f.responsavel, email: f.email,
+      email_contato: f.email_contato || null, telefone: soDigitos(f.telefone), senha: f.senha, aceite: true, ...endereco,
     });
-  }, [eventoId, loginEmail, loginSenha, router]);
-
-  const handleConfirmacaoEmail = useCallback(() => {
-    setErroCadastro("");
-
-    startTransition(async () => {
-      try {
-        const supabase = createClient();
-
-        const { data: authLogin, error: loginError } = await supabase.auth.signInWithPassword({
-          email,
-          password: senha,
-        });
-
-        if (loginError || !authLogin.user) {
-          setErroCadastro("Email ainda não confirmado. Verifique sua caixa de entrada.");
-          return;
-        }
-
-        router.push(`/grupo/${eventoId}/inicio`);
-      } catch {
-        setErroCadastro("Erro inesperado ao confirmar cadastro. Tente novamente.");
-      }
-    });
-  }, [email, eventoId, router, senha]);
-
-  const handleCadastro = useCallback(() => {
-    setErroCadastro("");
-
-    if (!nomeGrupo || !responsavel || !email || !telefone || !cidade || !estado || !senha || !confirmarSenha) {
-      setErroCadastro("Preencha todos os campos obrigatórios.");
-      return;
-    }
-
-    if (senha.length < 8) {
-      setErroCadastro("A senha deve ter pelo menos 8 caracteres.");
-      return;
-    }
-
-    if (senha !== confirmarSenha) {
-      setErroCadastro("As senhas não coincidem.");
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        const res = await fetch(apiUrl("/api/grupo/novo"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            evento_id: eventoId, email, senha, nome: nomeGrupo, responsavel, telefone, cidade, estado,
-            documento: onlyDigits(documento), email_contato: emailContato || null,
-          }),
-        }).catch(() => null);
-        if (!res) {
-          setErroCadastro("Erro de conexão. Tente novamente.");
-          return;
-        }
-        if (!res.ok) {
-          const json = (await res.json().catch(() => ({}))) as { error?: string };
-          setErroCadastro(json.error ?? "Não foi possível concluir o cadastro.");
-          return;
-        }
-        setEmailAguardando(email);
-        setEtapa("aguardando_confirmacao");
-      } catch {
-        setErroCadastro("Erro inesperado ao criar cadastro. Tente novamente.");
-      }
-    });
-  }, [cidade, confirmarSenha, documento, email, emailContato, eventoId, nomeGrupo, responsavel, senha, estado, telefone]);
+    setOcupado(false);
+    if (falha) return setErro(falha);
+    setEtapa("enviado");
+  };
 
   return (
-    <div className={`overflow-hidden rounded-3xl border ${borderClass} ${panelClass}`} style={{ "--accent-fallback": "var(--bg-axon-gold)" } as CSSProperties}>
+    <div className={`overflow-hidden rounded-3xl border border-axon-border ${painel}`} style={{ "--accent": accent } as CSSProperties}>
       <div className="h-1.5 w-full" style={{ background: accent }} />
+      <div className="space-y-5 px-6 py-6 sm:px-7 sm:py-7">
+        {etapa === "documento" && (
+          <form onSubmit={(e) => { e.preventDefault(); buscar(); }} className="space-y-5">
+            <div>
+              <h2 className={`text-lg font-bold ${titulo}`}>Inscrição do {T.grupo.singular}</h2>
+              <p className={`mt-1 text-sm ${texto}`}>Informe o CPF ou CNPJ. Se o {T.grupo.singular} já tem cadastro no ARXUM Fest (de qualquer festival), é só entrar com o mesmo login.</p>
+            </div>
+            <label className="block space-y-1.5">
+              <span className={rotulo}>CPF ou CNPJ</span>
+              <input inputMode="numeric" autoFocus value={documento} onChange={(e) => { setErro(null); setDocumento(mascaraCpfCnpj(e.target.value)); }}
+                placeholder="000.000.000-00 ou 00.000.000/0000-00" className={campo} />
+            </label>
+            {blocoErro}
+            <button type="submit" disabled={ocupado || soDigitos(documento).length < 11} className={botao} style={{ background: accent }}>
+              {ocupado ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />} Continuar
+            </button>
+          </form>
+        )}
 
-      <div className="border-b border-axon-border px-6 py-5">
-        <div className="mb-3 flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <StepBadge active={etapa === "identificacao"} done={etapa !== "identificacao"} accent={accent} label="1" isDark={isDark} />
-            <span className={`text-xs font-semibold uppercase tracking-[0.16em] ${etapa === "identificacao" ? headingClass : textClass}`}>Identificação</span>
-          </div>
-          <ChevronRight size={13} className={faintClass} />
-          {etapa === "login" && (
-            <>
-              <div className="flex items-center gap-2">
-                <StepBadge active done={false} accent={accent} label="2" isDark={isDark} />
-                <span className={`text-xs font-semibold uppercase tracking-[0.16em] ${headingClass}`}>Login</span>
-              </div>
-            </>
-          )}
-          {etapa === "cadastro" && (
-            <>
-              <div className="flex items-center gap-2">
-                <StepBadge active done={false} accent={accent} label="2" isDark={isDark} />
-                <span className={`text-xs font-semibold uppercase tracking-[0.16em] ${headingClass}`}>Cadastro</span>
-              </div>
-            </>
-          )}
-        </div>
-        <h2 className={`text-xl font-bold ${headingClass}`}>{evento.nome}</h2>
-        <p className={`mt-1 text-sm ${textClass}`}>Siga as etapas para confirmar sua inscrição no festival.</p>
-      </div>
+        {etapa === "login" && grupo && (
+          <form onSubmit={entrar} className="space-y-5">
+            <div>
+              <h2 className={`text-lg font-bold ${titulo}`}>Encontramos o cadastro</h2>
+              <p className={`mt-1 text-sm ${texto}`}><strong className={titulo}>{grupo.nome}</strong> · acesso: {grupo.email}</p>
+              <p className={`mt-1 text-sm ${texto}`}>Entre com o login do {T.grupo.singular} para se inscrever neste festival.</p>
+            </div>
+            <label className="block space-y-1.5">
+              <span className={rotulo}>E-mail</span>
+              <input type="email" name="email" autoComplete="username" required value={login.email} onChange={(e) => setLogin({ ...login, email: e.target.value })} className={campo} />
+            </label>
+            <label className="block space-y-1.5">
+              <span className={rotulo}>Senha</span>
+              <CampoSenha value={login.senha} onChange={(senha) => setLogin({ ...login, senha })} className={campo} />
+            </label>
+            {blocoErro}
+            <button type="submit" disabled={ocupado} className={botao} style={{ background: accent }}>
+              {ocupado ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />} Entrar
+            </button>
+            <div className={`flex justify-between text-sm ${texto}`}>
+              <button type="button" onClick={() => { setEtapa("documento"); setErro(null); }} className="hover:underline">Voltar</button>
+              <Link href="/esqueci-senha" className="hover:underline">Esqueci minha senha</Link>
+            </div>
+          </form>
+        )}
 
-      <div className="px-6 py-6 sm:px-7 sm:py-7">
-        {(buscando || isPending) && <StepSkeleton isDark={isDark} />}
-
-        {!buscando && !isPending && etapa === "identificacao" && (
+        {etapa === "aceite" && grupo && (
           <div className="space-y-5">
             <div>
-              <h3 className={`text-lg font-bold ${headingClass}`}>Identificação</h3>
-              <p className={`mt-1 text-sm ${textClass}`}>Digite o CPF ou CNPJ para localizar um cadastro existente ou criar um novo.</p>
+              <h2 className={`text-lg font-bold ${titulo}`}>Confirmar inscrição</h2>
+              <p className={`mt-1 text-sm ${texto}`}>Você entrou como <strong className={titulo}>{grupo.nome}</strong>.</p>
             </div>
-
-            <div className="space-y-1.5">
-              <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>CNPJ ou CPF</label>
-              <div className="relative">
-                <Building2 size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={documento}
-                  onChange={(e) => {
-                    setErroIdentificacao("");
-                    setDocumento(formatDocumento(e.target.value));
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleBuscarDocumento();
-                  }}
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                  className={`${inputBase} pl-10`}
-                  style={{ borderColor: docDigits ? `${accent}30` : undefined }}
-                />
-              </div>
-              {erroIdentificacao && (
-                <p className="flex items-center gap-1.5 text-xs text-red-400">
-                  <AlertCircle size={12} />
-                  {erroIdentificacao}
-                </p>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleBuscarDocumento}
-              disabled={docDigits.length !== 11 && docDigits.length !== 14}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-              style={{ background: accent }}
-            >
-              <ArrowRight size={16} />
-              Continuar
+            {blocoAceite(grupo.nome)}
+            {blocoErro}
+            <button type="button" onClick={confirmarExistente} disabled={ocupado || !aceite} className={botao} style={{ background: accent }}>
+              {ocupado ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Confirmar inscrição
             </button>
           </div>
         )}
 
-        {!buscando && !isPending && etapa === "login" && grupoEncontrado && (
-          <div className="space-y-5">
+        {etapa === "cadastro" && (
+          <form onSubmit={cadastrar} className="space-y-5">
             <div>
-              <h3 className={`text-lg font-bold ${headingClass}`}>Encontramos seu cadastro!</h3>
-              <p className={`mt-1 text-sm ${textClass}`}>Faça login para continuar.</p>
+              <h2 className={`text-lg font-bold ${titulo}`}>Vamos criar o cadastro</h2>
+              <p className={`mt-1 text-sm ${texto}`}>{mascaraCpfCnpj(documento)} ainda não tem cadastro. Ele vale para todos os festivais do ARXUM Fest.</p>
             </div>
-
-            <div className="rounded-2xl border border-axon-border bg-axon-gold-dim p-4" style={{ borderColor: `${accent}30` }}>
-              <p className={`text-sm font-semibold ${headingClass}`}>
-                {grupoEncontrado.nome} — {grupoEncontrado.email}
-              </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block space-y-1.5 sm:col-span-2">
+                <span className={rotulo}>Nome do {T.grupo.singular}</span>
+                <input required value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} maxLength={160} className={campo} />
+              </label>
+              <label className="block space-y-1.5">
+                <span className={rotulo}>Responsável</span>
+                <input required autoComplete="name" value={f.responsavel} onChange={(e) => setF({ ...f, responsavel: e.target.value })} maxLength={120} className={campo} />
+              </label>
+              <label className="block space-y-1.5">
+                <span className={rotulo}>Telefone / WhatsApp</span>
+                <input required inputMode="tel" autoComplete="tel" value={f.telefone} onChange={(e) => setF({ ...f, telefone: mascaraTelefone(e.target.value) })} placeholder="(00) 00000-0000" className={campo} />
+              </label>
+              <label className="block space-y-1.5">
+                <span className={rotulo}>E-mail de acesso</span>
+                <input required type="email" name="email" autoComplete="username" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={campo} />
+              </label>
+              <label className="block space-y-1.5">
+                <span className={rotulo}>E-mail de contato (opcional)</span>
+                <input type="email" value={f.email_contato} onChange={(e) => setF({ ...f, email_contato: e.target.value })} className={campo} />
+              </label>
             </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>E-mail</label>
-                <div className="relative">
-                  <Mail size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => {
-                      setErroLogin("");
-                      setLoginEmail(e.target.value);
-                    }}
-                    placeholder="email@exemplo.com"
-                    className={`${inputBase} pl-10`}
-                    style={{ borderColor: loginEmail ? `${accent}30` : undefined }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Senha</label>
-                <div className="relative">
-                  <Lock size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input
-                    type={mostrarSenhaLogin ? "text" : "password"}
-                    value={loginSenha}
-                    onChange={(e) => {
-                      setErroLogin("");
-                      setLoginSenha(e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleLogin();
-                    }}
-                    placeholder="Sua senha"
-                    className={`${inputBase} pl-10 pr-11`}
-                    style={{ borderColor: loginSenha ? `${accent}30` : undefined }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setMostrarSenhaLogin((prev) => !prev)}
-                    className={`absolute right-3.5 top-1/2 -translate-y-1/2 ${faintClass}`}
-                    aria-label={mostrarSenhaLogin ? "Ocultar senha" : "Mostrar senha"}
-                  >
-                    {mostrarSenhaLogin ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
+            <CamposEndereco valor={endereco} onChange={setEndereco} classeCampo={campo} classeRotulo={rotulo} obrigatorio={false} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block space-y-1.5">
+                <span className={rotulo}>Senha</span>
+                <CampoSenha value={f.senha} onChange={(senha) => setF({ ...f, senha })} autoComplete="new-password" minLength={8} placeholder="Mínimo 8 caracteres" className={campo} />
+              </label>
+              <label className="block space-y-1.5">
+                <span className={rotulo}>Repita a senha</span>
+                <CampoSenha value={f.confirmar} onChange={(confirmar) => setF({ ...f, confirmar })} autoComplete="new-password" name="confirmar" className={campo} />
+              </label>
             </div>
-
-            {erroLogin && (
-              <p className="flex items-center gap-1.5 text-xs text-red-400">
-                <AlertCircle size={12} />
-                {erroLogin}
-              </p>
-            )}
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={handleLogin}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white"
-                style={{ background: accent }}
-              >
-                <CheckCircle2 size={16} />
-                Entrar e continuar inscrição
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setErroLogin("");
-                  setEtapa("identificacao");
-                }}
-                className={`inline-flex items-center justify-center rounded-xl border ${borderClass} px-4 py-3 text-sm font-medium ${textClass}`}
-              >
-                Voltar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!buscando && !isPending && etapa === "aguardando_confirmacao" && (
-          <div className="space-y-6 py-2">
-            <div
-              className="flex h-14 w-14 items-center justify-center rounded-2xl"
-              style={{ background: `${accent}18`, border: `1px solid ${accent}30`, color: accent }}
-            >
-              <Mail size={24} />
-            </div>
-            <div className="space-y-2">
-              <h3 className={`text-lg font-bold ${headingClass}`}>Verifique seu e-mail</h3>
-              <p className={`text-sm leading-relaxed ${textClass}`}>
-                Enviamos um link de confirmação para{" "}
-                <span className={`font-semibold ${headingClass}`}>{emailAguardando}</span>.
-                Clique no link para ativar sua conta e continuar a inscrição.
-              </p>
-              <p className={`text-sm leading-relaxed ${textClass}`}>
-                Após confirmar, volte para esta página e faça login com seu e-mail e senha.
-              </p>
-            </div>
-            {erroCadastro && (
-              <p className="flex items-center gap-1.5 text-xs text-red-400">
-                <AlertCircle size={12} />
-                {erroCadastro}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleConfirmacaoEmail}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white"
-              style={{ background: accent }}
-            >
-              <CheckCircle2 size={16} />
-              Já confirmei meu e-mail
+            {f.confirmar && f.senha !== f.confirmar && <p className="text-xs text-red-400">As senhas não são iguais.</p>}
+            {blocoAceite(f.nome)}
+            {blocoErro}
+            <button type="submit" disabled={ocupado || !aceite} className={botao} style={{ background: accent }}>
+              {ocupado ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Cadastrar e inscrever
             </button>
-          </div>
+            <button type="button" onClick={() => { setEtapa("documento"); setErro(null); }} className={`w-full text-sm ${texto} hover:underline`}>Voltar</button>
+          </form>
         )}
 
-        {!buscando && !isPending && etapa === "cadastro" && (
-          <div className="space-y-5">
-            <div>
-              <h3 className={`text-lg font-bold ${headingClass}`}>Vamos criar seu cadastro</h3>
-              <p className={`mt-1 text-sm ${textClass}`}>Cadastre {termos.grupo.genero === "f" ? "a sua" : "o seu"} {termos.grupo.singular} para continuar a inscrição.</p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>{tipoDocumento}</label>
-                <div className="relative">
-                  <Building2 size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input type="text" readOnly value={documento} className={`${inputBase} pl-10 opacity-70`} style={{ borderColor: `${accent}24` }} />
-                </div>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Nome {termos.grupo.genero === "f" ? "da" : "do"} {termos.grupo.singular}</label>
-                <div className="relative">
-                  <Building2 size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input type="text" value={nomeGrupo} onChange={(e) => { setErroCadastro(""); setNomeGrupo(e.target.value); }} className={`${inputBase} pl-10`} style={{ borderColor: nomeGrupo ? `${accent}30` : undefined }} />
-                </div>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Responsável</label>
-                <div className="relative">
-                  <User size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input type="text" value={responsavel} onChange={(e) => { setErroCadastro(""); setResponsavel(e.target.value); }} className={`${inputBase} pl-10`} style={{ borderColor: responsavel ? `${accent}30` : undefined }} />
-                </div>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>E-mail</label>
-                <div className="relative">
-                  <Mail size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input type="email" value={email} onChange={(e) => { setErroCadastro(""); setEmail(e.target.value); }} className={`${inputBase} pl-10`} style={{ borderColor: email ? `${accent}30` : undefined }} />
-                </div>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>E-mail de contato alternativo</label>
-                <div className="relative">
-                  <Mail size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input type="email" value={emailContato} onChange={(e) => setEmailContato(e.target.value)} className={`${inputBase} pl-10`} />
-                </div>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Telefone</label>
-                <div className="relative">
-                  <Phone size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input type="text" inputMode="numeric" value={telefone} onChange={(e) => { setErroCadastro(""); setTelefone(formatPhone(e.target.value)); }} className={`${inputBase} pl-10`} style={{ borderColor: telefone ? `${accent}30` : undefined }} />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Cidade</label>
-                <div className="relative">
-                  <MapPin size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input type="text" value={cidade} onChange={(e) => { setErroCadastro(""); setCidade(e.target.value); }} className={`${inputBase} pl-10`} style={{ borderColor: cidade ? `${accent}30` : undefined }} />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Estado</label>
-                <select value={estado} onChange={(e) => { setErroCadastro(""); setEstado(e.target.value); }} className={inputBase} style={{ borderColor: estado ? `${accent}30` : undefined }}>
-                  <option value="">Selecione</option>
-                  {ESTADOS.map((uf) => (
-                    <option key={uf} value={uf}>{uf}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Senha</label>
-                <div className="relative">
-                  <Lock size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input type={mostrarSenhaCadastro ? "text" : "password"} value={senha} onChange={(e) => { setErroCadastro(""); setSenha(e.target.value); }} className={`${inputBase} pl-10 pr-11`} style={{ borderColor: senha ? `${accent}30` : undefined }} />
-                  <button type="button" onClick={() => setMostrarSenhaCadastro((prev) => !prev)} className={`absolute right-3.5 top-1/2 -translate-y-1/2 ${faintClass}`} aria-label={mostrarSenhaCadastro ? "Ocultar senha" : "Mostrar senha"}>
-                    {mostrarSenhaCadastro ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className={`text-xs font-semibold uppercase tracking-[0.16em] ${textClass}`}>Confirmar senha</label>
-                <div className="relative">
-                  <Lock size={15} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${iconClass}`} />
-                  <input type={mostrarConfirmarSenha ? "text" : "password"} value={confirmarSenha} onChange={(e) => { setErroCadastro(""); setConfirmarSenha(e.target.value); }} className={`${inputBase} pl-10 pr-11`} style={{ borderColor: confirmarSenha ? `${accent}30` : undefined }} />
-                  <button type="button" onClick={() => setMostrarConfirmarSenha((prev) => !prev)} className={`absolute right-3.5 top-1/2 -translate-y-1/2 ${faintClass}`} aria-label={mostrarConfirmarSenha ? "Ocultar senha" : "Mostrar senha"}>
-                    {mostrarConfirmarSenha ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {erroCadastro && (
-              <p className="flex items-center gap-1.5 text-xs text-red-400">
-                <AlertCircle size={12} />
-                {erroCadastro}
-              </p>
-            )}
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={handleCadastro}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white"
-                style={{ background: accent }}
-              >
-                <CheckCircle2 size={16} />
-                Criar cadastro e continuar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setErroCadastro("");
-                  setEtapa("identificacao");
-                }}
-                className={`inline-flex items-center justify-center rounded-xl border ${borderClass} px-4 py-3 text-sm font-medium ${textClass}`}
-              >
-                Voltar
-              </button>
-            </div>
+        {etapa === "enviado" && (
+          <div className="space-y-4 text-center">
+            <Mail size={36} className="mx-auto" style={{ color: accent }} />
+            <h2 className={`text-lg font-bold ${titulo}`}>Confirme seu e-mail</h2>
+            <p className={`text-sm ${texto}`}>Enviamos um link para <strong className={titulo}>{f.email}</strong>. Abra o e-mail e clique no botão para confirmar: você cai direto no portal do {T.grupo.singular} para cadastrar elenco e {T.apresentacao.plural}.</p>
+            <p className={`text-xs ${texto}`}>Não chegou? Veja a caixa de spam.</p>
           </div>
         )}
       </div>

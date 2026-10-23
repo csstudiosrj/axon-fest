@@ -26,11 +26,15 @@ export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
   const admin = createAdminClient();
   const { data } = await admin
     .from("usuarios")
-    .select("id, email, nome, role, produtora_id, organizacao_id, ativo")
+    .select("id, email, nome, role, produtora_id, organizacao_id, ativo, produtoras:produtora_id ( ativo ), grupos:organizacao_id ( ativo )")
     .eq("id", user.id)
     .maybeSingle();
 
   if (!data || data.ativo === false) return null;
+  // Produtora ou grupo bloqueado pelo super admin (o jurado trabalha para várias produtoras)
+  const um = <T,>(v: T | T[] | null) => (Array.isArray(v) ? v[0] ?? null : v);
+  if (!["jurado", "super_admin"].includes(data.role) && um(data.produtoras)?.ativo === false) return null;
+  if (um(data.grupos)?.ativo === false) return null;
 
   return {
     id: data.id,

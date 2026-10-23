@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
-const base =
+export const base =
   "w-full rounded-md border border-arx-line bg-arx-obsidian px-4 py-3 text-[15px] text-white outline-none transition-colors placeholder:text-arx-slate/70 focus:border-arx-fest/60";
 
 export function Campo({ label, opcional, children }: { label: string; opcional?: boolean; children: ReactNode }) {
