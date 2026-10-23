@@ -14,3 +14,11 @@ create index if not exists participantes_email_idx on public.participantes (lowe
 
 -- ── 3. Quantidade de vagas é da produtora: só aparece para grupos/público se ela quiser ──
 alter table public.eventos add column if not exists mostrar_vagas boolean not null default false;
+
+-- ── 4. PDV: setor do produto do caixa (cantina ou lojinha) e setor do operador ──
+alter table public.pdv_produtos add column if not exists setor text check (setor in ('cantina', 'lojinha'));
+update public.pdv_produtos set setor = 'cantina' where tipo = 'cantina' and setor is null;
+
+-- Operador trabalha num setor só: caixa (cantina e lojinha) OU bilheteria
+alter table public.usuarios add column if not exists setor_pdv text check (setor_pdv in ('caixa', 'bilheteria'));
+update public.usuarios set setor_pdv = 'caixa' where role = 'operador' and setor_pdv is null;

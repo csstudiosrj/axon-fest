@@ -52,7 +52,7 @@ export default function AdminLoginPage({
       if (authData.session) {
         const { data: userData, error: userError } = await supabase
           .from("usuarios")
-          .select("role, ativo, produtoras:produtora_id ( ativo ), grupos:organizacao_id ( ativo )")
+          .select("role, setor_pdv, ativo, produtoras:produtora_id ( ativo ), grupos:organizacao_id ( ativo )")
           .eq("id", authData.session.user.id)
           .single();
 
@@ -79,7 +79,7 @@ export default function AdminLoginPage({
           return;
         }
 
-        router.push(destinoSeguro(params.next ?? null, destinoPorRole(userData.role)));
+        router.push(destinoSeguro(params.next ?? null, destinoPorRole(userData.role, userData.setor_pdv)));
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);

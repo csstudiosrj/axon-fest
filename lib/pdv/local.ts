@@ -6,7 +6,7 @@
 import { apiUrl } from "@/lib/base-path";
 import { abrirBanco, gravar, gravarVarios, listar, obter, remover, type Lojas } from "@/lib/offline/idb";
 
-export interface ProdutoPdv { id: string; nome: string; preco: number; categoria: string; tipo: "cantina" | "bilheteria" }
+export interface ProdutoPdv { id: string; nome: string; preco: number; categoria: string; tipo: "cantina" | "bilheteria"; setor?: "cantina" | "lojinha" | null }
 export interface PacotePdv {
   usuario: { id: string; nome: string };
   produtora: { id: string; nome: string };

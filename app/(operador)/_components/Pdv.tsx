@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import {
-  Banknote, CheckCircle, CloudOff, CreditCard, Lock, LogOut, Minus, Plus, QrCode, ReceiptText, RefreshCw, Trash2, Wifi, X,
+  Banknote, CheckCircle, CloudOff, CreditCard, LayoutDashboard, Lock, LogOut, Minus, Plus, QrCode, ReceiptText, RefreshCw, Trash2, Wifi, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { RegistrarOffline, limparDadosOffline } from "@/lib/offline/RegistrarOffline";
@@ -157,13 +157,15 @@ function Resumo({ vendas, pendentes, onFechar }: { vendas: ItemVendido[]; penden
 
 // ── Tela ───────────────────────────────────────────────────────────────────
 
-export function Pdv({ modo }: { modo: Modo }) {
+// gestao: admin/financeiro, que alternam entre caixa e bilheteria e voltam ao painel sem sair da conta
+export function Pdv({ modo, gestao }: { modo: Modo; gestao: boolean }) {
   const router = useRouter();
   const online = useOnline();
   const [pacote, setPacote] = useState<PacotePdv | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [eventoId, setEventoId] = useState("");
   const [categoria, setCategoria] = useState("Todos");
+  const [setor, setSetor] = useState<"cantina" | "lojinha">("cantina");
   const [carrinho, setCarrinho] = useState<{ produto: ProdutoPdv; quantidade: number }[]>([]);
   const [pagando, setPagando] = useState<Forma | null>(null);
   const [vendaOk, setVendaOk] = useState(false);
@@ -221,7 +223,12 @@ export function Pdv({ modo }: { modo: Modo }) {
     return () => window.removeEventListener("online", aoVoltar);
   }, [sincronizar]);
 
-  const produtos = useMemo(() => (pacote?.produtos ?? []).filter((p) => p.tipo === modo), [pacote, modo]);
+  const doModo = useMemo(() => (pacote?.produtos ?? []).filter((p) => p.tipo === modo), [pacote, modo]);
+  // No caixa: Cantina e Lojinha no topo (só se houver produtos dos dois)
+  const temLojinha = modo === "cantina" && doModo.some((p) => p.setor === "lojinha");
+  const temCantina = modo === "cantina" && doModo.some((p) => p.setor !== "lojinha");
+  const setorAtual = !temLojinha ? "cantina" : !temCantina ? "lojinha" : setor;
+  const produtos = useMemo(() => (modo === "cantina" ? doModo.filter((p) => (p.setor === "lojinha" ? "lojinha" : "cantina") === setorAtual) : doModo), [doModo, modo, setorAtual]);
   const categorias = useMemo(() => ["Todos", ...new Set(produtos.map((p) => p.categoria))], [produtos]);
   const visiveis = categoria === "Todos" ? produtos : produtos.filter((p) => p.categoria === categoria);
   const total = carrinho.reduce((s, i) => s + i.produto.preco * i.quantidade, 0);
@@ -261,7 +268,7 @@ export function Pdv({ modo }: { modo: Modo }) {
     await bloquearCaixa();
     await limparDadosOffline();
     await createClient().auth.signOut();
-    router.push("/login");
+    router.push("/operador");
   };
 
   if (erro) {
@@ -286,10 +293,14 @@ export function Pdv({ modo }: { modo: Modo }) {
 
       <header className="shrink-0 border-b border-axon-border bg-axon-panel px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
-          <nav className="flex rounded-lg border border-axon-border p-0.5 text-sm">
-            <Link href="/caixa" className={`rounded-md px-3 py-1.5 ${modo === "cantina" ? "bg-axon-gold text-black font-semibold" : "text-gray-400"}`}>Caixa</Link>
-            <Link href="/bilheteria" className={`rounded-md px-3 py-1.5 ${modo === "bilheteria" ? "bg-axon-gold text-black font-semibold" : "text-gray-400"}`}>Bilheteria</Link>
-          </nav>
+          {gestao ? (
+            <nav className="flex rounded-lg border border-axon-border p-0.5 text-sm">
+              <Link href="/caixa" className={`rounded-md px-3 py-1.5 ${modo === "cantina" ? "bg-axon-gold text-black font-semibold" : "text-gray-400"}`}>Caixa</Link>
+              <Link href="/bilheteria" className={`rounded-md px-3 py-1.5 ${modo === "bilheteria" ? "bg-axon-gold text-black font-semibold" : "text-gray-400"}`}>Bilheteria</Link>
+            </nav>
+          ) : (
+            <span className="px-1 text-sm font-semibold">{modo === "cantina" ? "Caixa" : "Bilheteria"}</span>
+          )}
           <div className="flex items-center gap-1.5">
             <button type="button" onClick={() => sincronizar(pacote)} disabled={!online || enviando}
               className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${online ? "border-emerald-500/30 text-emerald-300" : "border-axon-gold/40 text-axon-gold"}`}>
@@ -298,7 +309,9 @@ export function Pdv({ modo }: { modo: Modo }) {
             </button>
             <button type="button" onClick={() => setResumo(true)} title="Resumo de hoje" className="rounded-lg p-2 text-gray-400 hover:text-white"><ReceiptText size={17} /></button>
             <button type="button" onClick={async () => { await bloquearCaixa(); window.location.reload(); }} title="Bloquear (pede o PIN)" className="rounded-lg p-2 text-gray-400 hover:text-white"><Lock size={17} /></button>
-            <button type="button" onClick={sair} title="Sair" className="rounded-lg p-2 text-gray-400 hover:text-red-300"><LogOut size={17} /></button>
+            {gestao
+              ? <Link href="/pdv" title="Voltar ao painel" className="rounded-lg p-2 text-gray-400 hover:text-white"><LayoutDashboard size={17} /></Link>
+              : <button type="button" onClick={sair} title="Sair" className="rounded-lg p-2 text-gray-400 hover:text-red-300"><LogOut size={17} /></button>}
           </div>
         </div>
         <select value={eventoId} onChange={(e) => escolherEvento(e.target.value)} aria-label="Evento"
@@ -308,6 +321,16 @@ export function Pdv({ modo }: { modo: Modo }) {
         </select>
       </header>
 
+      {temLojinha && temCantina && (
+        <div className="grid shrink-0 grid-cols-2 gap-2 border-b border-axon-border px-3 py-2">
+          {(["cantina", "lojinha"] as const).map((s) => (
+            <button key={s} type="button" onClick={() => { setSetor(s); setCategoria("Todos"); }}
+              className={`rounded-lg border py-2 text-sm ${setorAtual === s ? "border-axon-gold bg-axon-gold/10 font-semibold text-axon-gold" : "border-axon-border text-gray-400"}`}>
+              {s === "cantina" ? "Cantina" : "Lojinha"}
+            </button>
+          ))}
+        </div>
+      )}
       {categorias.length > 2 && (
         <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-axon-border px-3 py-2">
           {categorias.map((c) => (

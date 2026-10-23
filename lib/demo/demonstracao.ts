@@ -94,9 +94,12 @@ export async function criarDemonstracao(admin: Admin) {
     for (const [papel, role, nome] of [["Dono do festival", "admin", "Demo Admin"], ["Produção", "produtor", "Demo Produção"], ["Financeiro", "financeiro", "Demo Financeiro"],
       ["Marketing", "marketing", "Demo Marketing"], ["Operador de caixa", "operador", "Demo Operador"]] as const) {
       const email = `${role}.${sufixo}@${DOMINIO}`;
-      await criarUsuario(admin, email, senha, { nome, role, produtora_id: pid });
+      await criarUsuario(admin, email, senha, { nome, role, produtora_id: pid, setor_pdv: role === "operador" ? "caixa" : null });
       logins.push({ papel, email });
     }
+    const emailBilheteria = `bilheteria.${sufixo}@${DOMINIO}`;
+    await criarUsuario(admin, emailBilheteria, senha, { nome: "Demo Bilheteria", role: "operador", setor_pdv: "bilheteria", produtora_id: pid });
+    logins.push({ papel: "Operador de bilheteria", email: emailBilheteria });
     const jurados: string[] = [];
     for (const [i, nome] of JURADOS.entries()) {
       const email = `jurado${i + 1}.${sufixo}@${DOMINIO}`;
@@ -110,8 +113,11 @@ export async function criarDemonstracao(admin: Admin) {
     await admin.from("pdv_config").insert({ produtora_id: pid, pin_admin: "1234", pix_nome: "Produtora Demonstração", pix_cidade: "Rio de Janeiro" });
     const produtosPdv = checar(await admin.from("pdv_produtos").insert(
       ([["Água 500 ml", 5, "cantina", "Bebidas"], ["Refrigerante", 7, "cantina", "Bebidas"], ["Pão de queijo", 6, "cantina", "Salgados"],
-        ["Camiseta oficial", 60, "cantina", "Lembranças"], ["Ingresso inteira", 40, "bilheteria", "Ingressos"], ["Meia-entrada", 20, "bilheteria", "Ingressos"]] as [string, number, "cantina" | "bilheteria", string][])
-        .map(([nome, preco, tipo, categoria], i) => ({ nome, preco, tipo, categoria, produtora_id: pid, ativo: true, ordem: i }))
+        ["Camiseta oficial", 60, "cantina", "Camisetas"], ["Ingresso inteira", 40, "bilheteria", "Inteira"], ["Meia-entrada", 20, "bilheteria", "Meia-entrada"]] as [string, number, "cantina" | "bilheteria", string][])
+        .map(([nome, preco, tipo, categoria], i) => ({
+          nome, preco, tipo, categoria, produtora_id: pid, ativo: true, ordem: i,
+          setor: tipo === "bilheteria" ? null : categoria === "Camisetas" ? "lojinha" : "cantina",
+        }))
     ).select("id, nome, preco"), "pdv_produtos") as { id: string; nome: string; preco: number }[];
 
     let grupoLogin = 0;

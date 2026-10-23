@@ -8,6 +8,7 @@ export interface Membro {
   nome: string | null;
   email: string;
   role: string;
+  setor_pdv: string | null;
   ativo: boolean;
   pendente: boolean;   // ainda não criou a senha / nunca entrou
   telefone: string | null;
@@ -22,12 +23,12 @@ const PAPEIS_EQUIPE = ["admin", "produtor", "financeiro", "marketing", "assisten
 export async function carregarEquipe(produtoraId: string, papeis = PAPEIS_EQUIPE): Promise<Membro[]> {
   const admin = createAdminClient();
   const { data } = await admin.from("usuarios")
-    .select("id, nome, email, role, ativo, telefone, foto_url, especialidade, mini_bio")
+    .select("id, nome, email, role, setor_pdv, ativo, telefone, foto_url, especialidade, mini_bio")
     .eq("produtora_id", produtoraId).in("role", papeis).order("nome");
   const lista = data ?? [];
   const contas = await Promise.all(lista.map((u) => admin.auth.admin.getUserById(u.id).then((r) => r.data.user).catch(() => null)));
   return lista.map((u, i) => ({
-    id: u.id, nome: u.nome, email: u.email, role: u.role, ativo: u.ativo,
+    id: u.id, nome: u.nome, email: u.email, role: u.role, setor_pdv: u.setor_pdv, ativo: u.ativo,
     pendente: !contas[i]?.last_sign_in_at,
     telefone: u.telefone, foto_url: u.foto_url, especialidade: u.especialidade, mini_bio: u.mini_bio,
     ultimoAcesso: contas[i]?.last_sign_in_at ?? null,
@@ -51,7 +52,7 @@ export async function carregarJurados(produtoraId: string): Promise<JuradoEquipe
   const lista = data ?? [];
   const contas = await Promise.all(lista.map((u) => admin.auth.admin.getUserById(u.id).then((r) => r.data.user).catch(() => null)));
   return lista.map((u, i) => ({
-    id: u.id, nome: u.nome, email: u.email, role: u.role, ativo: u.ativo,
+    id: u.id, nome: u.nome, email: u.email, role: u.role, setor_pdv: null, ativo: u.ativo,
     pendente: !contas[i]?.last_sign_in_at,
     telefone: u.telefone, foto_url: u.foto_url, especialidade: u.especialidade, mini_bio: u.mini_bio,
     ultimoAcesso: contas[i]?.last_sign_in_at ?? null,

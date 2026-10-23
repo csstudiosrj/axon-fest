@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getUsuarioAtual } from "@/lib/auth/session";
 import { ROLES_OPERADOR } from "@/lib/auth/roles";
+import { setoresPdv } from "@/lib/auth/permissoes";
 
 // Recebe as vendas guardadas no aparelho do caixa. Pode ser chamada várias
 // vezes com as mesmas vendas (ex.: a internet caiu no meio do envio): cada
@@ -34,7 +35,9 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient();
   const pid = usuario.produtora_id;
   const [{ data: produtos }, { data: eventos }] = await Promise.all([
-    admin.from("pdv_produtos").select("id").eq("produtora_id", pid),
+    // Operador de caixa não registra ingresso e vice-versa
+    admin.from("pdv_produtos").select("id").eq("produtora_id", pid)
+      .in("tipo", setoresPdv(usuario.role, usuario.setor_pdv).map((s) => (s === "caixa" ? "cantina" : "bilheteria"))),
     admin.from("eventos").select("id").eq("produtora_id", pid),
   ]);
   const meusProdutos = new Set((produtos ?? []).map((p) => p.id));

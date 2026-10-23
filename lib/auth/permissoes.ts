@@ -7,7 +7,7 @@
 //   Produção ..... eventos, categorias, programação, mídias, jurados, apuração, termos
 //   Financeiro ... inscrições e pagamentos, PDV (produtos, vendas, PIX), caixa
 //   Marketing .... página pública do evento, termos, inscritos (sem valores)
-//   Operador ..... caixa e bilheteria
+//   Operador ..... caixa (cantina e lojinha) OU bilheteria, conforme o setor
 //   Jurado ....... avaliação
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -44,11 +44,20 @@ export function areasDe(role: string | null | undefined): readonly Area[] {
   return PERMISSOES[cargoEfetivo(role)] ?? [];
 }
 
+// Setores do PDV que a pessoa opera: o operador trabalha num só (caixa OU bilheteria);
+// admin e financeiro acessam os dois
+export type SetorPdv = "caixa" | "bilheteria";
+export function setoresPdv(role: string | null | undefined, setor: string | null | undefined): SetorPdv[] {
+  const r = cargoEfetivo(role);
+  if (r === "operador") return [setor === "bilheteria" ? "bilheteria" : "caixa"];
+  return pode(r, "caixa") ? ["caixa", "bilheteria"] : [];
+}
+
 // Primeira tela de cada cargo (para onde vai quem abre uma tela sem acesso)
-export function inicioDe(role: string | null | undefined): string {
+export function inicioDe(role: string | null | undefined, setor?: string | null): string {
   const r = cargoEfetivo(role);
   if (r === "super_admin") return "/super";
-  if (r === "operador") return "/caixa";
+  if (r === "operador") return setor === "bilheteria" ? "/bilheteria" : "/caixa";
   if (r === "jurado") return "/jurado";
   if (["org_admin", "org_membro", "escola_admin", "coreografo"].includes(r)) return "/grupo/dashboard";
   return "/dashboard";

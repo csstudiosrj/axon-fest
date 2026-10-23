@@ -17,9 +17,22 @@ async function chamar(corpo: Record<string, unknown>) {
   return json;
 }
 
+// No convite e na lista, o operador aparece por setor: "operador:caixa" ou "operador:bilheteria"
+const opcoesDe = (atribuiveis: string[]) =>
+  atribuiveis.flatMap((r) => (r === "operador"
+    ? [{ valor: "operador:caixa", nome: "Operador de caixa" }, { valor: "operador:bilheteria", nome: "Operador de bilheteria" }]
+    : [{ valor: r, nome: nomeCargo(r) }]));
+const separar = (valor: string) => { const [role, setor] = valor.split(":"); return { role, setor_pdv: setor ?? null }; };
+const valorDe = (m: { role: string; setor_pdv: string | null }) => (m.role === "operador" ? `operador:${m.setor_pdv === "bilheteria" ? "bilheteria" : "caixa"}` : m.role);
+const ALCANCE_SETOR: Record<string, string> = {
+  "operador:caixa": "Só o caixa (cantina e lojinha) no celular, com o PIN do PDV. Entra por arxum.com.br/fest/operador.",
+  "operador:bilheteria": "Só a bilheteria (ingressos) no celular, com o PIN do PDV. Entra por arxum.com.br/fest/operador.",
+};
+
 export function Equipe({ membros, euId, atribuiveis, podeGerir }: { membros: Membro[]; euId: string; atribuiveis: string[]; podeGerir: boolean }) {
   const router = useRouter();
-  const [f, setF] = useState({ nome: "", email: "", role: atribuiveis[0] ?? "" });
+  const opcoes = opcoesDe(atribuiveis);
+  const [f, setF] = useState({ nome: "", email: "", role: opcoes[0]?.valor ?? "" });
   const [enviando, setEnviando] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -42,7 +55,7 @@ export function Equipe({ membros, euId, atribuiveis, podeGerir }: { membros: Mem
     setEnviando(true);
     setAviso(null);
     try {
-      await chamar({ action: "invite", email: f.email, role: f.role, nome: f.nome || undefined });
+      await chamar({ action: "invite", email: f.email, ...separar(f.role), nome: f.nome || undefined });
       setAviso({ ok: true, texto: `Convite enviado para ${f.email}.` });
       setF({ ...f, nome: "", email: "" });
       router.refresh();
@@ -68,13 +81,13 @@ export function Equipe({ membros, euId, atribuiveis, podeGerir }: { membros: Mem
             <input value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} placeholder="Nome" maxLength={120} className={campo} />
             <input required type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="E-mail" className={campo} />
             <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })} aria-label="Cargo" className={campo}>
-              {atribuiveis.map((r) => <option key={r} value={r}>{nomeCargo(r)}</option>)}
+              {opcoes.map((o) => <option key={o.valor} value={o.valor}>{o.nome}</option>)}
             </select>
             <button type="submit" disabled={enviando} className="inline-flex items-center justify-center gap-2 rounded-lg bg-axon-gold px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-50">
               {enviando ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />} Convidar
             </button>
           </div>
-          <p className="mt-2 text-xs text-gray-500">{CARGOS[f.role]?.alcance}</p>
+          <p className="mt-2 text-xs text-gray-500">{ALCANCE_SETOR[f.role] ?? CARGOS[f.role]?.alcance}</p>
         </form>
       )}
 
@@ -93,13 +106,13 @@ export function Equipe({ membros, euId, atribuiveis, podeGerir }: { membros: Mem
                   </p>
                 </div>
                 {gerenciavel ? (
-                  <select value={m.role} disabled={ocupado === m.id} aria-label={`Cargo de ${m.nome ?? m.email}`}
-                    onChange={(e) => executar(m.id, { action: "update", role: e.target.value }, "Cargo alterado.")}
+                  <select value={valorDe(m)} disabled={ocupado === m.id} aria-label={`Cargo de ${m.nome ?? m.email}`}
+                    onChange={(e) => executar(m.id, { action: "update", ...separar(e.target.value) }, "Cargo alterado.")}
                     className="rounded-lg border border-axon-border bg-axon-bg px-2.5 py-1.5 text-xs text-white">
-                    {atribuiveis.map((r) => <option key={r} value={r}>{nomeCargo(r)}</option>)}
+                    {opcoes.map((o) => <option key={o.valor} value={o.valor}>{o.nome}</option>)}
                   </select>
                 ) : (
-                  <span className={`rounded-full border px-2.5 py-0.5 text-xs ${CARGOS[m.role]?.cor ?? "border-white/10 text-gray-300"}`}>{nomeCargo(m.role)}</span>
+                  <span className={`rounded-full border px-2.5 py-0.5 text-xs ${CARGOS[m.role]?.cor ?? "border-white/10 text-gray-300"}`}>{opcoes.find((o) => o.valor === valorDe(m))?.nome ?? nomeCargo(m.role)}</span>
                 )}
                 {gerenciavel && (
                   <span className="flex items-center gap-1">

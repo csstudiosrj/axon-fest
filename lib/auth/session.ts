@@ -9,6 +9,7 @@ export interface UsuarioAtual {
   role: string;
   produtora_id: string | null;
   organizacao_id: string | null;
+  setor_pdv: string | null;
 }
 
 // Usuário autenticado + dados da tabela usuarios.
@@ -26,7 +27,7 @@ export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
   const admin = createAdminClient();
   const { data } = await admin
     .from("usuarios")
-    .select("id, email, nome, role, produtora_id, organizacao_id, ativo, produtoras:produtora_id ( ativo ), grupos:organizacao_id ( ativo )")
+    .select("id, email, nome, role, produtora_id, organizacao_id, setor_pdv, ativo, produtoras:produtora_id ( ativo ), grupos:organizacao_id ( ativo )")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -43,5 +44,6 @@ export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
     role: data.role,
     produtora_id: data.produtora_id ?? null,
     organizacao_id: data.organizacao_id ?? null,
+    setor_pdv: data.setor_pdv ?? null,
   };
 });

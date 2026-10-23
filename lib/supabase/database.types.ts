@@ -617,14 +617,14 @@ isOneToOne: false
                   ]
                 },"pdv_produtos": {
                   Row: {
-                    "ativo": boolean,"categoria": string | null,"created_at": string,"descricao": string | null,"estoque": number | null,"evento_id": string | null,"id": string,"nome": string,"ordem": number | null,"preco": number,"produtora_id": string | null,"tipo": string
+                    "ativo": boolean,"categoria": string | null,"created_at": string,"descricao": string | null,"estoque": number | null,"evento_id": string | null,"id": string,"nome": string,"ordem": number | null,"preco": number,"produtora_id": string | null,"setor": string | null,"tipo": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "ativo"?: boolean,"categoria"?: string | null,"created_at"?: string,"descricao"?: string | null,"estoque"?: number | null,"evento_id"?: string | null,"id"?: string,"nome": string,"ordem"?: number | null,"preco"?: number,"produtora_id"?: string | null,"tipo"?: string
+                    "ativo"?: boolean,"categoria"?: string | null,"created_at"?: string,"descricao"?: string | null,"estoque"?: number | null,"evento_id"?: string | null,"id"?: string,"nome": string,"ordem"?: number | null,"preco"?: number,"produtora_id"?: string | null,"setor"?: string | null,"tipo"?: string
                   }
                   Update: {
-                    "ativo"?: boolean,"categoria"?: string | null,"created_at"?: string,"descricao"?: string | null,"estoque"?: number | null,"evento_id"?: string | null,"id"?: string,"nome"?: string,"ordem"?: number | null,"preco"?: number,"produtora_id"?: string | null,"tipo"?: string
+                    "ativo"?: boolean,"categoria"?: string | null,"created_at"?: string,"descricao"?: string | null,"estoque"?: number | null,"evento_id"?: string | null,"id"?: string,"nome"?: string,"ordem"?: number | null,"preco"?: number,"produtora_id"?: string | null,"setor"?: string | null,"tipo"?: string
                   }
                   Relationships: [
                     {
@@ -1069,14 +1069,14 @@ isOneToOne: false
                   ]
                 },"usuarios": {
                   Row: {
-                    "ativo": boolean,"cache_status": string | null,"cache_valor": number | null,"created_at": string | null,"email": string,"especialidade": string | null,"foto_url": string | null,"id": string,"invite_token": string | null,"invite_usado": boolean | null,"mini_bio": string | null,"nome": string | null,"organizacao_id": string | null,"produtora_id": string | null,"role": string,"telefone": string | null
+                    "ativo": boolean,"cache_status": string | null,"cache_valor": number | null,"created_at": string | null,"email": string,"especialidade": string | null,"foto_url": string | null,"id": string,"invite_token": string | null,"invite_usado": boolean | null,"mini_bio": string | null,"nome": string | null,"organizacao_id": string | null,"produtora_id": string | null,"role": string,"setor_pdv": string | null,"telefone": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "ativo"?: boolean,"cache_status"?: string | null,"cache_valor"?: number | null,"created_at"?: string | null,"email": string,"especialidade"?: string | null,"foto_url"?: string | null,"id": string,"invite_token"?: string | null,"invite_usado"?: boolean | null,"mini_bio"?: string | null,"nome"?: string | null,"organizacao_id"?: string | null,"produtora_id"?: string | null,"role": string,"telefone"?: string | null
+                    "ativo"?: boolean,"cache_status"?: string | null,"cache_valor"?: number | null,"created_at"?: string | null,"email": string,"especialidade"?: string | null,"foto_url"?: string | null,"id": string,"invite_token"?: string | null,"invite_usado"?: boolean | null,"mini_bio"?: string | null,"nome"?: string | null,"organizacao_id"?: string | null,"produtora_id"?: string | null,"role": string,"setor_pdv"?: string | null,"telefone"?: string | null
                   }
                   Update: {
-                    "ativo"?: boolean,"cache_status"?: string | null,"cache_valor"?: number | null,"created_at"?: string | null,"email"?: string,"especialidade"?: string | null,"foto_url"?: string | null,"id"?: string,"invite_token"?: string | null,"invite_usado"?: boolean | null,"mini_bio"?: string | null,"nome"?: string | null,"organizacao_id"?: string | null,"produtora_id"?: string | null,"role"?: string,"telefone"?: string | null
+                    "ativo"?: boolean,"cache_status"?: string | null,"cache_valor"?: number | null,"created_at"?: string | null,"email"?: string,"especialidade"?: string | null,"foto_url"?: string | null,"id"?: string,"invite_token"?: string | null,"invite_usado"?: boolean | null,"mini_bio"?: string | null,"nome"?: string | null,"organizacao_id"?: string | null,"produtora_id"?: string | null,"role"?: string,"setor_pdv"?: string | null,"telefone"?: string | null
                   }
                   Relationships: [
                     {

@@ -33,7 +33,8 @@ function comecaCom(pathname: string, prefixos: string[]) {
 
 function loginPara(pathname: string): string | null {
   if (pathname.startsWith("/grupo/") && pathname !== "/grupo/login") return "/login";
-  if (comecaCom(pathname, [...AREAS_ADMIN, ...AREAS_OPERADOR, ...AREAS_JURADO])) return "/login";
+  if (comecaCom(pathname, AREAS_OPERADOR)) return "/operador";
+  if (comecaCom(pathname, [...AREAS_ADMIN, ...AREAS_JURADO])) return "/login";
   return null;
 }
 

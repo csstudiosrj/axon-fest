@@ -65,8 +65,8 @@ export default function DefinirSenhaPage() {
 
     if (precisaNome) await supabase.from("usuarios").update({ nome: nome.trim() }).eq("id", user.id);
 
-    const { data: userData } = await supabase.from("usuarios").select("role").eq("id", user.id).maybeSingle();
-    router.push(destinoPorRole(userData?.role ?? ""));
+    const { data: userData } = await supabase.from("usuarios").select("role, setor_pdv").eq("id", user.id).maybeSingle();
+    router.push(destinoPorRole(userData?.role ?? "", userData?.setor_pdv));
   };
 
   const inputClass =

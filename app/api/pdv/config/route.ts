@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
 
   const dados: Record<string, string | null> = {
     pix_chave: texto(body.pix_chave, 77) || null,
-    pix_nome: texto(body.pix_nome, 25) || null,
-    pix_cidade: texto(body.pix_cidade, 15) || null,
+    pix_nome: texto(body.pix_nome, 200) || null,
+    pix_cidade: texto(body.pix_cidade, 100) || null,
   };
   if (pin) dados.pin_admin = pin;
 

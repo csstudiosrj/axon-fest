@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Coffee, Eye, EyeOff, Loader2, Pencil, Plus, Ticket, Trash2, X } from "lucide-react";
+import { Coffee, Eye, EyeOff, Loader2, Pencil, Plus, ShoppingBag, Ticket, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { confirmar } from "@/app/_components/Dialogos";
+import { confirmar, pedirTexto } from "@/app/_components/Dialogos";
 
 export interface ProdutoPainel {
   id: string;
@@ -12,6 +12,7 @@ export interface ProdutoPainel {
   preco: number;
   categoria: string;
   tipo: "cantina" | "bilheteria";
+  setor: "cantina" | "lojinha" | null; // só no caixa
   ativo: boolean;
   ordem: number | null;
   descricao: string | null;
@@ -19,12 +20,27 @@ export interface ProdutoPainel {
 }
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const SUGESTOES = { cantina: ["Bebidas", "Salgados", "Doces", "Lanches", "Lembranças"], bilheteria: ["Ingressos", "Meia-entrada", "Pacotes", "VIP"] };
+// Categorias que já vêm prontas; a produtora pode criar outras
+const PADRAO: Record<"cantina" | "lojinha" | "bilheteria", string[]> = {
+  cantina: ["Bebidas", "Lanches", "Salgados", "Doces", "Combos"],
+  lojinha: ["Camisetas", "Acessórios", "Lembranças", "Fotos e vídeos"],
+  bilheteria: ["Inteira", "Meia-entrada", "Pacotes", "VIP", "Cortesia"],
+};
 const campo = "w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold";
 
-function Formulario({ produto, tipoInicial, eventos, produtoraId, onFechar, onSalvo }: {
+const NOVA = "__nova__";
+
+// Prontas + as que a produtora já criou + a atual (se for de outra lista)
+function categoriasDe(chave: string, usadas: { setor: string; categoria: string }[], atual: string) {
+  const lista = [...PADRAO[chave as keyof typeof PADRAO], ...usadas.filter((u) => u.setor === chave).map((u) => u.categoria)];
+  if (atual) lista.push(atual);
+  return [...new Set(lista.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+function Formulario({ produto, tipoInicial, eventos, produtoraId, usadas, onFechar, onSalvo }: {
   produto: ProdutoPainel | null;
   tipoInicial: ProdutoPainel["tipo"];
+  usadas: { setor: string; categoria: string }[];
   eventos: { id: string; nome: string }[];
   produtoraId: string;
   onFechar: () => void;
@@ -33,11 +49,13 @@ function Formulario({ produto, tipoInicial, eventos, produtoraId, onFechar, onSa
   const [f, setF] = useState({
     nome: produto?.nome ?? "",
     tipo: produto?.tipo ?? tipoInicial,
+    setor: produto?.setor ?? "cantina",
     categoria: produto?.categoria ?? "",
     preco: produto ? String(produto.preco).replace(".", ",") : "",
     descricao: produto?.descricao ?? "",
     ativo: produto?.ativo ?? true,
   });
+  const chave = f.tipo === "bilheteria" ? "bilheteria" : f.setor;
   const [vitrine, setVitrine] = useState<Set<string>>(new Set(produto?.vitrine ?? []));
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -47,11 +65,12 @@ function Formulario({ produto, tipoInicial, eventos, produtoraId, onFechar, onSa
     const preco = Number(f.preco.replace(/\./g, "").replace(",", "."));
     if (!f.nome.trim()) return setErro("Informe o nome.");
     if (!Number.isFinite(preco) || preco < 0) return setErro("Preço inválido.");
+    if (!f.categoria.trim()) return setErro("Escolha a categoria.");
     setSalvando(true);
     setErro(null);
     const supabase = createClient();
     const dados = {
-      nome: f.nome.trim(), tipo: f.tipo, categoria: f.categoria.trim() || "Outros", preco,
+      nome: f.nome.trim(), tipo: f.tipo, setor: f.tipo === "cantina" ? f.setor : null, categoria: f.categoria.trim() || "Outros", preco,
       descricao: f.descricao.trim() || null, ativo: f.ativo, produtora_id: produtoraId,
     };
     const { data, error } = produto
@@ -77,18 +96,20 @@ function Formulario({ produto, tipoInicial, eventos, produtoraId, onFechar, onSa
       <form onSubmit={salvar} onClick={(e) => e.stopPropagation()}
         className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-axon-border bg-axon-panel sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-axon-border px-5 py-4">
-          <h2 className="font-semibold text-white">{produto ? "Editar produto" : "Novo produto"}</h2>
+          <h2 className="font-semibold text-white">{f.tipo === "bilheteria" ? (produto ? "Editar ingresso" : "Novo ingresso") : produto ? "Editar produto do caixa" : "Novo produto do caixa"}</h2>
           <button type="button" onClick={onFechar} aria-label="Fechar" className="text-gray-400 hover:text-white"><X size={18} /></button>
         </div>
         <div className="space-y-4 px-5 py-5">
-          <div className="grid grid-cols-2 gap-2">
-            {(["cantina", "bilheteria"] as const).map((t) => (
-              <button key={t} type="button" onClick={() => setF({ ...f, tipo: t })}
-                className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm ${f.tipo === t ? "border-axon-gold bg-axon-gold/10 text-axon-gold" : "border-axon-border text-gray-400"}`}>
-                {t === "cantina" ? <Coffee size={15} /> : <Ticket size={15} />} {t === "cantina" ? "Caixa" : "Bilheteria"}
-              </button>
-            ))}
-          </div>
+          {f.tipo === "cantina" && (
+            <div className="grid grid-cols-2 gap-2">
+              {(["cantina", "lojinha"] as const).map((s) => (
+                <button key={s} type="button" onClick={() => setF({ ...f, setor: s, categoria: f.setor === s ? f.categoria : "" })}
+                  className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm ${f.setor === s ? "border-axon-gold bg-axon-gold/10 text-axon-gold" : "border-axon-border text-gray-400"}`}>
+                  {s === "cantina" ? <Coffee size={15} /> : <ShoppingBag size={15} />} {s === "cantina" ? "Cantina" : "Lojinha"}
+                </button>
+              ))}
+            </div>
+          )}
           <label className="block">
             <span className="text-xs text-gray-400">Nome</span>
             <input required value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} maxLength={120} className={`${campo} mt-1.5`} />
@@ -100,8 +121,16 @@ function Formulario({ produto, tipoInicial, eventos, produtoraId, onFechar, onSa
             </label>
             <label className="block">
               <span className="text-xs text-gray-400">Categoria</span>
-              <input list={`sugestoes-${f.tipo}`} value={f.categoria} onChange={(e) => setF({ ...f, categoria: e.target.value })} maxLength={40} className={`${campo} mt-1.5`} />
-              <datalist id={`sugestoes-${f.tipo}`}>{SUGESTOES[f.tipo].map((s) => <option key={s} value={s} />)}</datalist>
+              <select value={f.categoria} className={`${campo} mt-1.5`}
+                onChange={async (e) => {
+                  if (e.target.value !== NOVA) return setF({ ...f, categoria: e.target.value });
+                  const nova = await pedirTexto({ titulo: "Nova categoria", rotulo: "Nome da categoria", botao: "Criar" });
+                  if (nova) setF((x) => ({ ...x, categoria: nova.slice(0, 40) }));
+                }}>
+                <option value="">Escolha…</option>
+                {categoriasDe(chave, usadas, f.categoria).map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value={NOVA}>+ Nova categoria…</option>
+              </select>
             </label>
           </div>
           <label className="block">
@@ -176,7 +205,7 @@ export function Produtos({ produtos, eventos, produtoraId, podeEditar }: {
               </h2>
               {podeEditar && (
                 <button type="button" onClick={() => setForm({ produto: null, tipo })}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-axon-gold px-3 py-1.5 text-sm font-semibold text-black"><Plus size={14} /> Produto</button>
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-axon-gold px-3 py-1.5 text-sm font-semibold text-black"><Plus size={14} /> {tipo === "cantina" ? "Produto" : "Ingresso"}</button>
               )}
             </div>
             {lista.length === 0 ? (
@@ -188,7 +217,7 @@ export function Produtos({ produtos, eventos, produtoraId, podeEditar }: {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-white">{p.nome}</p>
                       <p className="text-xs text-gray-500">
-                        {p.categoria || "Outros"}{p.ativo ? "" : " · desativado"}
+                        {p.tipo === "cantina" ? `${p.setor === "lojinha" ? "Lojinha" : "Cantina"} · ` : ""}{p.categoria || "Outros"}{p.ativo ? "" : " · desativado"}
                         {p.vitrine.length > 0 && ` · na página de ${p.vitrine.length} evento(s)`}
                       </p>
                     </div>
@@ -209,6 +238,7 @@ export function Produtos({ produtos, eventos, produtoraId, podeEditar }: {
       })}
       {form && (
         <Formulario produto={form.produto} tipoInicial={form.tipo} eventos={eventos} produtoraId={produtoraId}
+          usadas={produtos.map((p) => ({ setor: p.tipo === "bilheteria" ? "bilheteria" : p.setor ?? "cantina", categoria: p.categoria }))}
           onFechar={() => setForm(null)} onSalvo={() => { setForm(null); router.refresh(); }} />
       )}
     </div>
