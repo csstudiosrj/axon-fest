@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { limparHtml } from "@/lib/termos-html";
+import { limparHtml, textoPuro } from "@/lib/termos-html";
 import { Direitos } from "@/app/_components/Direitos";
 import { lerOcupacao, situacaoVagas } from "@/lib/eventos/vagas";
 import type { Metadata } from "next";
@@ -71,6 +71,7 @@ interface Evento {
   regulamento_url: string | null;
   termo_imagem_url: string | null;
   autorizacao_menor_url: string | null;
+  mostrar_vagas: boolean;
 }
 
 interface JuradoPublico {
@@ -139,6 +140,7 @@ interface EventoRow {
   regulamento_url: string | null;
   termo_imagem_url: string | null;
   autorizacao_menor_url: string | null;
+  mostrar_vagas: boolean | null;
 }
 
 interface JuradoPublicoRow {
@@ -329,6 +331,7 @@ function normalizarEvento(row: EventoRow): Evento {
     regulamento_url: row.regulamento_url,
     termo_imagem_url: row.termo_imagem_url,
     autorizacao_menor_url: row.autorizacao_menor_url,
+    mostrar_vagas: row.mostrar_vagas ?? false,
   };
 }
 
@@ -742,7 +745,7 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
   const { data: eventoData, error } = await supabase
     .from("eventos")
     .select(
-      "id, nome, descricao, data_inicio, data_fim, local, status, logo_url, banner_url, formato, tipo_premiacao, multilocal, cor_primaria, cor_secundaria, fonte_familia, tema_escuro, exibir_loja_publica, exibir_feed_instagram, instagram_handle, regulamento_url, termo_imagem_url, autorizacao_menor_url, vagas_total"
+      "id, nome, descricao, data_inicio, data_fim, local, status, logo_url, banner_url, formato, tipo_premiacao, multilocal, cor_primaria, cor_secundaria, fonte_familia, tema_escuro, exibir_loja_publica, exibir_feed_instagram, instagram_handle, regulamento_url, termo_imagem_url, autorizacao_menor_url, vagas_total, mostrar_vagas"
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -901,12 +904,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: dados.evento.nome,
     description:
-      dados.evento.descricao?.slice(0, 160) ??
+      (dados.evento.descricao ? textoPuro(dados.evento.descricao).slice(0, 160) : null) ??
       `Inscrições abertas para ${dados.evento.nome}.`,
     openGraph: {
       title: dados.evento.nome,
       description:
-        dados.evento.descricao?.slice(0, 160) ??
+        (dados.evento.descricao ? textoPuro(dados.evento.descricao).slice(0, 160) : null) ??
         `Inscrições abertas para ${dados.evento.nome}.`,
       images: dados.evento.banner_url ? [{ url: dados.evento.banner_url }] : [],
     },
@@ -1075,7 +1078,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
                 ? "As inscrições para este festival estão indisponíveis no momento."
                 : vagas.esgotado
                   ? "Todas as vagas deste festival foram preenchidas."
-                  : vagas.restamEvento != null
+                  : vagas.restamEvento != null && evento.mostrar_vagas
                     ? `Restam ${vagas.restamEvento} vaga${vagas.restamEvento === 1 ? "" : "s"}. A inscrição é feita online, por aqui.`
                     : "Garanta a participação do seu grupo: a inscrição é feita online, por aqui."}
             </p>
@@ -1097,9 +1100,8 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
               headingClass={tema.heading}
             />
             <div className={`rounded-2xl border p-6 backdrop-blur-sm ${tema.card}`} style={{ borderColor: `${corPrimaria}22` }}>
-              <p className={`text-sm leading-relaxed whitespace-pre-line ${tema.text}`}>
-                {evento.descricao}
-              </p>
+              <div className={`text-sm leading-relaxed ${tema.text} [&_a]:underline [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5`}
+                dangerouslySetInnerHTML={{ __html: limparHtml(evento.descricao) }} />
             </div>
           </section>
         )}
@@ -1482,6 +1484,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
         </div>
 
         <footer className={`border-t pt-6 text-center ${tema.footerBorder}`}>
+          <Link href="/certificados" className={`text-xs underline-offset-2 hover:underline ${tema.faintText}`}>Certificados de participação</Link>
           <Direitos className={`text-xs ${tema.faintText}`} />
         </footer>
       </div>

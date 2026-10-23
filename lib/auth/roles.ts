@@ -66,6 +66,6 @@ export function podeAtribuir(quem: string | null | undefined, alvo: string | nul
   return (HIERARQUIA[quem] ?? []).includes(alvo as Role);
 }
 
-export function destinoPorRole(role: string): string {
-  return inicioDe(role);
+export function destinoPorRole(role: string, setor?: string | null): string {
+  return inicioDe(role, setor);
 }

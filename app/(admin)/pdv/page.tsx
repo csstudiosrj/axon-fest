@@ -42,7 +42,7 @@ export default async function PdvPage({ searchParams }: { searchParams: Promise<
   const evento = params.evento ?? "";
 
   const [{ data: produtos }, { data: eventos }] = await Promise.all([
-    supabase.from("pdv_produtos").select("id, nome, preco, categoria, tipo, ativo, ordem, descricao").eq("produtora_id", pid)
+    supabase.from("pdv_produtos").select("id, nome, preco, categoria, tipo, setor, ativo, ordem, descricao").eq("produtora_id", pid)
       .order("tipo").order("ordem", { nullsFirst: false }).order("nome"),
     supabase.from("eventos").select("id, nome, data_inicio, status").eq("produtora_id", pid).order("data_inicio", { ascending: false, nullsFirst: false }),
   ]);
@@ -53,6 +53,7 @@ export default async function PdvPage({ searchParams }: { searchParams: Promise<
 
   const linhasProdutos: ProdutoPainel[] = (produtos ?? []).map((p) => ({
     id: p.id, nome: p.nome, preco: Number(p.preco), categoria: p.categoria ?? "", tipo: p.tipo as ProdutoPainel["tipo"],
+    setor: p.tipo === "cantina" ? (p.setor === "lojinha" ? "lojinha" : "cantina") : null,
     ativo: p.ativo, ordem: p.ordem, descricao: p.descricao,
     vitrine: (vitrine ?? []).filter((v) => v.produto_id === p.id && v.ativo_evento).map((v) => v.evento_id),
   }));
@@ -77,8 +78,12 @@ export default async function PdvPage({ searchParams }: { searchParams: Promise<
 
   let pix = { chave: "", nome: "", cidade: "", pinDefinido: false };
   if (aba === "configuracoes") {
-    const { data } = await createAdminClient().from("pdv_config").select("pix_chave, pix_nome, pix_cidade, pin_admin").eq("produtora_id", pid).maybeSingle();
-    pix = { chave: data?.pix_chave ?? "", nome: data?.pix_nome ?? "", cidade: data?.pix_cidade ?? "", pinDefinido: !!data?.pin_admin };
+    const [{ data }, { data: prod }] = await Promise.all([
+      createAdminClient().from("pdv_config").select("pix_chave, pix_nome, pix_cidade, pin_admin").eq("produtora_id", pid).maybeSingle(),
+      supabase.from("produtoras").select("nome, cidade").eq("id", pid).maybeSingle(),
+    ]);
+    // Primeira configuração: já sugere nome e cidade da produtora
+    pix = { chave: data?.pix_chave ?? "", nome: data?.pix_nome ?? prod?.nome ?? "", cidade: data?.pix_cidade ?? prod?.cidade ?? "", pinDefinido: !!data?.pin_admin };
   }
 
   const listaEventos = (eventos ?? []).map((e) => ({ id: e.id, nome: e.nome }));

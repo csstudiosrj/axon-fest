@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Building2, LogOut, Menu, Ticket, Users, X } from "lucide-react";
+import { Building2, ChevronLeft, LogOut, Menu, Ticket, Users, X } from "lucide-react";
 import { Direitos } from "@/app/_components/Direitos";
 
 const NAV = [
@@ -22,6 +22,13 @@ function tituloDa(pathname: string) {
   if (/\/resultado/.test(pathname)) return "Resultado";
   if (/\/inicio/.test(pathname)) return "Resumo do festival";
   return "Meus festivais";
+}
+
+// Botão Voltar: dentro de um festival volta ao resumo dele; do resumo, à lista de festivais
+function voltarDe(pathname: string): string | null {
+  const m = pathname.match(/^\/grupo\/([0-9a-f-]{36})(\/[^/]+)?/);
+  if (!m) return null;
+  return m[2] && m[2] !== "/inicio" ? `/grupo/${m[1]}/inicio` : "/grupo/dashboard";
 }
 
 export default function GrupoShell({ children, usuario, grupoNome, diretor }: {
@@ -90,6 +97,12 @@ export default function GrupoShell({ children, usuario, grupoNome, diretor }: {
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 items-center gap-3 border-b border-axon-border bg-axon-panel px-4 lg:px-6">
           <button type="button" onClick={() => setMenuAberto(true)} className="text-gray-400 lg:hidden" aria-label="Abrir menu"><Menu size={20} /></button>
+          {voltarDe(pathname) && (
+            <Link href={voltarDe(pathname)!} aria-label="Voltar" title="Voltar"
+              className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-axon-border pl-1.5 pr-3 text-xs text-gray-300 hover:bg-white/5 hover:text-white">
+              <ChevronLeft size={15} /> Voltar
+            </Link>
+          )}
           <h1 className="truncate text-base font-semibold text-white" data-titulo-tela>{tituloDa(pathname)}</h1>
         </header>
         <main className="flex-1 overflow-y-auto">

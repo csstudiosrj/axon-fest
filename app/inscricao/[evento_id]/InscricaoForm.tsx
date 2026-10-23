@@ -46,6 +46,8 @@ export default function InscricaoForm({ evento }: { eventoId: string; evento: Ev
   const [etapa, setEtapa] = useState<Etapa>("documento");
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [naoConfirmado, setNaoConfirmado] = useState(false);
   const [documento, setDocumento] = useState("");
   const [grupo, setGrupo] = useState<{ id: string; nome: string; email: string } | null>(null);
   const [login, setLogin] = useState({ email: "", senha: "" });
@@ -100,7 +102,15 @@ export default function InscricaoForm({ evento }: { eventoId: string; evento: Ev
     setOcupado(true);
     const supabase = createClient();
     const { data: sessao, error } = await supabase.auth.signInWithPassword({ email: login.email.trim(), password: login.senha });
-    if (error || !sessao.user) { setOcupado(false); return setErro("E-mail ou senha incorretos."); }
+    if (error || !sessao.user) {
+      setOcupado(false);
+      // Cadastrou mas não clicou no link: oferece reenviar
+      if (/not confirmed/i.test(error?.message ?? "")) {
+        setNaoConfirmado(true);
+        return setErro("Este e-mail ainda não foi confirmado. Abra o link que enviamos ou peça um novo abaixo.");
+      }
+      return setErro("E-mail ou senha incorretos.");
+    }
     const { data: u } = await supabase.from("usuarios").select("role, organizacao_id").eq("id", sessao.user.id).maybeSingle();
     setOcupado(false);
     if (!u || u.organizacao_id !== grupo?.id) {
@@ -111,6 +121,20 @@ export default function InscricaoForm({ evento }: { eventoId: string; evento: Ev
       return setErro(`Só o responsável pelo ${T.grupo.singular} confirma a inscrição em um festival.`);
     }
     setEtapa("aceite");
+  };
+
+  // "Não recebi o e-mail de confirmação"
+  const reenviarEmail = async () => {
+    setErro(null);
+    setAviso(null);
+    const email = (etapa === "enviado" ? f.email : login.email).trim();
+    if (!email) return setErro("Informe o e-mail.");
+    setOcupado(true);
+    const res = await fetch(apiUrl("/api/grupo/novo"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ acao: "reenviar", email, evento_id: evento.id }) });
+    const json = (await res.json().catch(() => ({}))) as { error?: string; mensagem?: string };
+    setOcupado(false);
+    if (!res.ok) return setErro(json.error ?? "Não foi possível enviar agora.");
+    setAviso(json.mensagem ?? "E-mail reenviado.");
   };
 
   const confirmarExistente = async () => {
@@ -183,6 +207,12 @@ export default function InscricaoForm({ evento }: { eventoId: string; evento: Ev
             <button type="submit" disabled={ocupado} className={botao} style={{ background: accent }}>
               {ocupado ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />} Entrar
             </button>
+            {naoConfirmado && (
+              <button type="button" disabled={ocupado} onClick={reenviarEmail} className="w-full rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:opacity-50" style={{ borderColor: accent, color: accent }}>
+                Reenviar e-mail de confirmação
+              </button>
+            )}
+            {aviso && <p className={`text-sm ${texto}`}>{aviso}</p>}
             <div className={`flex justify-between text-sm ${texto}`}>
               <button type="button" onClick={() => { setEtapa("documento"); setErro(null); }} className="hover:underline">Voltar</button>
               <Link href="/esqueci-senha" className="hover:underline">Esqueci minha senha</Link>
@@ -258,7 +288,13 @@ export default function InscricaoForm({ evento }: { eventoId: string; evento: Ev
             <Mail size={36} className="mx-auto" style={{ color: accent }} />
             <h2 className={`text-lg font-bold ${titulo}`}>Confirme seu e-mail</h2>
             <p className={`text-sm ${texto}`}>Enviamos um link para <strong className={titulo}>{f.email}</strong>. Abra o e-mail e clique no botão para confirmar: você cai direto no portal do {T.grupo.singular} para cadastrar elenco e {T.apresentacao.plural}.</p>
-            <p className={`text-xs ${texto}`}>Não chegou? Veja a caixa de spam.</p>
+            <p className={`text-xs ${texto}`}>Não chegou? Veja a caixa de spam ou peça de novo.</p>
+            <button type="button" disabled={ocupado} onClick={reenviarEmail}
+              className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ borderColor: accent, color: accent }}>
+              {ocupado ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} />} Reenviar e-mail de confirmação
+            </button>
+            {aviso && <p className={`text-xs ${texto}`}>{aviso}</p>}
+            {blocoErro}
           </div>
         )}
       </div>

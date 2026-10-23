@@ -46,10 +46,14 @@ export function ConfigPdv({ inicial, podeEditar }: {
           <input value={f.chave} onChange={set("chave")} disabled={!podeEditar} maxLength={77} placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" className={`${campo} mt-1.5`} /></label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block"><span className="text-xs text-gray-400">Nome do recebedor</span>
-            <input value={f.nome} onChange={set("nome")} disabled={!podeEditar} maxLength={25} className={`${campo} mt-1.5`} /></label>
-          <label className="block"><span className="text-xs text-gray-400">Cidade</span>
-            <input value={f.cidade} onChange={set("cidade")} disabled={!podeEditar} maxLength={15} className={`${campo} mt-1.5`} /></label>
+            <input value={f.nome} onChange={set("nome")} disabled={!podeEditar} maxLength={200} placeholder="Como está no banco" className={`${campo} mt-1.5`} /></label>
+          <label className="block"><span className="text-xs text-gray-400">Cidade do recebedor</span>
+            <input value={f.cidade} onChange={set("cidade")} disabled={!podeEditar} maxLength={100} className={`${campo} mt-1.5`} /></label>
         </div>
+        <p className="text-xs text-gray-500">
+          Nome e cidade fazem parte do QR Code Pix (regra do Banco Central). Pode digitar o nome completo: se for longo, o sistema abrevia só dentro do código.
+          Na hora de pagar, o cliente vê no banco o nome oficial do dono da chave.
+        </p>
       </section>
 
       <section className="space-y-4 rounded-xl border border-axon-border bg-axon-panel p-5">
@@ -65,7 +69,7 @@ export function ConfigPdv({ inicial, podeEditar }: {
           <label className="block"><span className="text-xs text-gray-400">Confirmar PIN</span>
             <input type="password" inputMode="numeric" autoComplete="new-password" value={f.confirmar} onChange={set("confirmar")} disabled={!podeEditar} className={`${campo} mt-1.5`} /></label>
         </div>
-        <p className="text-xs text-gray-500">Operadores de caixa são convidados em Usuários, com o cargo “Operador”.</p>
+        <p className="text-xs text-gray-500">Operadores são convidados em Equipe, como “Operador de caixa” ou “Operador de bilheteria”. Eles entram por arxum.com.br/fest/operador.</p>
       </section>
 
       {podeEditar ? (

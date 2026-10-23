@@ -8,7 +8,7 @@ import {
   Save, Eye, EyeOff, CheckCircle, AlertCircle, Loader2
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { uploadFiles } from "@/utils/uploadthing";
+import { mensagemEnvio, uploadFiles } from "@/utils/uploadthing";
 
 const supabase = createClient();
 
@@ -284,7 +284,7 @@ export default function PerfilPage() {
 
       mostrarToast("Foto atualizada com sucesso!");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao fazer upload da foto.";
+      const msg = mensagemEnvio(err, "Erro ao enviar a foto.");
       mostrarToast(msg, "erro");
     } finally {
       setUploading(false);

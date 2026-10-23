@@ -1,17 +1,21 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import QRCode from "qrcode";
+import { BASE_PATH } from "@/lib/base-path";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, CheckCircle2, Clock, FileAudio, FileImage, FileText, Loader2, Pencil, Plus, Trash2, Upload, Users, X,
+  AlertTriangle, CheckCircle2, Clock, FileAudio, FileImage, FileText, Loader2, Pencil, Plus, QrCode, Trash2, Upload, Users, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { uploadFiles } from "@/utils/uploadthing";
+import { mensagemEnvio, uploadFiles } from "@/utils/uploadthing";
+import { formatarTempo } from "@/lib/mascaras";
 import { idadeEm } from "@/lib/documentos";
 import { maiuscula, MIME_ARQUIVO, novo, perfilPorSlug, type ArquivoTecnico, type Perfil } from "@/lib/perfis";
 import type { IntegranteElenco } from "@/lib/grupo/contexto";
 import type { ApresentacaoGrupo, ArquivoEnviado, CategoriaEvento } from "@/lib/grupo/dados";
 import { Cartao, Selo, Vazio, brl, dataCurta } from "../../../_components/ui";
+import { confirmar } from "@/app/_components/Dialogos";
 
 type Tipo = ApresentacaoGrupo["tipo"];
 
@@ -43,27 +47,49 @@ function formacoes(perfil: Perfil, c: CategoriaEvento | undefined): { tipo: Tipo
 
 const nomePessoa = (p: IntegranteElenco) => p.nome_artistico || p.nome || `Convidado(a) · CPF final ${p.documento_final ?? "—"}`;
 
-// Avisos de regra da categoria (a produção confere; aqui só orienta)
+// Regras da categoria: `bloqueios` impedem salvar; `avisos` só orientam (confirmação chega depois, por e-mail).
+// Sem ninguém marcado ainda, salva (o elenco pode ser escolhido depois).
 function avisosElenco(c: CategoriaEvento | undefined, tipo: Tipo, escolhidos: IntegranteElenco[], dataEvento: string | null) {
   const n = escolhidos.length;
+  const bloqueios: string[] = [];
   const avisos: string[] = [];
-  if (n === 0) return avisos;
-  if (tipo === "solo" && n !== 1) avisos.push("Solo deve ter exatamente 1 pessoa em cena.");
-  if (tipo === "duo" && n !== 2) avisos.push("Duo deve ter exatamente 2 pessoas em cena.");
-  if ((tipo === "conjunto" || tipo === "grupo") && n < 3) avisos.push("Conjunto deve ter pelo menos 3 pessoas em cena.");
-  if (c?.min_participantes && n < c.min_participantes) avisos.push(`A categoria pede no mínimo ${c.min_participantes} pessoas.`);
-  if (c?.max_participantes && n > c.max_participantes) avisos.push(`A categoria aceita no máximo ${c.max_participantes} pessoas.`);
+  if (n === 0) return { bloqueios, avisos };
+  if (tipo === "solo" && n !== 1) bloqueios.push("Solo deve ter exatamente 1 pessoa em cena.");
+  if (tipo === "duo" && n !== 2) bloqueios.push("Duo deve ter exatamente 2 pessoas em cena.");
+  if ((tipo === "conjunto" || tipo === "grupo") && n < 3) bloqueios.push("Conjunto deve ter pelo menos 3 pessoas em cena.");
+  if (c?.min_participantes && n < c.min_participantes) bloqueios.push(`A categoria pede no mínimo ${c.min_participantes} pessoas.`);
+  if (c?.max_participantes && n > c.max_participantes) bloqueios.push(`A categoria aceita no máximo ${c.max_participantes} pessoas.`);
   if (c && (c.faixa_etaria_min != null || c.faixa_etaria_max != null)) {
     const fora = escolhidos.filter((p) => {
       const idade = idadeEm(p.data_nascimento, dataEvento);
       if (idade === null) return false;
       return (c.faixa_etaria_min != null && idade < c.faixa_etaria_min) || (c.faixa_etaria_max != null && idade > c.faixa_etaria_max);
     });
-    if (fora.length) avisos.push(`Fora da faixa etária da categoria: ${fora.map(nomePessoa).join(", ")}.`);
+    if (fora.length) bloqueios.push(`Fora da faixa etária da categoria: ${fora.map(nomePessoa).join(", ")}.`);
   }
   const pendentes = escolhidos.filter((p) => !p.confirmado || !p.termo_assinado).length;
   if (pendentes) avisos.push(`${pendentes} ${pendentes === 1 ? "pessoa ainda não confirmou ou não assinou" : "pessoas ainda não confirmaram ou não assinaram"} o termo.`);
-  return avisos;
+  return { bloqueios, avisos };
+}
+
+// QR do check-in: a produção aponta a câmera e abre a apresentação na tela de check-in do painel
+function JanelaQr({ eventoId, apresentacao, onFechar }: { eventoId: string; apresentacao: { id: string; nome: string }; onFechar: () => void }) {
+  const [qr, setQr] = useState("");
+  useEffect(() => {
+    const url = `${window.location.origin}${BASE_PATH}/eventos/${eventoId}/checkin?ap=${apresentacao.id}`;
+    QRCode.toDataURL(url, { width: 320, margin: 2 }).then(setQr).catch(() => setQr(""));
+  }, [eventoId, apresentacao.id]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onFechar}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs space-y-3 rounded-2xl border border-axon-border bg-axon-panel p-5 text-center">
+        <h3 className="font-semibold text-white">{apresentacao.nome}</h3>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {qr ? <img src={qr} alt="QR Code do check-in" className="mx-auto rounded-xl bg-white p-2" width={260} height={260} /> : <div className="mx-auto h-[260px] w-[260px] animate-pulse rounded-xl bg-axon-bg" />}
+        <p className="text-xs text-gray-400">No dia, mostre este código à produção na hora do check-in.</p>
+        <button type="button" onClick={onFechar} className="w-full rounded-lg border border-axon-border py-2 text-sm text-gray-300">Fechar</button>
+      </div>
+    </div>
+  );
 }
 
 // ── Formulário de nova/editar apresentação ──────────────────────────────────
@@ -93,7 +119,7 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
   const tipoValido = opcoes.some((o) => o.tipo === tipo) ? tipo : opcoes[0]?.tipo ?? "solo";
   const travadoPorPagamento = !!editando && pago(editando.status_pagamento);
   const pessoas = elenco.filter((p) => escolhidos.has(p.participante_id));
-  const avisos = avisosElenco(categoria, tipoValido, pessoas, evento.data_inicio);
+  const { bloqueios, avisos } = avisosElenco(categoria, tipoValido, pessoas, evento.data_inicio);
 
   const grupos = useMemo(() => {
     const m = new Map<string, CategoriaEvento[]>();
@@ -108,7 +134,7 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
   const opcaoCategoria = (c: CategoriaEvento) => {
     const atual = c.id === editando?.categoria_id;
     const esgotada = c.restantes === 0 && !atual;
-    const vagas = esgotada ? " — esgotada" : c.restantes != null && !atual ? ` — ${c.restantes} vaga${c.restantes === 1 ? "" : "s"}` : "";
+    const vagas = esgotada ? " — esgotada" : c.restantes != null && c.mostrar_vagas && !atual ? ` — ${c.restantes} vaga${c.restantes === 1 ? "" : "s"}` : "";
     return <option key={c.id} value={c.id} disabled={esgotada}>{c.nome}{vagas}</option>;
   };
 
@@ -123,6 +149,7 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
     e.preventDefault();
     setErro(null);
     if (!categoria) return setErro("Escolha a categoria.");
+    if (bloqueios.length) return setErro("Corrija os itens em vermelho antes de salvar: eles não atendem às regras da categoria.");
     setSalvando(true);
     const supabase = createClient();
     const dados = {
@@ -206,8 +233,8 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
               {(categoria.faixa_etaria_label || categoria.faixa_etaria_min != null || categoria.faixa_etaria_max != null) && (
                 <span>Idade: {categoria.faixa_etaria_label ?? `${categoria.faixa_etaria_min ?? 0}–${categoria.faixa_etaria_max ?? "∞"} anos`}</span>
               )}
-              {(categoria.tempo_apresentacao_min || categoria.tempo_apresentacao_max) && (
-                <span>Tempo: {categoria.tempo_apresentacao_min ?? 0}–{categoria.tempo_apresentacao_max ?? "∞"} min</span>
+              {(categoria.tempo_min_segundos || categoria.tempo_max_segundos) && (
+                <span>Tempo: {formatarTempo(categoria.tempo_min_segundos ?? 0)} a {categoria.tempo_max_segundos ? formatarTempo(categoria.tempo_max_segundos) : "∞"} min</span>
               )}
               {(categoria.min_participantes || categoria.max_participantes) && (
                 <span>Pessoas em cena: {categoria.min_participantes ?? 1}–{categoria.max_participantes ?? "∞"}</span>
@@ -236,6 +263,11 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
                 ))}
               </div>
             )}
+            {bloqueios.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {bloqueios.map((a) => <li key={a} className="flex items-start gap-1.5 text-xs text-red-300"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {a}</li>)}
+              </ul>
+            )}
             {avisos.length > 0 && (
               <ul className="mt-2 space-y-1">
                 {avisos.map((a) => <li key={a} className="flex items-start gap-1.5 text-xs text-axon-gold"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {a}</li>)}
@@ -253,7 +285,7 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
 
         <div className="flex justify-end gap-2 border-t border-axon-border px-5 py-4">
           <button type="button" onClick={onFechar} className="rounded-lg px-4 py-2 text-sm text-gray-300 hover:text-white">Cancelar</button>
-          <button type="submit" disabled={salvando} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
+          <button type="submit" disabled={salvando || bloqueios.length > 0} title={bloqueios.length ? "Corrija os itens em vermelho" : undefined} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
             {salvando && <Loader2 size={15} className="animate-spin" />} Salvar
           </button>
         </div>
@@ -298,14 +330,14 @@ function LinhaArquivo({ def, enviado, apresentacaoId, podeEnviar, onMudou }: {
       if (error) throw new Error(error.message);
       onMudou();
     } catch (e) {
-      onMudou((e as Error).message);
+      onMudou(mensagemEnvio(e));
     }
     setEnviando(false);
     if (input.current) input.current.value = "";
   };
 
   const remover = async () => {
-    if (!enviado || !window.confirm(`Remover ${def.nome.toLowerCase()}?`)) return;
+    if (!enviado || !(await confirmar(`Remover ${def.nome.toLowerCase()}?`))) return;
     const { error } = await createClient().from("apresentacao_arquivos").delete().eq("id", enviado.id);
     onMudou(error?.message);
   };
@@ -376,6 +408,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
   const perfil = perfilPorSlug(perfilSlug);
   const T = perfil.termos;
   const [form, setForm] = useState<{ editando: ApresentacaoGrupo | null } | null>(abrirNova ? { editando: null } : null);
+  const [qrDe, setQrDe] = useState<{ id: string; nome: string } | null>(null);
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   const porId = new Map(elenco.map((p) => [p.participante_id, p]));
   const catPorId = new Map(categorias.map((c) => [c.id, c]));
@@ -383,7 +416,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
   const nomeFormacao = (t: Tipo) => perfil.formacoes[t];
 
   const excluir = async (a: ApresentacaoGrupo) => {
-    if (!window.confirm(`Excluir “${a.nome}”? Os arquivos enviados também serão apagados.`)) return;
+    if (!(await confirmar(`Excluir “${a.nome}”? Os arquivos enviados também serão apagados.`))) return;
     const { error } = await createClient().from("apresentacoes").delete().eq("id", a.id);
     setAviso(error ? { ok: false, texto: error.message } : { ok: true, texto: `“${a.nome}” foi excluíd${T.apresentacao.genero === "f" ? "a" : "o"}.` });
     router.refresh();
@@ -427,7 +460,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
         apresentacoes.map((a) => {
           const cat = a.categoria_id ? catPorId.get(a.categoria_id) : undefined;
           const pessoas = a.elenco.map((id) => porId.get(id)).filter((p): p is IntegranteElenco => !!p);
-          const avisos = avisosElenco(cat, a.tipo, pessoas, evento.data_inicio);
+          const regras = avisosElenco(cat, a.tipo, pessoas, evento.data_inicio);
           return (
             <Cartao key={a.id} className="scroll-mt-24 overflow-hidden">
               <div id={a.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
@@ -440,20 +473,24 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
                     {a.data_apresentacao && <Selo>{dataCurta(a.data_apresentacao)}</Selo>}
                   </div>
                 </div>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setQrDe({ id: a.id, nome: a.nome })} title="QR do check-in" className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"><QrCode size={15} /></button>
                 {podeEditar && (
-                  <div className="flex items-center gap-1">
+                  <>
                     <button type="button" onClick={() => setForm({ editando: a })} title="Editar" className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"><Pencil size={15} /></button>
                     {!pago(a.status_pagamento) && (
                       <button type="button" onClick={() => excluir(a)} title="Excluir" className="rounded-lg p-2 text-gray-400 hover:bg-red-400/10 hover:text-red-300"><Trash2 size={15} /></button>
                     )}
-                  </div>
+                  </>
                 )}
+                </div>
               </div>
 
               <div className="border-t border-axon-border px-5 py-3">
                 <p className="text-xs text-gray-500">Em cena ({pessoas.length})</p>
                 <p className="mt-1 text-sm text-gray-200">{pessoas.length ? pessoas.map(nomePessoa).join(", ") : <span className="text-gray-500">Ninguém selecionado</span>}</p>
-                {avisos.map((w) => <p key={w} className="mt-1 flex items-start gap-1.5 text-xs text-axon-gold"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {w}</p>)}
+                {regras.bloqueios.map((w) => <p key={w} className="mt-1 flex items-start gap-1.5 text-xs text-red-300"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {w}</p>)}
+                {regras.avisos.map((w) => <p key={w} className="mt-1 flex items-start gap-1.5 text-xs text-axon-gold"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {w}</p>)}
                 {a.observacoes && <p className="mt-2 text-xs text-gray-400">Obs.: {a.observacoes}</p>}
               </div>
 
@@ -474,6 +511,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
         })
       )}
 
+      {qrDe && <JanelaQr eventoId={evento.id} apresentacao={qrDe} onFechar={() => setQrDe(null)} />}
       {form && (
         <Formulario verValores={verValores} perfil={perfil} evento={evento} grupoId={grupoId} categorias={categorias} elenco={elenco} editando={form.editando}
           onFechar={() => setForm(null)}

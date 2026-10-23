@@ -42,6 +42,13 @@ const OUTRAS: { href: string; nome: string }[] = [
   { href: "/jurados/apuracao", nome: "Apuração das notas" },
 ];
 
+// Tela "de cima" para o botão Voltar do topo (nada nas telas do menu)
+function voltarDe(pathname: string, menu: ItemMenu[], inicio: string): string | null {
+  if (pathname === inicio || menu.some((m) => m.href === pathname)) return null;
+  const pai = pathname.replace(/\/[^/]+$/, "");
+  return pai && pai !== "/" ? pai : inicio;
+}
+
 function tituloDa(pathname: string, menu: ItemMenu[]): string {
   const candidatos = [...OUTRAS, ...menu.map((m) => ({ href: m.href, nome: m.nome }))]
     .filter((c) => pathname === c.href || pathname.startsWith(c.href + "/"))
@@ -63,6 +70,7 @@ export default function AdminShell({ children, userEmail, userName, userRole }: 
   const ehSuper = userRole === "super_admin";
   const menu = ehSuper ? MENU_SUPER : MENU_PRODUTORA.filter((m) => pode(userRole, m.area));
   const titulo = tituloDa(pathname, menu);
+  const voltar = voltarDe(pathname, menu, ehSuper ? "/super" : "/dashboard");
 
   const sair = async () => {
     await createClient().auth.signOut();
@@ -124,6 +132,12 @@ export default function AdminShell({ children, userEmail, userName, userRole }: 
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-3 border-b border-axon-border bg-axon-panel/80 px-4 backdrop-blur-md sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => setMenuCelular(true)} aria-label="Abrir menu" className="text-gray-400 lg:hidden"><Menu size={22} /></button>
+            {voltar && (
+              <Link href={voltar} aria-label="Voltar" title="Voltar"
+                className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-axon-border pl-1.5 pr-3 text-xs text-gray-300 hover:bg-white/5 hover:text-white">
+                <ChevronLeft size={15} /> Voltar
+              </Link>
+            )}
             <h1 className="truncate text-base font-semibold text-white sm:text-lg" data-titulo-tela>{titulo}</h1>
           </div>
 

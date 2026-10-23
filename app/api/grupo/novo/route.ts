@@ -23,6 +23,56 @@ function limitar(ip: string): boolean {
   return recentes.length > MAX_POR_JANELA;
 }
 
+const ESPERA_REENVIO_MS = 60 * 1000;
+const reenvios = new Map<string, number>();
+
+type Admin = ReturnType<typeof createAdminClient>;
+
+async function enviarConfirmacao(para: string, responsavel: string, nomeGrupo: string, evento: { id: string; nome: string }, tokenHash: string, tipo: "signup" | "magiclink") {
+  const confirmar = urlAbsoluta(
+    `/auth/confirmar?token_hash=${encodeURIComponent(tokenHash)}&type=${tipo}&next=${encodeURIComponent(`/grupo/${evento.id}/inicio`)}`
+  );
+  await enviarEmail({
+    para,
+    assunto: `Confirme sua inscrição em ${evento.nome}`,
+    html: emailComBotao({
+      titulo: `Olá, ${escapeHtml(responsavel.split(" ")[0])}!`,
+      paragrafos: [
+        `Recebemos a inscrição de <strong>${escapeHtml(nomeGrupo)}</strong> em <strong>${escapeHtml(evento.nome)}</strong>.`,
+        "Confirme seu e-mail para acessar o portal do grupo e cadastrar elenco e apresentações.",
+      ],
+      botaoTexto: "Confirmar e-mail",
+      botaoUrl: confirmar,
+      rodape: "Se você não fez este cadastro, ignore este e-mail.",
+    }),
+  });
+}
+
+// "Não recebi o e-mail": manda um link novo para quem se cadastrou e ainda não confirmou.
+// A resposta é sempre a mesma, para não revelar quais e-mails têm cadastro.
+async function reenviar(admin: Admin, email: string, eventoId: string) {
+  const ok = NextResponse.json({ success: true, mensagem: "Se houver um cadastro aguardando confirmação com este e-mail, enviamos o link de novo." });
+  const ultimo = reenvios.get(email) ?? 0;
+  if (Date.now() - ultimo < ESPERA_REENVIO_MS) return erro("Aguarde um minuto antes de pedir outro e-mail.", 429);
+  reenvios.set(email, Date.now());
+  const { data: usuario } = await admin.from("usuarios").select("id, nome, role, organizacao_id").eq("email", email).maybeSingle();
+  if (!usuario || usuario.role !== "org_admin" || !usuario.organizacao_id) return ok;
+  const { data: conta } = await admin.auth.admin.getUserById(usuario.id);
+  if (!conta.user || conta.user.email_confirmed_at) return ok;
+  const [{ data: grupo }, { data: evento }] = await Promise.all([
+    admin.from("grupos").select("nome").eq("id", usuario.organizacao_id).maybeSingle(),
+    admin.from("eventos").select("id, nome").eq("id", eventoId).maybeSingle(),
+  ]);
+  if (!grupo || !evento) return ok;
+  const { data: link, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  if (error || !link.properties?.hashed_token) {
+    console.error("[api/grupo/novo] reenviar", error);
+    return erro("Não foi possível enviar agora. Tente de novo em instantes.", 500);
+  }
+  await enviarConfirmacao(email, usuario.nome ?? grupo.nome, grupo.nome, evento, link.properties.hashed_token, "magiclink");
+  return ok;
+}
+
 const campo = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const erro = (mensagem: string, status: number) => NextResponse.json({ error: mensagem }, { status });
 
@@ -33,6 +83,7 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const eventoId = campo(body.evento_id, 40);
   const email = campo(body.email, 200).toLowerCase();
+  if (body.acao === "reenviar") return reenviar(createAdminClient(), email, eventoId);
   const senha = typeof body.senha === "string" ? body.senha : "";
   const nomeGrupo = campo(body.nome, 160);
   const responsavel = campo(body.responsavel, 120);
@@ -107,23 +158,8 @@ export async function POST(req: NextRequest) {
     });
     if (iErr) throw iErr;
 
-    const confirmar = urlAbsoluta(
-      `/auth/confirmar?token_hash=${encodeURIComponent(link.properties.hashed_token)}&type=signup&next=${encodeURIComponent(`/grupo/${evento.id}/inicio`)}`
-    );
-    await enviarEmail({
-      para: email,
-      assunto: `Confirme sua inscrição em ${evento.nome}`,
-      html: emailComBotao({
-        titulo: `Olá, ${escapeHtml(responsavel.split(" ")[0])}!`,
-        paragrafos: [
-          `Recebemos a inscrição de <strong>${escapeHtml(nomeGrupo)}</strong> em <strong>${escapeHtml(evento.nome)}</strong>.`,
-          "Confirme seu e-mail para acessar o portal do grupo e cadastrar elenco e apresentações.",
-        ],
-        botaoTexto: "Confirmar e-mail",
-        botaoUrl: confirmar,
-        rodape: "Se você não fez este cadastro, ignore este e-mail.",
-      }),
-    });
+    reenvios.set(email, Date.now());
+    await enviarConfirmacao(email, responsavel, nomeGrupo, evento, link.properties.hashed_token, "signup");
   } catch (e) {
     console.error("[api/grupo/novo]", e);
     await desfazer();

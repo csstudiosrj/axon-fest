@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Mail, Trash2, UserPlus } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
+import { confirmar } from "@/app/_components/Dialogos";
 
 export interface PessoaGrupo { id: string; nome: string | null; email: string; diretor: boolean; ativo: boolean; pendente: boolean }
 
@@ -68,7 +69,7 @@ export function EquipeGrupo({ pessoas, euId }: { pessoas: PessoaGrupo[]; euId: s
                   )}
                   <button type="button" onClick={() => executar(p.id, { acao: "ativo", userId: p.id, ativo: !p.ativo }, p.ativo ? "Acesso desativado." : "Acesso reativado.")}
                     className="rounded-lg px-2 py-1.5 text-xs text-gray-300 hover:bg-white/5">{p.ativo ? "Desativar" : "Reativar"}</button>
-                  <button type="button" title="Remover" onClick={() => window.confirm(`Remover ${p.nome ?? p.email}? As coreografias que cadastrou continuam no grupo.`) && executar(p.id, { acao: "remover", userId: p.id }, "Removido(a) da equipe.")}
+                  <button type="button" title="Remover" onClick={async () => (await confirmar(`Remover ${p.nome ?? p.email}? As coreografias que cadastrou continuam no grupo.`)) && executar(p.id, { acao: "remover", userId: p.id }, "Removido(a) da equipe.")}
                     className="rounded-lg p-2 text-gray-400 hover:text-red-300"><Trash2 size={14} /></button>
                 </span>
               )}

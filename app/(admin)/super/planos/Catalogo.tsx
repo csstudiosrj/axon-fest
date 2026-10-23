@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Package, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
+import { confirmar } from "@/app/_components/Dialogos";
 
 export interface ItemCatalogo {
   id: string; tipo: "plano" | "pacote"; codigo: string | null; nome: string; descricao: string | null; preco: number | null;
@@ -97,7 +98,7 @@ export function Catalogo({ itens }: { itens: ItemCatalogo[] }) {
   const [erro, setErro] = useState<string | null>(null);
 
   const excluir = async (i: ItemCatalogo) => {
-    if (!window.confirm(`Excluir “${i.nome}”?`)) return;
+    if (!(await confirmar(`Excluir “${i.nome}”?`))) return;
     const res = await fetch(apiUrl("/api/super/planos"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ acao: "excluir", id: i.id }) });
     const json = (await res.json().catch(() => ({}))) as { error?: string };
     setErro(res.ok ? null : json.error ?? "Falha.");

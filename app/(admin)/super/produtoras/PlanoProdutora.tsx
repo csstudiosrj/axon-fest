@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
+import { confirmar } from "@/app/_components/Dialogos";
 
 // Plano da produtora: o Pro (com ou sem validade) libera o acesso pago; o plano do
 // catálogo registra qual oferta comercial ela contratou
@@ -16,7 +17,7 @@ export function PlanoProdutora({ id, nome, plano, proAte, planoCatalogo, catalog
   const [erro, setErro] = useState<string | null>(null);
 
   const enviar = async (corpo: Record<string, unknown>) => {
-    if (corpo.acao === "start" && !window.confirm(`Voltar ${nome} ao plano Start?`)) return;
+    if (corpo.acao === "start" && !(await confirmar(`Voltar ${nome} ao plano Start?`))) return;
     setOcupado(true);
     setErro(null);
     const res = await fetch(apiUrl("/api/super/produtoras"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...corpo }) });
@@ -43,7 +44,7 @@ export function PlanoProdutora({ id, nome, plano, proAte, planoCatalogo, catalog
         {pro ? "Alterar Pro" : "Ativar Pro"}
       </button>
       {pro && <button type="button" disabled={ocupado} onClick={() => enviar({ acao: "start" })} className="rounded-lg border border-axon-border px-2.5 py-1.5 text-gray-300 disabled:opacity-40">Voltar ao Start</button>}
-      {!pro && <button type="button" disabled={ocupado} onClick={() => window.confirm(`Reiniciar o período gratuito de ${nome} a partir de hoje?`) && enviar({ acao: "reiniciar_start" })} className="rounded-lg border border-axon-border px-2.5 py-1.5 text-gray-300 disabled:opacity-40">Reiniciar Start</button>}
+      {!pro && <button type="button" disabled={ocupado} onClick={async () => (await confirmar(`Reiniciar o período gratuito de ${nome} a partir de hoje?`)) && enviar({ acao: "reiniciar_start" })} className="rounded-lg border border-axon-border px-2.5 py-1.5 text-gray-300 disabled:opacity-40">Reiniciar Start</button>}
       {ocupado && <Loader2 size={13} className="animate-spin text-gray-400" />}
       {erro && <span className="text-red-300">{erro}</span>}
     </div>

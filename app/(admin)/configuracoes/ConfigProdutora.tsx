@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, Camera, CheckCircle2, CreditCard, FileText, Loader2, QrCode, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { uploadFiles } from "@/utils/uploadthing";
+import { mensagemEnvio, uploadFiles } from "@/utils/uploadthing";
 import { cpfValido, soDigitos } from "@/lib/documentos";
 import { cnpjValido, mascaraCpfCnpj, mascaraTelefone, telefoneValido } from "@/lib/mascaras";
 import { colunasEndereco, enderecoDe, type Endereco } from "@/lib/endereco";
 import { CamposEndereco } from "@/app/_components/CamposEndereco";
+import { useAvisoNaoSalvo } from "@/app/_components/Dialogos";
+import { termoParticipacaoBase } from "@/lib/termos";
 
 interface Produtora {
   id: string;
@@ -44,7 +46,12 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
     logo_url: produtora.logo_url,
   });
   const [endereco, setEndereco] = useState<Endereco>(enderecoDe(produtora));
-  const [texto, setTexto] = useState(termo);
+  // Sem texto próprio salvo, o campo já vem com o texto base montado com os dados da produtora
+  const [texto, setTexto] = useState(termo || termoParticipacaoBase(produtora));
+  const [termoSalvo, setTermoSalvo] = useState(termo);
+  const atualDados = useMemo(() => JSON.stringify({ f, endereco }), [f, endereco]);
+  const [dadosSalvos, setDadosSalvos] = useState(atualDados);
+  useAvisoNaoSalvo(podeEditar && (atualDados !== dadosSalvos || (!!termoSalvo && texto !== termoSalvo)));
   const [salvando, setSalvando] = useState<"dados" | "termo" | "logo" | null>(null);
   const [avisoDados, setAvisoDados] = useState<{ ok: boolean; texto: string } | null>(null);
   const [avisoTermo, setAvisoTermo] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -60,7 +67,7 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
       setF((atual) => ({ ...atual, logo_url: r.ufsUrl }));
       setAvisoDados({ ok: true, texto: "Logo enviada. Clique em Salvar para confirmar." });
     } catch (e) {
-      setAvisoDados({ ok: false, texto: (e as Error).message });
+      setAvisoDados({ ok: false, texto: mensagemEnvio(e) });
     }
     setSalvando(null);
   };
@@ -83,7 +90,10 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
     }).eq("id", produtora.id);
     setAvisoDados(error ? { ok: false, texto: error.message } : { ok: true, texto: "Dados salvos." });
     setSalvando(null);
-    if (!error) router.refresh();
+    if (!error) {
+      setDadosSalvos(atualDados);
+      router.refresh();
+    }
   };
 
   const salvarTermo = async () => {
@@ -97,7 +107,10 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
       : await supabase.from("tenant_config").insert({ produtora_id: produtora.id, termo_legal_texto: valor });
     setAvisoTermo(error ? { ok: false, texto: error.message } : { ok: true, texto: "Termo salvo." });
     setSalvando(null);
-    if (!error) router.refresh();
+    if (!error) {
+      setTermoSalvo(valor ?? "");
+      router.refresh();
+    }
   };
 
   return (
@@ -172,7 +185,11 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
           <textarea rows={10} value={texto} disabled={!podeEditar} onChange={(e) => setTexto(e.target.value)} maxLength={20000}
             placeholder="Ex.: Declaro que participo das atividades do festival por livre vontade, que estou apto(a) fisicamente…"
             className={`${campo} resize-y leading-relaxed`} />
-          {!texto.trim() && <p className="text-xs text-amber-300">Sem texto próprio, o integrante vê uma declaração genérica de participação.</p>}
+          {!termoSalvo && <p className="text-xs text-amber-300">Este é o texto base, montado com os dados da sua produtora. Revise, ajuste se quiser e clique em Salvar termo. Enquanto não salvar, é ele que os integrantes veem.</p>}
+          {podeEditar && termoSalvo && (
+            <button type="button" onClick={() => setTexto(termoParticipacaoBase({ ...produtora, nome: f.nome, documento: soDigitos(f.documento), cidade: endereco.cidade || null, estado: endereco.estado || null }))}
+              className="text-xs text-axon-gold hover:underline">Restaurar o texto base</button>
+          )}
           {podeEditar && (
             <div className="flex items-center justify-end gap-3">
               <Aviso aviso={avisoTermo} />
@@ -193,7 +210,7 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
         <Link href="/usuarios" className="rounded-xl border border-axon-border bg-axon-panel p-4 hover:border-axon-gold/50">
           <Users size={18} className="text-axon-gold" />
           <p className="mt-2 text-sm font-medium text-white">Equipe</p>
-          <p className="mt-1 text-xs text-gray-400">Convide produtores, assistentes e operadores.</p>
+          <p className="mt-1 text-xs text-gray-400">Convide produção, financeiro, marketing e operadores.</p>
         </Link>
         <Link href="/perfil" className="rounded-xl border border-axon-border bg-axon-panel p-4 hover:border-axon-gold/50">
           <CreditCard size={18} className="text-axon-gold" />

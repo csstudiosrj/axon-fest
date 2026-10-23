@@ -33,7 +33,8 @@ function comecaCom(pathname: string, prefixos: string[]) {
 
 function loginPara(pathname: string): string | null {
   if (pathname.startsWith("/grupo/") && pathname !== "/grupo/login") return "/login";
-  if (comecaCom(pathname, [...AREAS_ADMIN, ...AREAS_OPERADOR, ...AREAS_JURADO])) return "/login";
+  if (comecaCom(pathname, AREAS_OPERADOR)) return "/operador";
+  if (comecaCom(pathname, [...AREAS_ADMIN, ...AREAS_JURADO])) return "/login";
   return null;
 }
 
@@ -77,6 +78,23 @@ export async function proxy(request: NextRequest) {
     // Mantém cookies eventualmente limpos/renovados pelo Supabase
     response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
     return redirect;
+  }
+
+  // Operador trabalha num setor só: o de bilheteria não abre o caixa e vice-versa.
+  // Precisa ser aqui: dentro da área do operador, a tela do PIN vem antes da página.
+  if (user && comecaCom(pathname, AREAS_OPERADOR)) {
+    const { data: eu } = await supabase.from("usuarios").select("role, setor_pdv").eq("id", user.id).maybeSingle();
+    if (eu?.role === "operador") {
+      const meu = eu.setor_pdv === "bilheteria" ? "/bilheteria" : "/caixa";
+      if (!comecaCom(pathname, [meu])) {
+        const url = request.nextUrl.clone();
+        url.pathname = meu;
+        url.search = "";
+        const redirect = NextResponse.redirect(url);
+        response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+        return redirect;
+      }
+    }
   }
 
   return response;

@@ -8,6 +8,7 @@ import { apiUrl } from "@/lib/base-path";
 import { idadeEm } from "@/lib/documentos";
 import { maiuscula, nomeFuncao, perfilPorSlug } from "@/lib/perfis";
 import { Aviso, Cartao, brl, campo } from "../_ui";
+import { confirmar } from "@/app/_components/Dialogos";
 
 export interface GrupoInscrito {
   inscricaoId: string;
@@ -71,7 +72,7 @@ export function Inscricoes({ eventoNome, perfilSlug, grupos, podePagar, verValor
   };
 
   const excluirApresentacao = async (id: string, nome: string) => {
-    if (!window.confirm(`Excluir “${nome}”? A vaga fica livre para outra inscrição.`)) return;
+    if (!(await confirmar(`Excluir “${nome}”? A vaga fica livre para outra inscrição.`))) return;
     const { error } = await createClient().from("apresentacoes").delete().eq("id", id);
     setAviso(error ? { tipo: "erro", texto: error.message } : { tipo: "ok", texto: "Inscrição excluída. A vaga foi liberada." });
     router.refresh();
@@ -84,7 +85,7 @@ export function Inscricoes({ eventoNome, perfilSlug, grupos, podePagar, verValor
 
   const removerInscricao = async (g: GrupoInscrito) => {
     if (g.apresentacoes.length) return setAviso({ tipo: "erro", texto: `${g.nome} tem ${T.apresentacao.plural} inscritas. Exclua-as antes (o grupo pode fazer isso no portal enquanto as inscrições estão abertas).` });
-    if (!window.confirm(`Remover ${g.nome} deste evento?`)) return;
+    if (!(await confirmar(`Remover ${g.nome} deste evento?`))) return;
     const { error } = await createClient().from("inscricoes_grupo_evento").delete().eq("id", g.inscricaoId);
     setAviso(error ? { tipo: "erro", texto: error.message } : { tipo: "ok", texto: "Inscrição removida." });
     router.refresh();

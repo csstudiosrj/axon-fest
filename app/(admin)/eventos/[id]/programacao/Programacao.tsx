@@ -8,6 +8,7 @@ import { AlertTriangle, ArrowDown, ArrowUp, Check, Loader2, MapPin, Plus, Trash2
 import { createClient } from "@/lib/supabase/client";
 import { maiuscula, perfilPorSlug } from "@/lib/perfis";
 import { Aviso, Cartao, campo } from "../_ui";
+import { confirmar } from "@/app/_components/Dialogos";
 
 export interface ItemProgramacao {
   id: string;
@@ -141,7 +142,7 @@ export function Programacao({ eventoId, perfilSlug, itens, locais, podeGerir, di
     router.refresh();
   };
   const removerLocal = async (id: string) => {
-    if (!window.confirm("Remover este palco? As apresentações ligadas a ele ficam sem palco.")) return;
+    if (!(await confirmar("Remover este palco? As apresentações ligadas a ele ficam sem palco."))) return;
     const { error } = await createClient().from("locais_evento").delete().eq("id", id);
     if (error) return setAviso({ tipo: "erro", texto: error.message });
     router.refresh();

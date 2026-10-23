@@ -4,6 +4,20 @@ function semAcento(s: string) {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9 .\-@_+]/g, "").trim();
 }
 
+// O padrão do Banco Central limita nome (25) e cidade (15): abrevia por palavras inteiras,
+// só dentro do código. O pagador vê no banco o nome oficial do dono da chave.
+export function abreviar(texto: string, max: number) {
+  const limpo = semAcento(texto).toUpperCase().replace(/\s+/g, " ");
+  if (limpo.length <= max) return limpo;
+  let saida = "";
+  for (const palavra of limpo.split(" ")) {
+    const proximo = saida ? `${saida} ${palavra}` : palavra;
+    if (proximo.length > max) break;
+    saida = proximo;
+  }
+  return saida || limpo.slice(0, max);
+}
+
 function campo(id: string, valor: string) {
   return `${id}${String(valor.length).padStart(2, "0")}${valor}`;
 }
@@ -25,8 +39,8 @@ export function pixCopiaECola(chave: string, nome: string, cidade: string, valor
     campo("53", "986"),
     campo("54", valor.toFixed(2)),
     campo("58", "BR"),
-    campo("59", semAcento(nome).toUpperCase().slice(0, 25) || "RECEBEDOR"),
-    campo("60", semAcento(cidade).toUpperCase().slice(0, 15) || "BRASIL"),
+    campo("59", abreviar(nome, 25) || "RECEBEDOR"),
+    campo("60", abreviar(cidade, 15) || "BRASIL"),
     campo("62", campo("05", semAcento(identificador).replace(/\s/g, "").slice(0, 25) || "***")),
     "6304",
   ].join("");

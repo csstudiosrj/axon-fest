@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Check, Copy, ExternalLink, KeyRound, Loader2, LogIn, Mail, X } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
+import { confirmar, pedirTexto } from "@/app/_components/Dialogos";
 
 async function chamar(corpo: Record<string, unknown>) {
   const res = await fetch(apiUrl("/api/super/acoes"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
@@ -66,7 +67,7 @@ export function AcoesConta({ id, nome, email, ativo, podeEntrar = true }: { id: 
   };
 
   const trocarEmail = async () => {
-    const novo = window.prompt(`Novo e-mail de acesso de ${nome}:`, email)?.trim().toLowerCase();
+    const novo = (await pedirTexto({ titulo: "Trocar e-mail", mensagem: `Novo e-mail de acesso de ${nome}:`, rotulo: "E-mail", valor: email, tipo: "email" }))?.toLowerCase();
     if (!novo || novo === email) return;
     if (!(await executar({ acao: "trocar_email", email: novo }, `E-mail alterado para ${novo}.`))) return;
     // Lista filtrada pelo e-mail antigo: passa a buscar pelo novo para a pessoa continuar na tela
@@ -83,7 +84,7 @@ export function AcoesConta({ id, nome, email, ativo, podeEntrar = true }: { id: 
       <button type="button" disabled={ocupado} onClick={trocarEmail} className={`${botao} text-gray-300`} title="Trocar e-mail"><Mail size={12} /> E-mail</button>
       <button type="button" disabled={ocupado} onClick={() => executar({ acao: "reenviar_acesso" }, "Link de acesso enviado.")} className={`${botao} text-gray-300`} title="Reenviar acesso"><KeyRound size={12} /> Acesso</button>
       {podeEntrar && <button type="button" disabled={ocupado || !ativo} onClick={() => executar({ acao: "entrar_como" }, "")} className={`${botao} text-sky-300`} title="Entrar como"><LogIn size={12} /> Entrar como</button>}
-      <button type="button" disabled={ocupado} onClick={() => window.confirm(ativo ? `Bloquear o acesso de ${nome}?` : `Desbloquear ${nome}?`) && executar({ acao: "bloquear_usuario", ativo: !ativo }, ativo ? "Conta bloqueada." : "Conta desbloqueada.")}
+      <button type="button" disabled={ocupado} onClick={async () => (await confirmar(ativo ? `Bloquear o acesso de ${nome}?` : `Desbloquear ${nome}?`)) && executar({ acao: "bloquear_usuario", ativo: !ativo }, ativo ? "Conta bloqueada." : "Conta desbloqueada.")}
         className={`${botao} ${ativo ? "text-red-300" : "text-emerald-300"}`}><Ban size={12} /> {ativo ? "Bloquear" : "Desbloquear"}</button>
       {msg && <span className={`basis-full text-xs ${msg.ok ? "text-emerald-300" : "text-red-300"}`}>{msg.texto}</span>}
       {link && <JanelaEntrarComo link={link} nome={nome} onFechar={() => setLink(null)} />}
@@ -102,7 +103,7 @@ export function AcoesOrganizacao({ tipo, id, nome, ativo, responsavelId }: { tip
     const aviso = tipo === "produtora"
       ? `Bloquear ${nome}? A equipe perde o acesso e as páginas dos eventos saem do ar.`
       : `Bloquear ${nome}? As contas do grupo perdem o acesso.`;
-    if (!window.confirm(ativo ? aviso : `Desbloquear ${nome}?`)) return;
+    if (!(await confirmar(ativo ? aviso : `Desbloquear ${nome}?`))) return;
     setOcupado(true);
     setMsg(null);
     try {

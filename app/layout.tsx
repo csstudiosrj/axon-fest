@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Dialogos, GuardaNavegacao } from "./_components/Dialogos";
 
 export const metadata: Metadata = {
   title: "ARXUM Fest",
@@ -13,7 +14,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Dialogos />
+        <GuardaNavegacao />
+      </body>
     </html>
   );
 }

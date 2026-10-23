@@ -22,6 +22,7 @@ export async function Rodape() {
               <li key={item.href}><Link href={item.href} className="text-arx-mist hover:text-white">{item.label}</Link></li>
             ))}
             <li><Link href="/login" className="text-arx-mist hover:text-white">Entrar</Link></li>
+            <li><Link href="/certificados" className="text-arx-mist hover:text-white">Certificados</Link></li>
           </ul>
         </div>
 

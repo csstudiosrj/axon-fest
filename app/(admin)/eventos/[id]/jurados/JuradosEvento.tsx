@@ -7,6 +7,7 @@ import { ArrowRight, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/base-path";
 import { Aviso, Cartao, brl, campo } from "../_ui";
+import { confirmar } from "@/app/_components/Dialogos";
 
 interface Escalado {
   vinculoId: string; juradoId: string; nome: string; email: string; especialidade: string | null;
@@ -31,7 +32,7 @@ function LinhaJurado({ j, podeGerir, onErro }: { j: Escalado; podeGerir: boolean
   };
   const remover = async () => {
     if (j.fichas) return onErro(`${j.nome} já avaliou ${j.fichas} apresentação(ões) neste evento e não pode ser retirado: as notas fazem parte da apuração.`);
-    if (!window.confirm(`Tirar ${j.nome} deste evento?`)) return;
+    if (!(await confirmar(`Tirar ${j.nome} deste evento?`))) return;
     const { error } = await createClient().from("evento_jurados").delete().eq("id", j.vinculoId);
     if (error) onErro(error.message); else router.refresh();
   };

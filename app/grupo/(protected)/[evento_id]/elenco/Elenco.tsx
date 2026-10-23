@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Mail, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { FileSignature, Loader2, Mail, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
 import { cpfValido, formatarCpf, idadeEm } from "@/lib/documentos";
 import { maiuscula, nomeFuncao, perfilPorSlug } from "@/lib/perfis";
 import type { IntegranteElenco } from "@/lib/grupo/contexto";
 import { Cartao, Selo, Vazio } from "../../../_components/ui";
+import { confirmar } from "@/app/_components/Dialogos";
 
 const campo = "w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold";
 
@@ -15,7 +16,7 @@ async function chamar(corpo: Record<string, unknown>) {
   const res = await fetch(apiUrl("/api/grupo/elenco"), {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo),
   });
-  const json = (await res.json().catch(() => ({}))) as { error?: string; existe?: boolean; jaTinhaCadastro?: boolean; emailEnviado?: boolean; emailMascarado?: string | null };
+  const json = (await res.json().catch(() => ({}))) as { error?: string; existe?: boolean; jaTinhaCadastro?: boolean; temConta?: boolean; emailEnviado?: boolean; emailMascarado?: string | null };
   if (!res.ok) throw new Error(json.error ?? "Não foi possível concluir.");
   return json;
 }
@@ -68,6 +69,7 @@ function Formulario({ perfilSlug, eventoId, editando, onFechar, onFeito }: {
         const r = await chamar({ acao: "adicionar", evento_id: eventoId, ...f });
         onFeito(r.jaTinhaCadastro
           ? "Esta pessoa já tinha cadastro no ARXUM Fest. Enviamos o convite para o e-mail que ela cadastrou; os dados aparecem aqui quando ela confirmar."
+          : r.temConta ? `Este e-mail já é de uma conta do ARXUM Fest: ligamos o cadastro a essa pessoa. Ela recebe em ${f.email} o link para confirmar e assinar o termo.`
           : r.emailEnviado ? `Cadastro feito. A pessoa recebe em ${f.email} o link para confirmar o cadastro e assinar o termo.` : "Cadastrado(a), mas o e-mail não pôde ser enviado agora. Use “Reenviar convite” em instantes.");
       }
     } catch (err) {
@@ -168,6 +170,19 @@ export function Elenco({ eventoId, perfilSlug, integrantes, dataEvento , podeRem
     setOcupado(null);
   };
 
+  // Diretor: manda o link de assinatura dos documentos deste festival para quem está no elenco e ainda não assinou
+  const pedirAssinaturas = async () => {
+    if (!(await confirmar({ titulo: "Pedir assinaturas", mensagem: "Enviar por e-mail o link para assinar os documentos deste festival (uso de imagem e, para menores, a autorização do responsável) a quem está no elenco das apresentações e ainda não assinou?", botao: "Enviar" }))) return;
+    setOcupado("assinaturas");
+    setAviso(null);
+    const res = await fetch(apiUrl("/api/assinaturas"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ acao: "pedir", evento_id: eventoId }) });
+    const json = (await res.json().catch(() => ({}))) as { enviados?: number; semEmail?: number; error?: string };
+    setAviso(res.ok
+      ? { ok: true, texto: json.enviados ? `${json.enviados} e-mail(s) enviado(s).${json.semEmail ? ` ${json.semEmail} pessoa(s) sem e-mail.` : ""}` : "Ninguém com assinatura pendente neste festival (ou a produção ainda não publicou os documentos)." }
+      : { ok: false, texto: json.error ?? "Não foi possível enviar." });
+    setOcupado(null);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -177,10 +192,18 @@ export function Elenco({ eventoId, perfilSlug, integrantes, dataEvento , podeRem
             Vale para todos os festivais do grupo. Cada pessoa recebe um e-mail para confirmar a participação e assinar o termo (menores, com o responsável).
           </p>
         </div>
-        <button type="button" onClick={() => setForm({ editando: null })}
-          className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2.5 text-sm font-semibold text-black">
-          <Plus size={15} /> Adicionar pessoa
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {podeRemover && (
+            <button type="button" onClick={pedirAssinaturas} disabled={ocupado === "assinaturas"}
+              className="inline-flex items-center gap-2 rounded-lg border border-axon-border px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 disabled:opacity-50">
+              <FileSignature size={15} /> Pedir assinaturas
+            </button>
+          )}
+          <button type="button" onClick={() => setForm({ editando: null })}
+            className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2.5 text-sm font-semibold text-black">
+            <Plus size={15} /> Adicionar pessoa
+          </button>
+        </div>
       </div>
 
       {aviso && <p className={`rounded-lg border px-4 py-3 text-sm ${aviso.ok ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-red-400/30 bg-red-400/10 text-red-200"}`}>{aviso.texto}</p>}
@@ -226,7 +249,7 @@ export function Elenco({ eventoId, perfilSlug, integrantes, dataEvento , podeRem
                       <button type="button" onClick={() => setForm({ editando: p })} title="Editar" className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"><Pencil size={14} /></button>
                     )}
                     {podeRemover && <button type="button" disabled={ocupado === p.vinculo_id} title="Remover do grupo"
-                      onClick={() => window.confirm("Remover esta pessoa do grupo? Ela também sai das apresentações com inscrições abertas.") && acao(p, { acao: "remover" }, "Removido(a) do grupo.")}
+                      onClick={async () => (await confirmar("Remover esta pessoa do grupo? Ela também sai das apresentações com inscrições abertas.")) && acao(p, { acao: "remover" }, "Removido(a) do grupo.")}
                       className="rounded-lg p-2 text-gray-400 hover:bg-red-400/10 hover:text-red-300">
                       {ocupado === p.vinculo_id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                     </button>}

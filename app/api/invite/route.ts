@@ -24,6 +24,7 @@ interface Corpo {
   action?: Acao;
   email?: string;
   role?: string;
+  setor_pdv?: string | null;
   password?: string;
   userId?: string;
   grupo_id?: string | null;
@@ -35,6 +36,9 @@ interface Corpo {
   especialidade?: string | null;
   ativo?: boolean;
 }
+
+// Operador trabalha num setor do PDV só (caixa OU bilheteria); os outros cargos não têm setor
+const setorDe = (role: string, setor: string | null | undefined) => (role === "operador" ? (setor === "bilheteria" ? "bilheteria" : "caixa") : null);
 
 function erro(mensagem: string, status: number) {
   return NextResponse.json({ error: mensagem }, { status });
@@ -333,7 +337,7 @@ export async function POST(req: NextRequest) {
       const alvo = await carregarAlvo(admin, caller, body.userId);
       if (alvo instanceof NextResponse) return alvo;
 
-      const { error: updateError } = await admin.from("usuarios").update({ role: body.role }).eq("id", alvo.id);
+      const { error: updateError } = await admin.from("usuarios").update({ role: body.role, setor_pdv: setorDe(body.role, body.setor_pdv) }).eq("id", alvo.id);
       if (updateError) return erro(updateError.message, 400);
       return NextResponse.json({ success: true });
     }
@@ -426,6 +430,7 @@ export async function POST(req: NextRequest) {
         id: newUserId,
         email,
         role,
+        setor_pdv: setorDe(role, body.setor_pdv),
         organizacao_id: grupoId, // coluna física no banco é 'organizacao_id'
         ativo: true,
         produtora_id: produtoraId,

@@ -15,7 +15,7 @@ export async function exigirArea(
   if (!usuario) redirect(opcoes.login);
 
   if (!rolesPermitidas.includes(usuario.role)) {
-    const destino = destinoPorRole(usuario.role);
+    const destino = destinoPorRole(usuario.role, usuario.setor_pdv);
     if (destino.startsWith(opcoes.area)) redirect(`${opcoes.login}?erro=sem-acesso`);
     redirect(destino);
   }
@@ -27,6 +27,6 @@ export async function exigirArea(
 export async function exigirAcesso(area: Area): Promise<UsuarioAtual> {
   const usuario = await getUsuarioAtual();
   if (!usuario) redirect("/login");
-  if (!pode(usuario.role, area)) redirect(inicioDe(usuario.role));
+  if (!pode(usuario.role, area)) redirect(inicioDe(usuario.role, usuario.setor_pdv));
   return usuario;
 }

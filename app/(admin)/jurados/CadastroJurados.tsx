@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { Camera, Loader2, Mail, Pencil, Trash2, UserPlus, X } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
 import { mascaraTelefone } from "@/lib/mascaras";
-import { uploadFiles } from "@/utils/uploadthing";
+import { mensagemEnvio, uploadFiles } from "@/utils/uploadthing";
 import type { JuradoEquipe as Membro } from "@/lib/equipe";
+import { confirmar } from "@/app/_components/Dialogos";
 
 const campo = "w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold";
 
@@ -53,7 +54,7 @@ function EditarPerfil({ jurado, onFechar, onSalvo }: { jurado: Membro; onFechar:
       if (!r) throw new Error("Falha no envio da foto.");
       setF((atual) => ({ ...atual, foto_url: r.ufsUrl }));
     } catch (e) {
-      setErro((e as Error).message);
+      setErro(mensagemEnvio(e));
     }
     setEnviandoFoto(false);
   };
@@ -223,7 +224,7 @@ export function CadastroJurados({ jurados, eventos, podeGerir }: {
                       )}
                       {j.origem && <button type="button" onClick={() => executar(j.id, { action: "ativo", ativo: !j.ativo }, j.ativo ? "Acesso desativado." : "Acesso reativado.")}
                         className="rounded-lg px-2 py-1.5 text-xs text-gray-300 hover:bg-white/5">{j.ativo ? "Desativar" : "Reativar"}</button>}
-                      <button type="button" title="Excluir" onClick={() => window.confirm(j.origem ? `Excluir o jurado ${nome}? Se já tiver notas lançadas ou trabalhar com outras produtoras, ele só sai da sua equipe.` : `Tirar ${nome} da sua equipe?`) && executar(j.id, { action: "remove" }, "Jurado excluído.")}
+                      <button type="button" title="Excluir" onClick={async () => (await confirmar(j.origem ? `Excluir o jurado ${nome}? Se já tiver notas lançadas ou trabalhar com outras produtoras, ele só sai da sua equipe.` : `Tirar ${nome} da sua equipe?`)) && executar(j.id, { action: "remove" }, "Jurado excluído.")}
                         className="rounded-lg p-2 text-gray-400 hover:text-red-300"><Trash2 size={14} /></button>
                     </span>
                   )}

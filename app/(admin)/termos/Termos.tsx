@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bold, CheckCircle2, Clock, ExternalLink, Heading2, Italic, List, ListOrdered, Loader2, Search, Trash2, Wand2 } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Loader2, Search, Trash2, Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { BASE_PATH } from "@/lib/base-path";
 import { TIPOS_TERMO, modeloTermo, type TipoTermo } from "@/lib/termos";
+import { confirmar, useAvisoNaoSalvo } from "@/app/_components/Dialogos";
+import { EditorTexto } from "@/app/_components/EditorTexto";
 
 export interface DocumentoTermo {
   id: string;
@@ -26,6 +28,7 @@ export interface Assinatura {
   assinadoEm: string | null;
   menor: boolean;
   responsavel: string | null;
+  documentos: { titulo: string; assinaturaId: string | null }[]; // assinatura eletrônica dos documentos do evento
 }
 
 type Aba = TipoTermo | "assinaturas";
@@ -37,7 +40,7 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
   documento: DocumentoTermo | undefined;
   evento: { id: string; nome: string; slug: string | null };
   produtoraId: string;
-  produtora: { nome: string; documento: string | null };
+  produtora: { nome: string; documento: string | null; cidade: string | null };
   onSalvo: (texto: string) => void;
 }) {
   const info = TIPOS_TERMO.find((t) => t.tipo === tipo)!;
@@ -47,22 +50,15 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
   const [vazio, setVazio] = useState(!documento?.conteudo);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [mexeu, setMexeu] = useState(false);
+  useAvisoNaoSalvo(mexeu);
 
-  // O editor é um contentEditable: o conteúdo inicial entra direto no DOM
-  useEffect(() => {
-    if (editor.current) editor.current.innerHTML = documento?.conteudo ?? "";
-  }, [documento?.conteudo]);
-
-  const comando = (cmd: string, valor?: string) => {
-    document.execCommand(cmd, false, valor);
-    editor.current?.focus();
-  };
-
-  const usarModelo = () => {
+  const usarModelo = async () => {
     if (!editor.current) return;
-    if (editor.current.innerText.trim() && !window.confirm("Substituir o texto atual pelo modelo?")) return;
-    editor.current.innerHTML = modeloTermo(tipo, { festival: evento.nome, produtora: produtora.nome, documento: produtora.documento, cidade: null });
+    if (editor.current.innerText.trim() && !(await confirmar("Substituir o texto atual pelo modelo?"))) return;
+    editor.current.innerHTML = modeloTermo(tipo, { festival: evento.nome, produtora: produtora.nome, documento: produtora.documento, cidade: produtora.cidade });
     setVazio(false);
+    setMexeu(true);
   };
 
   const salvar = async () => {
@@ -81,17 +77,16 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
       : await supabase.from("termos_documentos").insert({ ...dados, tipo, evento_id: evento.id, produtora_id: produtoraId });
     setSalvando(false);
     if (error) return setErro(error.message);
+    setMexeu(false);
     onSalvo(publicado ? "Documento salvo e publicado na página do evento." : "Documento salvo como rascunho (não aparece na página do evento).");
   };
 
   const excluir = async () => {
-    if (!documento || !window.confirm(`Excluir “${documento.titulo}”?`)) return;
+    if (!documento || !(await confirmar(`Excluir “${documento.titulo}”?`))) return;
     const { error } = await createClient().from("termos_documentos").delete().eq("id", documento.id);
     if (error) return setErro(error.message);
     onSalvo("Documento excluído.");
   };
-
-  const botao = "rounded-md p-2 text-gray-300 hover:bg-white/10 hover:text-white";
 
   return (
     <div className="space-y-4">
@@ -101,28 +96,9 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
         <input value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={150}
           className="mt-1.5 w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold" />
       </label>
-      <div className="overflow-hidden rounded-lg border border-axon-border">
-        <div className="flex flex-wrap items-center gap-0.5 border-b border-axon-border bg-axon-bg px-2 py-1.5">
-          <button type="button" title="Título de seção" onClick={() => comando("formatBlock", "<h2>")} className={botao}><Heading2 size={15} /></button>
-          <button type="button" title="Parágrafo" onClick={() => comando("formatBlock", "<p>")} className={`${botao} text-xs font-semibold`}>¶</button>
-          <button type="button" title="Negrito" onClick={() => comando("bold")} className={botao}><Bold size={15} /></button>
-          <button type="button" title="Itálico" onClick={() => comando("italic")} className={botao}><Italic size={15} /></button>
-          <button type="button" title="Lista" onClick={() => comando("insertUnorderedList")} className={botao}><List size={15} /></button>
-          <button type="button" title="Lista numerada" onClick={() => comando("insertOrderedList")} className={botao}><ListOrdered size={15} /></button>
-          <span className="flex-1" />
-          <button type="button" onClick={usarModelo} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-axon-gold hover:bg-axon-gold/10"><Wand2 size={13} /> Usar modelo</button>
-        </div>
-        <div
-          ref={editor}
-          contentEditable
-          suppressContentEditableWarning
-          role="textbox"
-          aria-label={`Texto do ${info.nome}`}
-          aria-multiline
-          onInput={(e) => setVazio(!e.currentTarget.innerText.trim())}
-          className="min-h-[320px] bg-axon-bg/40 px-4 py-3 text-sm leading-relaxed text-gray-200 outline-none [&_h2]:mb-3 [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-white [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5"
-        />
-      </div>
+      <EditorTexto ref={editor} valorInicial={documento?.conteudo ?? ""} rotulo={`Texto do ${info.nome}`} altura="min-h-[320px]"
+        onMudar={(_, v) => { setVazio(v); setMexeu(true); }}
+        acoes={<button type="button" onClick={usarModelo} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-axon-gold hover:bg-axon-gold/10"><Wand2 size={13} /> Usar modelo</button>} />
       {vazio && <p className="text-xs text-gray-500">Escreva o texto ou clique em “Usar modelo”. O modelo já vem com o nome do evento e da produtora; revise os trechos entre colchetes [ ] e adapte ao seu festival.</p>}
       <label className="flex items-center gap-2 text-sm text-gray-200">
         <input type="checkbox" checked={publicado} onChange={(e) => setPublicado(e.target.checked)} className="accent-[#d4af37]" />
@@ -142,8 +118,21 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
   );
 }
 
-function Assinaturas({ lista }: { lista: Assinatura[] }) {
+function Assinaturas({ lista, eventoId }: { lista: Assinatura[]; eventoId: string }) {
   const [busca, setBusca] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [resultado, setResultado] = useState<string | null>(null);
+  const faltamDocs = lista.filter((a) => a.documentos.some((d) => !d.assinaturaId)).length;
+
+  const pedirAssinaturas = async () => {
+    if (!(await confirmar({ titulo: "Pedir assinaturas", mensagem: `Enviar por e-mail o link de assinatura para as ${faltamDocs} pessoa(s) que ainda não assinaram os documentos deste evento?`, botao: "Enviar" }))) return;
+    setEnviando(true);
+    setResultado(null);
+    const res = await fetch(`${BASE_PATH}/api/assinaturas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ acao: "pedir", evento_id: eventoId }) });
+    const json = (await res.json().catch(() => ({}))) as { enviados?: number; semEmail?: number; error?: string };
+    setEnviando(false);
+    setResultado(res.ok ? `${json.enviados ?? 0} e-mail(s) enviado(s).${json.semEmail ? ` ${json.semEmail} pessoa(s) sem e-mail cadastrado.` : ""}` : json.error ?? "Não foi possível enviar.");
+  };
   const termo = busca.trim().toLowerCase();
   const filtrados = termo ? lista.filter((a) => a.nome.toLowerCase().includes(termo) || a.grupo.toLowerCase().includes(termo)) : lista;
   const assinados = lista.filter((a) => a.assinado).length;
@@ -151,9 +140,18 @@ function Assinaturas({ lista }: { lista: Assinatura[] }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-400">
-        Pessoas no elenco das apresentações deste evento e se já aceitaram o termo de participação (pelo link que recebem por e-mail quando o grupo as cadastra).
-        O texto desse termo fica em <Link href="/configuracoes" className="text-axon-gold hover:underline">Configurações</Link>.
+        Pessoas no elenco das apresentações deste evento: o termo de participação (aceito pelo link que recebem quando o grupo as cadastra; o texto fica em{" "}
+        <Link href="/configuracoes" className="text-axon-gold hover:underline">Configurações</Link>) e a assinatura eletrônica dos documentos publicados aqui (uso de imagem e, para menores, a autorização do responsável).
       </p>
+      {faltamDocs > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-axon-border bg-axon-bg px-4 py-3">
+          <p className="flex-1 text-sm text-gray-300">{faltamDocs} pessoa(s) ainda não assinaram os documentos do evento.</p>
+          <button type="button" onClick={pedirAssinaturas} disabled={enviando} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-3 py-2 text-sm font-semibold text-black disabled:opacity-50">
+            {enviando && <Loader2 size={14} className="animate-spin" />} Enviar pedidos de assinatura
+          </button>
+          {resultado && <p className="basis-full text-xs text-gray-400">{resultado}</p>}
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3">
         {[
           { rotulo: "No elenco", valor: lista.length, cor: "text-white" },
@@ -181,6 +179,13 @@ function Assinaturas({ lista }: { lista: Assinatura[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-white">{a.nome}{a.menor && <span className="ml-2 text-xs text-gray-500">menor de idade</span>}</p>
                   <p className="text-xs text-gray-500">{a.grupo}{a.assinado && a.menor && a.responsavel ? ` · responsável: ${a.responsavel}` : ""}</p>
+                  {a.documentos.length > 0 && (
+                    <p className="mt-1 flex flex-wrap gap-1.5">
+                      {a.documentos.map((d) => d.assinaturaId
+                        ? <a key={d.titulo} href={`${BASE_PATH}/assinatura/${d.assinaturaId}`} target="_blank" rel="noreferrer" className="rounded-full border border-emerald-400/30 px-2 py-0.5 text-[11px] text-emerald-300 hover:underline">{d.titulo} ✓</a>
+                        : <span key={d.titulo} className="rounded-full border border-amber-400/30 px-2 py-0.5 text-[11px] text-amber-300">{d.titulo}: falta assinar</span>)}
+                    </p>
+                  )}
                 </div>
                 {a.assinado ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-xs text-emerald-300">
@@ -202,7 +207,7 @@ export function Termos({ eventos, evento, produtoraId, produtora, documentos, as
   eventos: { id: string; nome: string }[];
   evento: { id: string; nome: string; slug: string | null };
   produtoraId: string;
-  produtora: { nome: string; documento: string | null };
+  produtora: { nome: string; documento: string | null; cidade: string | null };
   documentos: DocumentoTermo[];
   assinaturas: Assinatura[];
 }) {
@@ -238,7 +243,7 @@ export function Termos({ eventos, evento, produtoraId, produtora, documentos, as
         </div>
         <div className="p-5">
           {aba === "assinaturas" ? (
-            <Assinaturas lista={assinaturas} />
+            <Assinaturas lista={assinaturas} eventoId={evento.id} />
           ) : (
             <Editor key={`${evento.id}-${aba}`} tipo={aba} documento={doc(aba)} evento={evento} produtoraId={produtoraId} produtora={produtora}
               onSalvo={(texto) => { setAviso(texto); router.refresh(); }} />
