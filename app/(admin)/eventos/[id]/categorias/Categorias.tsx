@@ -234,11 +234,11 @@ export function Categorias({ eventoId, produtoraId, perfilSlug, categorias, usos
       <Cartao titulo="Categorias" descricao={`Os ${perfil.termos.grupo.plural} escolhem uma categoria (ou subcategoria) e a formação ao inscrever cada ${perfil.termos.apresentacao.singular}. A taxa vem daqui.`}
         acao={podeGerir ? <button type="button" onClick={() => setForm({ categoria: null, pai: null })} className="inline-flex items-center gap-1.5 rounded-lg bg-axon-gold px-3 py-2 text-sm font-semibold text-black"><Plus size={14} /> Nova categoria principal</button> : undefined}>
         {podeGerir && (
-          <ol className="mx-5 mt-4 list-decimal space-y-1 rounded-lg border border-axon-border bg-axon-bg py-3 pl-9 pr-4 text-xs text-gray-400">
-            <li>Crie primeiro as <strong className="text-gray-200">categorias principais</strong> (ex.: Jazz, Ballet, Danças Urbanas).</li>
-            <li>Se quiser dividir por idade ou nível, clique em <strong className="text-axon-gold">+ Subcategoria</strong> na linha da principal (ex.: Jazz › Infantil, Jazz › Adulto).</li>
-            <li>Principal sem subcategoria recebe as inscrições direto; com subcategorias, os grupos escolhem a subcategoria.</li>
-          </ol>
+          <div className="mx-5 mt-4 space-y-1 rounded-lg border border-axon-border bg-axon-bg px-4 py-3 text-xs text-gray-400">
+            <p>1. Crie primeiro as <strong className="text-gray-200">categorias principais</strong> (ex.: Jazz, Ballet, Danças Urbanas).</p>
+            <p>2. Se quiser dividir por idade ou nível, clique em <strong className="text-axon-gold">+ Subcategoria</strong> na linha da principal (ex.: Jazz › Infantil, Jazz › Adulto).</p>
+            <p>3. Principal sem subcategoria recebe as inscrições direto; com subcategorias, os grupos escolhem a subcategoria.</p>
+          </div>
         )}
         {principais.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-gray-400">Nenhuma categoria ainda. Crie as categorias (ex.: Jazz, Ballet) e, se quiser, subcategorias por idade.</p>

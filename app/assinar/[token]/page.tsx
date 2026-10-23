@@ -29,17 +29,18 @@ export default function AssinarDocumentos({ params }: { params: Promise<{ token:
   const [f, setF] = useState({ nome: "", cpf: "", parentesco: "", aceite: false });
   const [enviando, setEnviando] = useState(false);
 
-  const carregar = async () => {
-    try {
-      const d = (await chamar({ acao: "carregar", token })) as Dados;
+  const carregar = () => chamar({ acao: "carregar", token }).then((r) => {
+    const d = r as Dados;
+    setDados(d);
+    setF((x) => ({ ...x, nome: d.participante.menor && !x.nome ? d.participante.responsavel_nome : x.nome, parentesco: x.parentesco || d.participante.responsavel_parentesco }));
+  }, (e: Error) => setErro(e.message));
+  useEffect(() => {
+    chamar({ acao: "carregar", token }).then((r) => {
+      const d = r as Dados;
       setDados(d);
-      setF((x) => ({ ...x, nome: d.participante.menor ? d.participante.responsavel_nome : x.nome, parentesco: d.participante.responsavel_parentesco }));
-    } catch (e) {
-      setErro((e as Error).message);
-    }
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void carregar(); }, []);
+      setF((x) => ({ ...x, nome: d.participante.menor ? d.participante.responsavel_nome : "", parentesco: d.participante.responsavel_parentesco }));
+    }, (e: Error) => setErro(e.message));
+  }, [token]);
 
   const assinar = async (e: React.FormEvent) => {
     e.preventDefault();

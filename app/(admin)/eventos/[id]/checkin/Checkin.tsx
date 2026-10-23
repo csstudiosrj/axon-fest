@@ -21,10 +21,15 @@ export interface ApresentacaoCheckin {
 export function Checkin({ apresentacoes, destaque, termoApresentacao }: { apresentacoes: ApresentacaoCheckin[]; destaque: string | null; termoApresentacao: string }) {
   const router = useRouter();
   const [lista, setLista] = useState(apresentacoes);
+  // Dados novos do servidor (router.refresh) substituem a lista local
+  const [base, setBase] = useState(apresentacoes);
+  if (base !== apresentacoes) {
+    setBase(apresentacoes);
+    setLista(apresentacoes);
+  }
   const [busca, setBusca] = useState("");
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  useEffect(() => setLista(apresentacoes), [apresentacoes]);
   useEffect(() => {
     if (destaque) document.getElementById(`ap-${destaque}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [destaque]);
