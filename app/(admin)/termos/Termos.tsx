@@ -28,6 +28,7 @@ export interface Assinatura {
   assinadoEm: string | null;
   menor: boolean;
   responsavel: string | null;
+  documentos: { titulo: string; assinaturaId: string | null }[]; // assinatura eletrônica dos documentos do evento
 }
 
 type Aba = TipoTermo | "assinaturas";
@@ -117,8 +118,21 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
   );
 }
 
-function Assinaturas({ lista }: { lista: Assinatura[] }) {
+function Assinaturas({ lista, eventoId }: { lista: Assinatura[]; eventoId: string }) {
   const [busca, setBusca] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [resultado, setResultado] = useState<string | null>(null);
+  const faltamDocs = lista.filter((a) => a.documentos.some((d) => !d.assinaturaId)).length;
+
+  const pedirAssinaturas = async () => {
+    if (!(await confirmar({ titulo: "Pedir assinaturas", mensagem: `Enviar por e-mail o link de assinatura para as ${faltamDocs} pessoa(s) que ainda não assinaram os documentos deste evento?`, botao: "Enviar" }))) return;
+    setEnviando(true);
+    setResultado(null);
+    const res = await fetch(`${BASE_PATH}/api/assinaturas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ acao: "pedir", evento_id: eventoId }) });
+    const json = (await res.json().catch(() => ({}))) as { enviados?: number; semEmail?: number; error?: string };
+    setEnviando(false);
+    setResultado(res.ok ? `${json.enviados ?? 0} e-mail(s) enviado(s).${json.semEmail ? ` ${json.semEmail} pessoa(s) sem e-mail cadastrado.` : ""}` : json.error ?? "Não foi possível enviar.");
+  };
   const termo = busca.trim().toLowerCase();
   const filtrados = termo ? lista.filter((a) => a.nome.toLowerCase().includes(termo) || a.grupo.toLowerCase().includes(termo)) : lista;
   const assinados = lista.filter((a) => a.assinado).length;
@@ -126,9 +140,18 @@ function Assinaturas({ lista }: { lista: Assinatura[] }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-400">
-        Pessoas no elenco das apresentações deste evento e se já aceitaram o termo de participação (pelo link que recebem por e-mail quando o grupo as cadastra).
-        O texto desse termo fica em <Link href="/configuracoes" className="text-axon-gold hover:underline">Configurações</Link>.
+        Pessoas no elenco das apresentações deste evento: o termo de participação (aceito pelo link que recebem quando o grupo as cadastra; o texto fica em{" "}
+        <Link href="/configuracoes" className="text-axon-gold hover:underline">Configurações</Link>) e a assinatura eletrônica dos documentos publicados aqui (uso de imagem e, para menores, a autorização do responsável).
       </p>
+      {faltamDocs > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-axon-border bg-axon-bg px-4 py-3">
+          <p className="flex-1 text-sm text-gray-300">{faltamDocs} pessoa(s) ainda não assinaram os documentos do evento.</p>
+          <button type="button" onClick={pedirAssinaturas} disabled={enviando} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-3 py-2 text-sm font-semibold text-black disabled:opacity-50">
+            {enviando && <Loader2 size={14} className="animate-spin" />} Enviar pedidos de assinatura
+          </button>
+          {resultado && <p className="basis-full text-xs text-gray-400">{resultado}</p>}
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3">
         {[
           { rotulo: "No elenco", valor: lista.length, cor: "text-white" },
@@ -156,6 +179,13 @@ function Assinaturas({ lista }: { lista: Assinatura[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-white">{a.nome}{a.menor && <span className="ml-2 text-xs text-gray-500">menor de idade</span>}</p>
                   <p className="text-xs text-gray-500">{a.grupo}{a.assinado && a.menor && a.responsavel ? ` · responsável: ${a.responsavel}` : ""}</p>
+                  {a.documentos.length > 0 && (
+                    <p className="mt-1 flex flex-wrap gap-1.5">
+                      {a.documentos.map((d) => d.assinaturaId
+                        ? <a key={d.titulo} href={`${BASE_PATH}/assinatura/${d.assinaturaId}`} target="_blank" rel="noreferrer" className="rounded-full border border-emerald-400/30 px-2 py-0.5 text-[11px] text-emerald-300 hover:underline">{d.titulo} ✓</a>
+                        : <span key={d.titulo} className="rounded-full border border-amber-400/30 px-2 py-0.5 text-[11px] text-amber-300">{d.titulo}: falta assinar</span>)}
+                    </p>
+                  )}
                 </div>
                 {a.assinado ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-xs text-emerald-300">
@@ -213,7 +243,7 @@ export function Termos({ eventos, evento, produtoraId, produtora, documentos, as
         </div>
         <div className="p-5">
           {aba === "assinaturas" ? (
-            <Assinaturas lista={assinaturas} />
+            <Assinaturas lista={assinaturas} eventoId={evento.id} />
           ) : (
             <Editor key={`${evento.id}-${aba}`} tipo={aba} documento={doc(aba)} evento={evento} produtoraId={produtoraId} produtora={produtora}
               onSalvo={(texto) => { setAviso(texto); router.refresh(); }} />

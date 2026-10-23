@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { idadeEm } from "@/lib/documentos";
 import { mascaraCpfCnpj } from "@/lib/mascaras";
 import { cidadeUf } from "@/lib/termos";
+import { TIPOS_ASSINAVEIS } from "@/lib/assinaturas";
 import { Termos, type Assinatura, type DocumentoTermo } from "./Termos";
 
 export const dynamic = "force-dynamic";
@@ -30,13 +31,16 @@ export default async function PaginaTermos({ searchParams }: { searchParams: Pro
   }
 
   const evento = eventos.find((e) => e.id === params.evento) ?? eventos[0];
-  const [{ data: docs }, { data: produtora }, { data: aps }] = await Promise.all([
+  const [{ data: docs }, { data: produtora }, { data: aps }, { data: feitas }] = await Promise.all([
     supabase.from("termos_documentos").select("id, tipo, titulo, conteudo, ativo, versao, atualizado_em").eq("evento_id", evento.id),
     supabase.from("produtoras").select("nome, documento, cidade, estado").eq("id", usuario.produtora_id).maybeSingle(),
     supabase.from("apresentacoes")
       .select("grupos ( nome ), apresentacao_elenco ( participantes ( id, nome, data_nascimento, termo_assinado, termo_assinado_em, responsavel_nome ) )")
       .eq("evento_id", evento.id),
+    supabase.from("assinaturas_documentos").select("id, documento_id, participante_id, versao").eq("evento_id", evento.id),
   ]);
+  // Documentos que cada pessoa assina online (uso de imagem; autorização só para menores)
+  const assinaveis = (docs ?? []).filter((d) => d.ativo && (TIPOS_ASSINAVEIS as readonly string[]).includes(d.tipo));
 
   // Cada pessoa do elenco do evento, uma vez só
   const porId = new Map<string, Assinatura>();
@@ -48,6 +52,10 @@ export default async function PaginaTermos({ searchParams }: { searchParams: Pro
       porId.set(p.id, {
         id: p.id, nome: p.nome, grupo: ap.grupos?.nome ?? "—", assinado: !!p.termo_assinado,
         assinadoEm: p.termo_assinado_em, menor: idade !== null && idade < 18, responsavel: p.responsavel_nome,
+        documentos: assinaveis.filter((d) => d.tipo !== "autorizacao_menores" || (idade !== null && idade < 18)).map((d) => ({
+          titulo: d.titulo,
+          assinaturaId: (feitas ?? []).find((f) => f.participante_id === p.id && f.documento_id === d.id && f.versao === d.versao)?.id ?? null,
+        })),
       });
     }
   }

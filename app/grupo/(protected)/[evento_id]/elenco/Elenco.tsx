@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Mail, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { FileSignature, Loader2, Mail, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
 import { cpfValido, formatarCpf, idadeEm } from "@/lib/documentos";
 import { maiuscula, nomeFuncao, perfilPorSlug } from "@/lib/perfis";
@@ -170,6 +170,19 @@ export function Elenco({ eventoId, perfilSlug, integrantes, dataEvento , podeRem
     setOcupado(null);
   };
 
+  // Diretor: manda o link de assinatura dos documentos deste festival para quem está no elenco e ainda não assinou
+  const pedirAssinaturas = async () => {
+    if (!(await confirmar({ titulo: "Pedir assinaturas", mensagem: "Enviar por e-mail o link para assinar os documentos deste festival (uso de imagem e, para menores, a autorização do responsável) a quem está no elenco das apresentações e ainda não assinou?", botao: "Enviar" }))) return;
+    setOcupado("assinaturas");
+    setAviso(null);
+    const res = await fetch(apiUrl("/api/assinaturas"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ acao: "pedir", evento_id: eventoId }) });
+    const json = (await res.json().catch(() => ({}))) as { enviados?: number; semEmail?: number; error?: string };
+    setAviso(res.ok
+      ? { ok: true, texto: json.enviados ? `${json.enviados} e-mail(s) enviado(s).${json.semEmail ? ` ${json.semEmail} pessoa(s) sem e-mail.` : ""}` : "Ninguém com assinatura pendente neste festival (ou a produção ainda não publicou os documentos)." }
+      : { ok: false, texto: json.error ?? "Não foi possível enviar." });
+    setOcupado(null);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -179,10 +192,18 @@ export function Elenco({ eventoId, perfilSlug, integrantes, dataEvento , podeRem
             Vale para todos os festivais do grupo. Cada pessoa recebe um e-mail para confirmar a participação e assinar o termo (menores, com o responsável).
           </p>
         </div>
-        <button type="button" onClick={() => setForm({ editando: null })}
-          className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2.5 text-sm font-semibold text-black">
-          <Plus size={15} /> Adicionar pessoa
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {podeRemover && (
+            <button type="button" onClick={pedirAssinaturas} disabled={ocupado === "assinaturas"}
+              className="inline-flex items-center gap-2 rounded-lg border border-axon-border px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 disabled:opacity-50">
+              <FileSignature size={15} /> Pedir assinaturas
+            </button>
+          )}
+          <button type="button" onClick={() => setForm({ editando: null })}
+            className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2.5 text-sm font-semibold text-black">
+            <Plus size={15} /> Adicionar pessoa
+          </button>
+        </div>
       </div>
 
       {aviso && <p className={`rounded-lg border px-4 py-3 text-sm ${aviso.ok ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-red-400/30 bg-red-400/10 text-red-200"}`}>{aviso.texto}</p>}

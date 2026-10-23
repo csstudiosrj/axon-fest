@@ -16,7 +16,7 @@ import {
   Users,
   CalendarCheck,
 } from "lucide-react";
-import { apiUrl } from "@/lib/base-path";
+import { apiUrl, BASE_PATH } from "@/lib/base-path";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -90,6 +90,7 @@ export default function ConfirmarParticipacaoPage() {
 
   // ── passo do fluxo: 1 = Confirmação de Presença | 2 = Termo/Assinatura | 3 = Sucesso
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [linkAssinar, setLinkAssinar] = useState<string | null>(null);
 
   // ── máquina de estados do menor de idade
   const [mostraFormResponsavel, setMostraFormResponsavel] = useState(false);
@@ -212,6 +213,7 @@ export default function ConfirmarParticipacaoPage() {
         setErro(json.error ?? "Erro ao registrar assinatura.");
         return;
       }
+      setLinkAssinar(json.assinar ?? null);
       setStep(3);
     } catch {
       setErro("Erro de conexão. Tente novamente.");
@@ -254,6 +256,7 @@ export default function ConfirmarParticipacaoPage() {
         setErro(json.error ?? "Erro ao registrar responsável.");
         return;
       }
+      setLinkAssinar(json.assinar ?? null);
       setStep(3);
     } catch {
       setErro("Erro de conexão. Tente novamente.");
@@ -357,6 +360,11 @@ export default function ConfirmarParticipacaoPage() {
             foi registrado com sucesso. Nos vemos no{" "}
             <span className="text-zinc-100 font-medium">{grupo.nome}</span>!
           </p>
+          {linkAssinar && (
+            <a href={`${BASE_PATH}${linkAssinar}`} className="mt-2 rounded-xl bg-axon-gold px-5 py-3 text-sm font-bold text-black">
+              Assinar as autorizações do festival
+            </a>
+          )}
         </div>
       </div>
     );

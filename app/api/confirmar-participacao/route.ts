@@ -3,6 +3,21 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { urlAbsoluta } from "@/lib/base-path";
 import { emailComBotao, enviarEmail, escapeHtml } from "@/lib/email";
 import { termoParticipacaoBase } from "@/lib/termos";
+import { documentosDoParticipante } from "@/lib/assinaturas";
+
+// Depois do termo: se a pessoa está no elenco de algum festival com documentos
+// para assinar (uso de imagem, autorização de menores), já devolve o link
+async function linkAssinaturaPendente(supabase: ReturnType<typeof createAdminClient>, participanteId: string): Promise<string | null> {
+  const { data: elenco } = await supabase.from("apresentacao_elenco").select("apresentacoes ( evento_id )").eq("participante_id", participanteId);
+  const eventos = [...new Set((elenco ?? []).map((e) => (Array.isArray(e.apresentacoes) ? e.apresentacoes[0] : e.apresentacoes)?.evento_id).filter(Boolean) as string[])];
+  for (const eventoId of eventos) {
+    const info = await documentosDoParticipante(supabase, participanteId, eventoId);
+    if (!info || info.documentos.every((d) => d.assinaturaId)) continue;
+    const { data } = await supabase.from("pedidos_assinatura").insert({ participante_id: participanteId, evento_id: eventoId }).select("token").single();
+    if (data) return `/assinar/${data.token}`;
+  }
+  return null;
+}
 
 // Rota pública: o acesso é autorizado só pelo token do vínculo (UUID aleatório
 // enviado por e-mail). Por isso nada além do necessário é devolvido ao navegador.
@@ -235,7 +250,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      return NextResponse.json({ success: true });
+      const assinar = await linkAssinaturaPendente(supabase, participante.id).catch(() => null);
+      return NextResponse.json({ success: true, assinar });
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -323,7 +339,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      return NextResponse.json({ success: true });
+      const assinar = await linkAssinaturaPendente(supabase, participante.id).catch(() => null);
+      return NextResponse.json({ success: true, assinar });
     }
 
     // ══════════════════════════════════════════════════════════════════════════

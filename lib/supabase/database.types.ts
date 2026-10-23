@@ -119,6 +119,38 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"assinaturas_documentos": {
+                  Row: {
+                    "assinado_em": string,"assinante_cpf": string,"assinante_nome": string,"assinante_papel": string,"conteudo_hash": string,"documento_id": string,"evento_id": string,"id": string,"ip": string | null,"parentesco": string | null,"participante_id": string,"user_agent": string | null,"versao": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "assinado_em"?: string,"assinante_cpf": string,"assinante_nome": string,"assinante_papel": string,"conteudo_hash": string,"documento_id": string,"evento_id": string,"id"?: string,"ip"?: string | null,"parentesco"?: string | null,"participante_id": string,"user_agent"?: string | null,"versao": number
+                  }
+                  Update: {
+                    "assinado_em"?: string,"assinante_cpf"?: string,"assinante_nome"?: string,"assinante_papel"?: string,"conteudo_hash"?: string,"documento_id"?: string,"evento_id"?: string,"id"?: string,"ip"?: string | null,"parentesco"?: string | null,"participante_id"?: string,"user_agent"?: string | null,"versao"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "assinaturas_documentos_documento_id_fkey"
+      columns: ["documento_id"]
+isOneToOne: false
+      referencedRelation: "termos_documentos"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "assinaturas_documentos_evento_id_fkey"
+      columns: ["evento_id"]
+isOneToOne: false
+      referencedRelation: "eventos"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "assinaturas_documentos_participante_id_fkey"
+      columns: ["participante_id"]
+isOneToOne: false
+      referencedRelation: "participantes"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"avaliacoes": {
                   Row: {
                     "apresentacao_id": string | null,"atualizado_em": string,"avaliador_id": string | null,"created_at": string | null,"criterio_id": string | null,"evento_id": string | null,"id": string,"nota": number,"produtora_id": string | null,"sincronizado": boolean | null
@@ -242,6 +274,102 @@ isOneToOne: false
       columns: ["produtora_id"]
 isOneToOne: false
       referencedRelation: "produtoras"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"certificado_modelos": {
+                  Row: {
+                    "assinaturas": NonNullable<Json>,"atualizado_em": string,"cor": string,"evento_id": string,"fundo_url": string | null,"liberado": boolean,"texto": string,"titulo": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "assinaturas"?: NonNullable<Json>,"atualizado_em"?: string,"cor"?: string,"evento_id": string,"fundo_url"?: string | null,"liberado"?: boolean,"texto": string,"titulo"?: string
+                  }
+                  Update: {
+                    "assinaturas"?: NonNullable<Json>,"atualizado_em"?: string,"cor"?: string,"evento_id"?: string,"fundo_url"?: string | null,"liberado"?: boolean,"texto"?: string,"titulo"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "certificado_modelos_evento_id_fkey"
+      columns: ["evento_id"]
+isOneToOne: true
+      referencedRelation: "eventos"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"certificados": {
+                  Row: {
+                    "apresentacao_id": string,"codigo": string,"emitido_em": string,"evento_id": string,"id": string,"participante_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "apresentacao_id": string,"codigo": string,"emitido_em"?: string,"evento_id": string,"id"?: string,"participante_id": string
+                  }
+                  Update: {
+                    "apresentacao_id"?: string,"codigo"?: string,"emitido_em"?: string,"evento_id"?: string,"id"?: string,"participante_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "certificados_apresentacao_id_fkey"
+      columns: ["apresentacao_id"]
+isOneToOne: false
+      referencedRelation: "apresentacoes"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "certificados_evento_id_fkey"
+      columns: ["evento_id"]
+isOneToOne: false
+      referencedRelation: "eventos"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "certificados_participante_id_fkey"
+      columns: ["participante_id"]
+isOneToOne: false
+      referencedRelation: "participantes"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"checkins": {
+                  Row: {
+                    "apresentacao_id": string,"evento_id": string,"feito_em": string,"feito_por": string | null,"id": string,"participante_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "apresentacao_id": string,"evento_id": string,"feito_em"?: string,"feito_por"?: string | null,"id"?: string,"participante_id": string
+                  }
+                  Update: {
+                    "apresentacao_id"?: string,"evento_id"?: string,"feito_em"?: string,"feito_por"?: string | null,"id"?: string,"participante_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "checkins_apresentacao_id_fkey"
+      columns: ["apresentacao_id"]
+isOneToOne: false
+      referencedRelation: "apresentacoes"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "checkins_evento_id_fkey"
+      columns: ["evento_id"]
+isOneToOne: false
+      referencedRelation: "eventos"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "checkins_feito_por_fkey"
+      columns: ["feito_por"]
+isOneToOne: false
+      referencedRelation: "jurados_publicos"
+      referencedColumns: ["jurado_id"]
+    },{
+      foreignKeyName: "checkins_feito_por_fkey"
+      columns: ["feito_por"]
+isOneToOne: false
+      referencedRelation: "usuarios"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "checkins_participante_id_fkey"
+      columns: ["participante_id"]
+isOneToOne: false
+      referencedRelation: "participantes"
       referencedColumns: ["id"]
     }
                   ]
@@ -720,6 +848,32 @@ isOneToOne: false
       columns: ["variacao_id"]
 isOneToOne: false
       referencedRelation: "produto_variacoes"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"pedidos_assinatura": {
+                  Row: {
+                    "criado_em": string,"evento_id": string,"expira_em": string,"id": string,"participante_id": string,"token": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "criado_em"?: string,"evento_id": string,"expira_em"?: string,"id"?: string,"participante_id": string,"token"?: string
+                  }
+                  Update: {
+                    "criado_em"?: string,"evento_id"?: string,"expira_em"?: string,"id"?: string,"participante_id"?: string,"token"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "pedidos_assinatura_evento_id_fkey"
+      columns: ["evento_id"]
+isOneToOne: false
+      referencedRelation: "eventos"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pedidos_assinatura_participante_id_fkey"
+      columns: ["participante_id"]
+isOneToOne: false
+      referencedRelation: "participantes"
       referencedColumns: ["id"]
     }
                   ]
