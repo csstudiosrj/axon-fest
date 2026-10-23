@@ -8,7 +8,7 @@ import {
 
 const ETAPAS = [
   { n: "01", titulo: "Monte o evento", texto: "Categorias por estilo, faixa etária e formação, locais, valores, critérios de avaliação e regulamento." },
-  { n: "02", titulo: "Publique a página", texto: "Página do festival com a sua marca: cores, logo, tipografia e a terminologia que o seu público usa." },
+  { n: "02", titulo: "Publique a página", texto: "Página do festival com a sua marca: cores, logo, tipografia e o vocabulário do seu tipo de festival." },
   { n: "03", titulo: "Receba as inscrições", texto: "Grupos cadastram elenco e apresentações, enviam trilhas e mapas de luz; participantes assinam os termos." },
   { n: "04", titulo: "Execute e apure", texto: "Ordem de apresentação, caixa e bilheteria no celular, notas dos jurados e classificação por categoria." },
 ];

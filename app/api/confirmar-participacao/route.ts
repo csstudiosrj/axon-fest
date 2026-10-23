@@ -105,7 +105,8 @@ export async function POST(request: NextRequest) {
         .from("tenant_config")
         .select("termo_participante, termo_legal_texto")
         .eq("produtora_id", grupo.origem_produtora_id)
-        .single();
+        .limit(1)
+        .maybeSingle();
       tenantConfig = config;
     }
 

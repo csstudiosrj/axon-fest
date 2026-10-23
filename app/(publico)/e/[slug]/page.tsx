@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { limparHtml } from "@/lib/termos-html";
 import type { Metadata } from "next";
 import {
   MapPin,
@@ -471,9 +472,9 @@ function AccordionItem({
         />
       </summary>
       <div
-        className={`max-w-none px-6 pt-2 pb-5 text-sm leading-relaxed ${tema.prose}`}
+        className={`max-w-none px-6 pt-2 pb-5 text-sm leading-relaxed [&_h2]:mb-3 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:font-semibold [&_li]:mb-1 [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 ${tema.prose}`}
         style={{ borderTop: `1px solid ${cor}22` }}
-        dangerouslySetInnerHTML={{ __html: conteudo.replace(/\n/g, "<br/>") }}
+        dangerouslySetInnerHTML={{ __html: conteudo }}
       />
     </details>
   );
@@ -813,7 +814,7 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
       ({
         id: termo.id,
         titulo: termo.titulo,
-        conteudo: termo.conteudo,
+        conteudo: limparHtml(termo.conteudo),
         tipo: termo.tipo,
       }) satisfies TermoDocumento
   );
@@ -1274,7 +1275,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
           </div>
         </section>
 
-        {evento.exibir_feed_instagram && (
+        {evento.exibir_feed_instagram && evento.instagram_handle && (
           <section aria-labelledby="secao-instagram">
             <SectionHeader
               titulo="Festival no Instagram"
@@ -1282,12 +1283,12 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
               headingClass={tema.heading}
             />
             <div className={`rounded-2xl border p-6 ${tema.card}`} style={{ borderColor: `${corPrimaria}22` }}>
-              <div className="mb-5 flex items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
                     <Instagram size={16} style={{ color: corPrimaria }} />
                     <p className={`text-sm font-semibold ${tema.heading}`}>
-                      @{evento.instagram_handle || "festival"}
+                      @{evento.instagram_handle}
                     </p>
                   </div>
                   <p className={`mt-1 text-sm ${tema.softText}`}>
@@ -1295,7 +1296,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
                   </p>
                 </div>
                 <a
-                  href={`https://instagram.com/${evento.instagram_handle || "festival"}`}
+                  href={`https://instagram.com/${evento.instagram_handle}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium ${tema.cardSoft}`}
@@ -1305,28 +1306,6 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
                 </a>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                {[1, 2, 3, 4].map((item) => (
-                  <div
-                    key={item}
-                    className={`overflow-hidden rounded-2xl border ${tema.instagramTile}`}
-                    style={{ borderColor: `${corPrimaria}18` }}
-                  >
-                    <div
-                      className="aspect-square w-full"
-                      style={{
-                        background: `linear-gradient(135deg, ${corPrimaria}22, ${corSecundaria}18, ${tema.overlayTo})`,
-                      }}
-                    />
-                    <div className="p-3">
-                      <p className={`text-xs font-medium ${tema.heading}`}>Post destaque #{item}</p>
-                      <p className={`mt-1 text-[11px] leading-relaxed ${tema.softText}`}>
-                        Agenda, cobertura, palco, bastidores e novidades da edição atual.
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </section>
         )}
@@ -1343,7 +1322,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
                 <AccordionItem
                   key={termo.id}
                   titulo={termo.titulo}
-                  conteudo={termo.conteudo ?? "Conteúdo não disponível."}
+                  conteudo={termo.conteudo || "Conteúdo não disponível."}
                   corPrimaria={evento.cor_primaria}
                   tema={tema}
                 />

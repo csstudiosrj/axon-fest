@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import {
-  CalendarDays, ClipboardList, FileSignature, Gavel, Megaphone, Music2, Palette, ShoppingBag, Ticket, UsersRound,
+  CalendarDays, ClipboardList, FileSignature, Gavel, Megaphone, Music2, Palette, Ticket, UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BotaoPrimario, BotaoSecundario, CabecalhoSecao, Container, EmBreve, Paragrafo, Rotulo, Titulo } from "../_components/ui";
 
 export const metadata: Metadata = {
   title: "Funcionalidades",
-  description: "Eventos, inscrições, elenco, termos, trilhas, jurados, loja, caixa e página pública: tudo o que o ARXUM Fest faz pelo seu festival.",
+  description: "Eventos, inscrições, elenco, termos, trilhas, jurados, caixa e página pública: tudo o que o ARXUM Fest faz pelo seu festival.",
 };
 
 interface Modulo {
@@ -64,7 +64,8 @@ const MODULOS: Modulo[] = [
     titulo: "Termos e autorizações",
     resumo: "Assinatura online com validade e rastreabilidade.",
     itens: [
-      "Termo de participação, cessão de imagem e regulamento por evento",
+      "Termo de participação aceito online por cada integrante",
+      "Regulamento, cessão de imagem e autorização de menores publicados por evento",
       "Autorização de menor assinada pelo responsável legal (nome, CPF e parentesco)",
       "Envio do link de assinatura direto para o responsável",
       "Registro de data, hora, IP e navegador de cada assinatura",
@@ -108,17 +109,7 @@ const MODULOS: Modulo[] = [
       "Funciona offline e sincroniza quando a conexão volta",
       "PIX com QR Code, dinheiro e cartão",
       "Catálogo de produtos por evento e relatório de vendas",
-    ],
-  },
-  {
-    id: "loja",
-    icone: ShoppingBag,
-    titulo: "Loja e adicionais",
-    resumo: "Venda camisetas, fotos, vídeos e kits para os grupos.",
-    itens: [
-      "Produtos com variações (tamanho, cor) e estoque",
-      "Exibição opcional na página pública do evento",
-      "Pedidos por grupo e por apresentação",
+      "Vitrine dos produtos na página pública do evento",
     ],
   },
   {
@@ -128,9 +119,9 @@ const MODULOS: Modulo[] = [
     resumo: "O seu festival na frente — a plataforma, nos bastidores.",
     itens: [
       "Logo, banner, cores, tipografia e tema claro ou escuro",
-      "Terminologia própria: escola, companhia ou grupo; bailarino, artista ou participante",
+      "Vocabulário de acordo com o tipo de festival (dança, música, teatro…)",
       "Jurados, locais, premiação e regulamento na página do evento",
-      "Feed do Instagram do festival",
+      "Link para o Instagram do festival",
     ],
   },
   {
@@ -141,7 +132,6 @@ const MODULOS: Modulo[] = [
     itens: [
       "Cargos: administrador, produtor, marketing, assistente, operador e jurado",
       "Convites por e-mail com senha criada pela própria pessoa",
-      "Agenda de publicações para redes sociais",
     ],
   },
 ];
@@ -156,7 +146,7 @@ export default function Funcionalidades() {
             Tudo o que um festival precisa, do primeiro rascunho ao último aplauso.
           </Titulo>
           <Paragrafo className="mt-7 max-w-[620px] sm:text-[19px]">
-            Dez módulos que conversam entre si. Você liga o que usa e a informação flui de uma etapa para a outra.
+            Nove módulos que conversam entre si. Você liga o que usa e a informação flui de uma etapa para a outra.
           </Paragrafo>
 
           <nav aria-label="Módulos" className="mt-12 flex flex-wrap gap-2">

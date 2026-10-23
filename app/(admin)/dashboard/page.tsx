@@ -4,6 +4,7 @@ import { CalendarDays, CircleDollarSign, FileAudio, Hourglass, Users } from "luc
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioAtual } from "@/lib/auth/session";
 import { GraficoSemanal, type PontoSemana } from "./GraficoSemanal";
+import { PrimeirosPassos } from "./PrimeirosPassos";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,8 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
         <p className="mt-1 text-sm text-gray-400">Visão geral dos seus festivais.</p>
       </div>
+
+      {usuario.produtora_id && ["admin", "produtora_admin"].includes(usuario.role) && <PrimeirosPassos produtoraId={usuario.produtora_id} />}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map(({ rotulo, valor: v, sub, icone: Icone, href }) => (

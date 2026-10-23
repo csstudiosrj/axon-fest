@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { nomeCargo } from "@/lib/auth/cargos";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -17,9 +18,7 @@ import {
   ChevronDown,
   User,
   Gavel,
-  ShoppingBag,
   FileSignature,
-  Megaphone,
   ShieldCheck,
   Crown,
 } from "lucide-react";
@@ -30,10 +29,8 @@ const navLinks = [
   { name: "Inscrições & Elenco", href: "/inscricoes", icon: Users },
   { name: "Mídias & Áudio", href: "/midias", icon: Mic2 },
   { name: "Jurados & Apuração", href: "/jurados", icon: Gavel },
-  { name: "Loja & Upsell", href: "/loja", icon: ShoppingBag },
-  { name: "Termos & Contratos", href: "/termos", icon: FileSignature },
-  { name: "Marketing", href: "/marketing", icon: Megaphone },
   { name: "PDV & Bilheteria", href: "/pdv", icon: Ticket },
+  { name: "Termos & Regulamento", href: "/termos", icon: FileSignature },
 ];
 
 interface AdminShellProps {
@@ -60,7 +57,7 @@ export default function AdminShell({
     router.push("/login");
   }
 
-  const roleDisplay = userRole === "super_admin" ? "Super Admin" : "Organizador";
+  const roleDisplay = nomeCargo(userRole);
 
   return (
     <div className="flex h-screen overflow-hidden bg-axon-bg text-white">
