@@ -6,6 +6,7 @@ import { Loader2, Mail, Trash2, UserPlus } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
 import { CARGOS, nomeCargo } from "@/lib/auth/cargos";
 import type { Membro } from "@/lib/equipe";
+import { confirmar } from "@/app/_components/Dialogos";
 
 const campo = "w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold";
 
@@ -108,7 +109,7 @@ export function Equipe({ membros, euId, atribuiveis, podeGerir }: { membros: Mem
                     )}
                     <button type="button" onClick={() => executar(m.id, { action: "ativo", ativo: !m.ativo }, m.ativo ? "Acesso desativado." : "Acesso reativado.")}
                       className="rounded-lg px-2 py-1.5 text-xs text-gray-300 hover:bg-white/5">{m.ativo ? "Desativar" : "Reativar"}</button>
-                    <button type="button" title="Excluir" onClick={() => window.confirm(`Excluir ${m.nome ?? m.email}?`) && executar(m.id, { action: "remove" }, "Pessoa excluída.")}
+                    <button type="button" title="Excluir" onClick={async () => (await confirmar(`Excluir ${m.nome ?? m.email}?`)) && executar(m.id, { action: "remove" }, "Pessoa excluída.")}
                       className="rounded-lg p-2 text-gray-400 hover:text-red-300"><Trash2 size={14} /></button>
                   </span>
                 )}

@@ -7,6 +7,7 @@ import { Bold, CheckCircle2, Clock, ExternalLink, Heading2, Italic, List, ListOr
 import { createClient } from "@/lib/supabase/client";
 import { BASE_PATH } from "@/lib/base-path";
 import { TIPOS_TERMO, modeloTermo, type TipoTermo } from "@/lib/termos";
+import { confirmar } from "@/app/_components/Dialogos";
 
 export interface DocumentoTermo {
   id: string;
@@ -58,9 +59,9 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
     editor.current?.focus();
   };
 
-  const usarModelo = () => {
+  const usarModelo = async () => {
     if (!editor.current) return;
-    if (editor.current.innerText.trim() && !window.confirm("Substituir o texto atual pelo modelo?")) return;
+    if (editor.current.innerText.trim() && !(await confirmar("Substituir o texto atual pelo modelo?"))) return;
     editor.current.innerHTML = modeloTermo(tipo, { festival: evento.nome, produtora: produtora.nome, documento: produtora.documento, cidade: null });
     setVazio(false);
   };
@@ -85,7 +86,7 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
   };
 
   const excluir = async () => {
-    if (!documento || !window.confirm(`Excluir “${documento.titulo}”?`)) return;
+    if (!documento || !(await confirmar(`Excluir “${documento.titulo}”?`))) return;
     const { error } = await createClient().from("termos_documentos").delete().eq("id", documento.id);
     if (error) return setErro(error.message);
     onSalvo("Documento excluído.");

@@ -14,6 +14,7 @@ import {
   apagarTudo, baixarPacote, fichasDoEvento, listarPacotes, pendentes, salvarFicha, sincronizar,
   type Apresentacao, type FichaLocal, type Pacote,
 } from "./dados";
+import { confirmar } from "@/app/_components/Dialogos";
 
 interface EventoRemoto { id: string; nome: string; data_inicio: string | null; data_fim: string | null; local: string | null }
 
@@ -130,7 +131,7 @@ export function AppJurado({ nomeJurado }: { nomeJurado: string }) {
 
   const sair = async () => {
     const algumPendente = (await Promise.all(pacotes.map((p) => fichasDoEvento(p.evento.id)))).some((l) => pendentes(l).length > 0);
-    if (algumPendente && !window.confirm("Há notas que ainda não foram enviadas ao servidor nem entregues por QR. Se sair, elas serão apagadas deste aparelho. Sair mesmo assim?")) return;
+    if (algumPendente && !(await confirmar("Há notas que ainda não foram enviadas ao servidor nem entregues por QR. Se sair, elas serão apagadas deste aparelho. Sair mesmo assim?"))) return;
     await apagarTudo();
     await limparDadosOffline();
     await createClient().auth.signOut();

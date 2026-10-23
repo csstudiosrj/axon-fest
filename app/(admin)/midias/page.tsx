@@ -14,6 +14,7 @@ import {
   apagarDoAparelho, blobLocal, buscarPacote, espacoUsado, guardados, pacoteLocal, pacotesLocais, prepararAparelho,
   type ArquivoMidia, type ItemMidia, type PacoteMidias,
 } from "@/lib/midias/dados";
+import { confirmar } from "@/app/_components/Dialogos";
 
 type Aba = "conferencia" | "palco";
 type Filtro = "todos" | "recebido" | "recusado" | "aprovado" | "faltando";
@@ -405,7 +406,7 @@ export default function MidiasPage({ searchParams }: { searchParams: Promise<{ e
   };
 
   const apagar = async () => {
-    if (!pacote || !window.confirm("Apagar os arquivos guardados neste aparelho?")) return;
+    if (!pacote || !(await confirmar("Apagar os arquivos guardados neste aparelho?"))) return;
     await apagarDoAparelho(pacote.evento.id);
     await atualizarLocal(pacote.evento.id);
     mostrar("Arquivos apagados deste aparelho.");

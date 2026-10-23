@@ -4,13 +4,14 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, FileText, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { uploadFiles } from "@/utils/uploadthing";
+import { mensagemEnvio, uploadFiles } from "@/utils/uploadthing";
 import { STATUS_EVENTO, infoStatus } from "@/lib/eventos/status";
 import { slugificar } from "@/lib/eventos/slug";
 import { urlAbsoluta } from "@/lib/base-path";
 import { SeletorPerfil } from "../../../_components/SeletorPerfil";
 import type { EventoPainel } from "@/lib/eventos/painel";
 import { Aviso, Cartao, Rotulo, campo } from "../_ui";
+import { confirmar } from "@/app/_components/Dialogos";
 
 const FORMATOS = [
   { valor: "competitivo", nome: "Competitivo", ajuda: "Jurados avaliam e há classificação." },
@@ -38,7 +39,7 @@ function Enviar({ rotulo, tipo, url, onEnviado, disabled }: {
       if (!r) throw new Error("Falha no envio.");
       onEnviado(r.ufsUrl);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha no envio.");
+      setErro(mensagemEnvio(e));
     }
     setEnviando(false);
   };
@@ -128,9 +129,11 @@ export function DadosEvento({ evento, podeGerir, podePagina, temInscricoes }: { 
   };
 
   const excluir = async () => {
-    const digitado = window.prompt(`Excluir o evento apaga categorias, inscrições, notas e resultados. Para confirmar, digite o nome do evento:\n${evento.nome}`);
-    if (digitado === null) return;
-    if (digitado.trim() !== evento.nome.trim()) return setMsg({ tipo: "erro", texto: "Nome digitado não confere. Nada foi apagado." });
+    const ok = await confirmar({
+      titulo: "Excluir evento", botao: "Excluir evento", perigo: true, exigir: evento.nome,
+      mensagem: "Excluir o evento apaga categorias, inscrições, notas e resultados. Não dá para desfazer.",
+    });
+    if (!ok) return;
     const { error } = await createClient().from("eventos").delete().eq("id", evento.id);
     if (error) return setMsg({ tipo: "erro", texto: error.message });
     router.push("/eventos");

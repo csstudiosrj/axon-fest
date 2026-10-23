@@ -8,6 +8,7 @@ import { cpfValido, formatarCpf, idadeEm } from "@/lib/documentos";
 import { maiuscula, nomeFuncao, perfilPorSlug } from "@/lib/perfis";
 import type { IntegranteElenco } from "@/lib/grupo/contexto";
 import { Cartao, Selo, Vazio } from "../../../_components/ui";
+import { confirmar } from "@/app/_components/Dialogos";
 
 const campo = "w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold";
 
@@ -226,7 +227,7 @@ export function Elenco({ eventoId, perfilSlug, integrantes, dataEvento , podeRem
                       <button type="button" onClick={() => setForm({ editando: p })} title="Editar" className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"><Pencil size={14} /></button>
                     )}
                     {podeRemover && <button type="button" disabled={ocupado === p.vinculo_id} title="Remover do grupo"
-                      onClick={() => window.confirm("Remover esta pessoa do grupo? Ela também sai das apresentações com inscrições abertas.") && acao(p, { acao: "remover" }, "Removido(a) do grupo.")}
+                      onClick={async () => (await confirmar("Remover esta pessoa do grupo? Ela também sai das apresentações com inscrições abertas.")) && acao(p, { acao: "remover" }, "Removido(a) do grupo.")}
                       className="rounded-lg p-2 text-gray-400 hover:bg-red-400/10 hover:text-red-300">
                       {ocupado === p.vinculo_id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                     </button>}

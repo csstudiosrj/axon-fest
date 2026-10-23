@@ -16,6 +16,7 @@ import {
   registrarRecebimento, type CriterioA, type PacoteApuracao, type Recebimento,
 } from "./dados";
 import { LeitorQr } from "./LeitorQr";
+import { confirmar } from "@/app/_components/Dialogos";
 
 type Aba = "receber" | "notas" | "classificacao" | "criterios";
 
@@ -294,7 +295,7 @@ function AbaNotas({ pacote, fichas, online, onMudou, mostrar }: {
   const criterios = pacote.criterios.map((c) => ({ id: c.id, nome: c.nome, peso: c.peso, ordem: c.ordem }));
 
   const reabrir = async (a: string, j: string) => {
-    if (!window.confirm("Reabrir esta ficha? O jurado poderá alterar as notas e precisará finalizar de novo.")) return;
+    if (!(await confirmar("Reabrir esta ficha? O jurado poderá alterar as notas e precisará finalizar de novo."))) return;
     const { error } = await createClient().from("avaliacoes_fichas")
       .update({ finalizada_em: null, atualizado_em: new Date().toISOString() })
       .eq("evento_id", pacote.evento.id).eq("apresentacao_id", a).eq("avaliador_id", j);
@@ -495,7 +496,7 @@ function AbaCriterios({ pacote, online, onMudou, mostrar }: {
   };
 
   const excluir = async (c: CriterioA) => {
-    if (!window.confirm(`Excluir o critério “${c.nome}”?${temNotas ? " As notas já dadas nele serão apagadas." : ""}`)) return;
+    if (!(await confirmar(`Excluir o critério “${c.nome}”?${temNotas ? " As notas já dadas nele serão apagadas." : ""}`))) return;
     const { error } = await supabase.from("criterios_avaliacao").delete().eq("id", c.id);
     if (error) mostrar("erro", error.message); else onMudou();
   };

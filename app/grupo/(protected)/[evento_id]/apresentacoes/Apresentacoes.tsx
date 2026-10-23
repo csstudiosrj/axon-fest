@@ -6,12 +6,13 @@ import {
   AlertTriangle, CheckCircle2, Clock, FileAudio, FileImage, FileText, Loader2, Pencil, Plus, Trash2, Upload, Users, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { uploadFiles } from "@/utils/uploadthing";
+import { mensagemEnvio, uploadFiles } from "@/utils/uploadthing";
 import { idadeEm } from "@/lib/documentos";
 import { maiuscula, MIME_ARQUIVO, novo, perfilPorSlug, type ArquivoTecnico, type Perfil } from "@/lib/perfis";
 import type { IntegranteElenco } from "@/lib/grupo/contexto";
 import type { ApresentacaoGrupo, ArquivoEnviado, CategoriaEvento } from "@/lib/grupo/dados";
 import { Cartao, Selo, Vazio, brl, dataCurta } from "../../../_components/ui";
+import { confirmar } from "@/app/_components/Dialogos";
 
 type Tipo = ApresentacaoGrupo["tipo"];
 
@@ -298,14 +299,14 @@ function LinhaArquivo({ def, enviado, apresentacaoId, podeEnviar, onMudou }: {
       if (error) throw new Error(error.message);
       onMudou();
     } catch (e) {
-      onMudou((e as Error).message);
+      onMudou(mensagemEnvio(e));
     }
     setEnviando(false);
     if (input.current) input.current.value = "";
   };
 
   const remover = async () => {
-    if (!enviado || !window.confirm(`Remover ${def.nome.toLowerCase()}?`)) return;
+    if (!enviado || !(await confirmar(`Remover ${def.nome.toLowerCase()}?`))) return;
     const { error } = await createClient().from("apresentacao_arquivos").delete().eq("id", enviado.id);
     onMudou(error?.message);
   };
@@ -383,7 +384,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
   const nomeFormacao = (t: Tipo) => perfil.formacoes[t];
 
   const excluir = async (a: ApresentacaoGrupo) => {
-    if (!window.confirm(`Excluir “${a.nome}”? Os arquivos enviados também serão apagados.`)) return;
+    if (!(await confirmar(`Excluir “${a.nome}”? Os arquivos enviados também serão apagados.`))) return;
     const { error } = await createClient().from("apresentacoes").delete().eq("id", a.id);
     setAviso(error ? { ok: false, texto: error.message } : { ok: true, texto: `“${a.nome}” foi excluíd${T.apresentacao.genero === "f" ? "a" : "o"}.` });
     router.refresh();

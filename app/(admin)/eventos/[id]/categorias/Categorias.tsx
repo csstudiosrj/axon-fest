@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { perfilPorSlug } from "@/lib/perfis";
 import type { Tables } from "@/lib/supabase/database.types";
 import { Aviso, Cartao, Rotulo, brl, campo } from "../_ui";
+import { confirmar } from "@/app/_components/Dialogos";
 
 type Categoria = Tables<"categorias">;
 
@@ -177,7 +178,7 @@ export function Categorias({ eventoId, produtoraId, perfilSlug, categorias, usos
   const excluir = async (c: Categoria) => {
     const total = (usos[c.id] ?? 0) + filhas(c.id).reduce((s, x) => s + (usos[x.id] ?? 0), 0);
     if (total > 0) return setErro(`“${c.nome}” tem ${total} inscrição(ões). Mova as inscrições para outra categoria antes de excluir.`);
-    if (!window.confirm(`Excluir “${c.nome}”${filhas(c.id).length ? " e suas subcategorias" : ""}?`)) return;
+    if (!(await confirmar(`Excluir “${c.nome}”${filhas(c.id).length ? " e suas subcategorias" : ""}?`))) return;
     const { error } = await createClient().from("categorias").delete().eq("id", c.id);
     setErro(error?.message ?? null);
     router.refresh();

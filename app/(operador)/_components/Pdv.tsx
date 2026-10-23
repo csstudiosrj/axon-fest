@@ -14,6 +14,7 @@ import {
   baixarPacote, bloquearCaixa, enviarPendentes, limparAntigos, pacoteLocal, registrarVenda, vendasDoAparelho,
   type ItemVendido, type PacotePdv, type ProdutoPdv,
 } from "@/lib/pdv/local";
+import { confirmar } from "@/app/_components/Dialogos";
 
 type Modo = "cantina" | "bilheteria";
 type Forma = ItemVendido["forma_pagamento"];
@@ -256,7 +257,7 @@ export function Pdv({ modo }: { modo: Modo }) {
   };
 
   const sair = async () => {
-    if (pendentes && !window.confirm(`Há ${pendentes} item(ns) ainda não enviados. Se sair agora, eles ficam guardados neste aparelho até alguém entrar com a mesma conta. Sair mesmo assim?`)) return;
+    if (pendentes && !(await confirmar(`Há ${pendentes} item(ns) ainda não enviados. Se sair agora, eles ficam guardados neste aparelho até alguém entrar com a mesma conta. Sair mesmo assim?`))) return;
     await bloquearCaixa();
     await limparDadosOffline();
     await createClient().auth.signOut();

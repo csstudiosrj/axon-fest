@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 import { carregarEvento } from "@/lib/eventos/painel";
 import { infoStatus } from "@/lib/eventos/status";
 import { AbasEvento } from "./AbasEvento";
@@ -19,9 +17,6 @@ export default async function LayoutEvento({ children, params }: { children: Rea
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="space-y-4">
         <div className="flex flex-wrap items-start gap-3">
-          <Link href="/eventos" aria-label="Voltar" className="mt-1 flex h-9 w-9 items-center justify-center rounded-full border border-axon-border text-gray-400 hover:text-white">
-            <ChevronLeft size={18} />
-          </Link>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold text-white">{evento.nome}</h1>

@@ -2,6 +2,8 @@
 // O conteúdo é HTML simples escrito no editor do painel e sempre passa por
 // limparHtml (lib/termos-html.ts) antes de aparecer em qualquer página.
 
+import { mascaraCpfCnpj } from "./mascaras";
+
 export const TIPOS_TERMO = [
   { tipo: "regulamento", nome: "Regulamento", descricao: "Regras de participação, avaliação e premiação." },
   { tipo: "uso_imagem", nome: "Uso de imagem", descricao: "Cessão de imagem e voz para divulgação." },
@@ -66,4 +68,33 @@ export function modeloTermo(tipo: TipoTermo, dados: { festival: string; produtor
   let html = MODELOS[tipo];
   for (const [chave, valor] of Object.entries(trocas)) if (valor) html = html.split(chave).join(valor);
   return html;
+}
+
+export interface DadosProdutoraTermo { nome: string; documento: string | null; cidade: string | null; estado: string | null }
+
+// "Cidade/UF" para os modelos (null se a produtora ainda não informou)
+export function cidadeUf(p: { cidade: string | null; estado: string | null }): string | null {
+  return [p.cidade, p.estado].filter(Boolean).join("/") || null;
+}
+
+// Texto base do termo de participação (texto simples), montado com os dados da produtora.
+// Aparece pré-preenchido em Configurações e vale enquanto a produtora não salvar um texto próprio.
+export function termoParticipacaoBase(p: DadosProdutoraTermo): string {
+  const doc = p.documento ? (p.documento.replace(/\D/g, "").length === 14 ? `, inscrita no CNPJ ${mascaraCpfCnpj(p.documento)}` : `, CPF ${mascaraCpfCnpj(p.documento)}`) : "";
+  const sede = cidadeUf(p);
+  return `TERMO DE PARTICIPAÇÃO
+
+Eu, participante identificado(a) neste cadastro (ou seu responsável legal, quando menor de 18 anos), declaro que:
+
+1. Participo por livre e espontânea vontade dos festivais, mostras e atividades organizados por ${p.nome}${doc}${sede ? `, com sede em ${sede}` : ""}, como integrante do grupo que me cadastrou.
+
+2. Estou em boas condições de saúde e apto(a) à prática das atividades artísticas e físicas envolvidas, assumindo a responsabilidade por informar à organização qualquer restrição médica.
+
+3. Conheço e respeitarei o regulamento de cada festival de que participar, publicado na página oficial do evento.
+
+4. Autorizo o uso dos meus dados cadastrais (nome, CPF, data de nascimento e contato) exclusivamente para inscrição, credenciamento, comunicação, certificados e cumprimento de obrigações legais, nos termos da Lei Geral de Proteção de Dados (Lei nº 13.709/2018).
+
+5. Estou ciente de que posso pedir a correção ou a exclusão dos meus dados a qualquer momento, pelos canais da organização, ressalvados os registros que a lei obriga a guardar.
+
+Esta declaração é assinada eletronicamente, com registro de data, hora e endereço IP, e tem validade nos termos da legislação brasileira.`;
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Coffee, Eye, EyeOff, Loader2, Pencil, Plus, Ticket, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { confirmar } from "@/app/_components/Dialogos";
 
 export interface ProdutoPainel {
   id: string;
@@ -154,7 +155,7 @@ export function Produtos({ produtos, eventos, produtoraId, podeEditar }: {
     router.refresh();
   };
   const excluir = async (p: ProdutoPainel) => {
-    if (!window.confirm(`Excluir “${p.nome}”? As vendas já feitas continuam no relatório. Para só tirar do caixa, use “desativar”.`)) return;
+    if (!(await confirmar(`Excluir “${p.nome}”? As vendas já feitas continuam no relatório. Para só tirar do caixa, use “desativar”.`))) return;
     const { error } = await createClient().from("pdv_produtos").delete().eq("id", p.id);
     setErro(error?.message ?? null);
     router.refresh();

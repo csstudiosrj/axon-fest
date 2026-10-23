@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Building2, Check, Copy, FlaskConical, Loader2, Mail, Percent, Trash2 } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
+import { confirmar } from "@/app/_components/Dialogos";
 
 type Valores = Record<string, unknown>;
 
@@ -123,7 +124,7 @@ export function Demonstracao({ existente }: { existente: { id: string; nome: str
   const [copiado, setCopiado] = useState(false);
 
   const executar = async (acao: "criar" | "apagar") => {
-    if (acao === "apagar" && !window.confirm("Apagar a demonstração? Todos os eventos, grupos, notas, vendas e logins de teste serão removidos.")) return;
+    if (acao === "apagar" && !(await confirmar("Apagar a demonstração? Todos os eventos, grupos, notas, vendas e logins de teste serão removidos."))) return;
     setOcupado(acao);
     setErro(null);
     const res = await fetch(apiUrl("/api/super/demonstracao"), {

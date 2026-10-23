@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, Camera, CheckCircle2, CreditCard, FileText, Loader2, QrCode, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { uploadFiles } from "@/utils/uploadthing";
+import { mensagemEnvio, uploadFiles } from "@/utils/uploadthing";
 import { cpfValido, soDigitos } from "@/lib/documentos";
 import { cnpjValido, mascaraCpfCnpj, mascaraTelefone, telefoneValido } from "@/lib/mascaras";
 import { colunasEndereco, enderecoDe, type Endereco } from "@/lib/endereco";
@@ -60,7 +60,7 @@ export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { prod
       setF((atual) => ({ ...atual, logo_url: r.ufsUrl }));
       setAvisoDados({ ok: true, texto: "Logo enviada. Clique em Salvar para confirmar." });
     } catch (e) {
-      setAvisoDados({ ok: false, texto: (e as Error).message });
+      setAvisoDados({ ok: false, texto: mensagemEnvio(e) });
     }
     setSalvando(null);
   };
