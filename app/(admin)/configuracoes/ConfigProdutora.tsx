@@ -1,0 +1,197 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Building2, Camera, CheckCircle2, CreditCard, FileText, Loader2, QrCode, Users } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { uploadFiles } from "@/utils/uploadthing";
+import { formatarCpf, soDigitos } from "@/lib/documentos";
+
+interface Produtora {
+  id: string;
+  nome: string;
+  documento: string | null;
+  email: string | null;
+  telefone: string | null;
+  logo_url: string | null;
+}
+
+const campo = "w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold disabled:opacity-60";
+
+function formatarDocumento(valor: string) {
+  const d = soDigitos(valor).slice(0, 14);
+  if (d.length <= 11) return formatarCpf(d);
+  // CNPJ: 00.000.000/0000-00
+  const partes = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 8), d.slice(8, 12), d.slice(12)];
+  return `${partes[0]}.${partes[1]}.${partes[2]}/${partes[3]}${partes[4] ? `-${partes[4]}` : ""}`;
+}
+
+function Aviso({ aviso }: { aviso: { ok: boolean; texto: string } | null }) {
+  if (!aviso) return null;
+  return <p className={`text-sm ${aviso.ok ? "text-emerald-300" : "text-red-300"}`}>{aviso.texto}</p>;
+}
+
+export function ConfigProdutora({ produtora, termo, temPix, podeEditar }: { produtora: Produtora; termo: string; temPix: boolean; podeEditar: boolean }) {
+  const router = useRouter();
+  const [f, setF] = useState({
+    nome: produtora.nome,
+    documento: produtora.documento ? formatarDocumento(produtora.documento) : "",
+    email: produtora.email ?? "",
+    telefone: produtora.telefone ?? "",
+    logo_url: produtora.logo_url,
+  });
+  const [texto, setTexto] = useState(termo);
+  const [salvando, setSalvando] = useState<"dados" | "termo" | "logo" | null>(null);
+  const [avisoDados, setAvisoDados] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [avisoTermo, setAvisoTermo] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const trocarLogo = async (file: File | undefined) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return setAvisoDados({ ok: false, texto: "Use uma imagem JPG, PNG ou WebP." });
+    setSalvando("logo");
+    setAvisoDados(null);
+    try {
+      const [r] = await uploadFiles("imageUploader", { files: [file] });
+      if (!r) throw new Error("Falha no envio da imagem.");
+      setF((atual) => ({ ...atual, logo_url: r.ufsUrl }));
+      setAvisoDados({ ok: true, texto: "Logo enviada. Clique em Salvar para confirmar." });
+    } catch (e) {
+      setAvisoDados({ ok: false, texto: (e as Error).message });
+    }
+    setSalvando(null);
+  };
+
+  const salvarDados = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const documento = soDigitos(f.documento);
+    if (!f.nome.trim()) return setAvisoDados({ ok: false, texto: "Informe o nome da produtora." });
+    if (documento && documento.length !== 11 && documento.length !== 14) return setAvisoDados({ ok: false, texto: "CPF ou CNPJ incompleto." });
+    setSalvando("dados");
+    setAvisoDados(null);
+    const { error } = await createClient().from("produtoras").update({
+      nome: f.nome.trim(),
+      documento: documento || null,
+      email: f.email.trim().toLowerCase() || null,
+      telefone: soDigitos(f.telefone) || null,
+      logo_url: f.logo_url,
+    }).eq("id", produtora.id);
+    setAvisoDados(error ? { ok: false, texto: error.message } : { ok: true, texto: "Dados salvos." });
+    setSalvando(null);
+    if (!error) router.refresh();
+  };
+
+  const salvarTermo = async () => {
+    setSalvando("termo");
+    setAvisoTermo(null);
+    const supabase = createClient();
+    const valor = texto.trim() || null;
+    const { data: existente } = await supabase.from("tenant_config").select("id").eq("produtora_id", produtora.id).limit(1).maybeSingle();
+    const { error } = existente
+      ? await supabase.from("tenant_config").update({ termo_legal_texto: valor }).eq("id", existente.id)
+      : await supabase.from("tenant_config").insert({ produtora_id: produtora.id, termo_legal_texto: valor });
+    setAvisoTermo(error ? { ok: false, texto: error.message } : { ok: true, texto: "Termo salvo." });
+    setSalvando(null);
+    if (!error) router.refresh();
+  };
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold text-white">Configurações da produtora</h1>
+        <p className="mt-1 text-sm text-gray-400">Dados cadastrais da sua produtora. O tipo de festival, as categorias e a identidade visual ficam em cada evento.</p>
+      </div>
+
+      {!podeEditar && <p className="rounded-lg border border-axon-border px-4 py-3 text-sm text-gray-400">Somente o admin da produtora altera estes dados.</p>}
+
+      <form onSubmit={salvarDados} className="rounded-xl border border-axon-border bg-axon-panel">
+        <h2 className="flex items-center gap-2 border-b border-axon-border px-5 py-3.5 font-semibold text-white"><Building2 size={16} className="text-axon-gold" /> Dados da produtora</h2>
+        <fieldset disabled={!podeEditar} className="space-y-4 px-5 py-5">
+          <div className="flex items-center gap-4">
+            <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-axon-border bg-axon-bg">
+              {f.logo_url
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={f.logo_url} alt="Logo da produtora" className="h-full w-full object-contain" />
+                : <Building2 size={24} className="text-gray-600" />}
+            </span>
+            {podeEditar && (
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-axon-border px-3 py-2 text-sm text-gray-200 hover:border-axon-gold">
+                  {salvando === "logo" ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />} {f.logo_url ? "Trocar logo" : "Enviar logo"}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => trocarLogo(e.target.files?.[0])} />
+                </label>
+                {f.logo_url && <button type="button" onClick={() => setF({ ...f, logo_url: null })} className="rounded-lg px-3 py-2 text-sm text-gray-400 hover:text-white">Remover</button>}
+              </div>
+            )}
+          </div>
+          <label className="block">
+            <span className="text-xs text-gray-400">Nome da produtora</span>
+            <input required value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} maxLength={150} className={`${campo} mt-1.5`} />
+          </label>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <label className="block">
+              <span className="text-xs text-gray-400">CPF ou CNPJ</span>
+              <input inputMode="numeric" value={f.documento} onChange={(e) => setF({ ...f, documento: formatarDocumento(e.target.value) })} className={`${campo} mt-1.5`} />
+            </label>
+            <label className="block">
+              <span className="text-xs text-gray-400">E-mail de contato</span>
+              <input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={`${campo} mt-1.5`} />
+            </label>
+            <label className="block">
+              <span className="text-xs text-gray-400">Telefone / WhatsApp</span>
+              <input inputMode="tel" value={f.telefone} onChange={(e) => setF({ ...f, telefone: e.target.value })} maxLength={20} className={`${campo} mt-1.5`} />
+            </label>
+          </div>
+          {podeEditar && (
+            <div className="flex items-center justify-end gap-3">
+              <Aviso aviso={avisoDados} />
+              <button type="submit" disabled={salvando !== null} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
+                {salvando === "dados" && <Loader2 size={15} className="animate-spin" />} Salvar dados
+              </button>
+            </div>
+          )}
+        </fieldset>
+      </form>
+
+      <section className="rounded-xl border border-axon-border bg-axon-panel">
+        <h2 className="flex items-center gap-2 border-b border-axon-border px-5 py-3.5 font-semibold text-white"><FileText size={16} className="text-axon-gold" /> Termo de participação</h2>
+        <div className="space-y-3 px-5 py-5">
+          <p className="text-sm text-gray-400">
+            Texto que cada integrante (ou o responsável, se for menor de idade) lê e aceita ao confirmar o vínculo com o grupo pelo link do e-mail.
+            Os documentos de cada evento (regulamento, uso de imagem…) ficam em <Link href="/termos" className="text-axon-gold hover:underline">Termos</Link>.
+          </p>
+          <textarea rows={10} value={texto} disabled={!podeEditar} onChange={(e) => setTexto(e.target.value)} maxLength={20000}
+            placeholder="Ex.: Declaro que participo das atividades do festival por livre vontade, que estou apto(a) fisicamente…"
+            className={`${campo} resize-y leading-relaxed`} />
+          {!texto.trim() && <p className="text-xs text-amber-300">Sem texto próprio, o integrante vê uma declaração genérica de participação.</p>}
+          {podeEditar && (
+            <div className="flex items-center justify-end gap-3">
+              <Aviso aviso={avisoTermo} />
+              <button type="button" onClick={salvarTermo} disabled={salvando !== null} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
+                {salvando === "termo" && <Loader2 size={15} className="animate-spin" />} Salvar termo
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-3">
+        <Link href="/pdv?aba=configuracoes" className="rounded-xl border border-axon-border bg-axon-panel p-4 hover:border-axon-gold/50">
+          <QrCode size={18} className="text-axon-gold" />
+          <p className="mt-2 text-sm font-medium text-white">PIX e PIN do caixa</p>
+          <p className="mt-1 flex items-center gap-1 text-xs text-gray-400">{temPix ? <><CheckCircle2 size={12} className="text-emerald-400" /> PIX configurado</> : "Ainda sem chave PIX"}</p>
+        </Link>
+        <Link href="/usuarios" className="rounded-xl border border-axon-border bg-axon-panel p-4 hover:border-axon-gold/50">
+          <Users size={18} className="text-axon-gold" />
+          <p className="mt-2 text-sm font-medium text-white">Equipe</p>
+          <p className="mt-1 text-xs text-gray-400">Convide produtores, assistentes e operadores.</p>
+        </Link>
+        <Link href="/perfil" className="rounded-xl border border-axon-border bg-axon-panel p-4 hover:border-axon-gold/50">
+          <CreditCard size={18} className="text-axon-gold" />
+          <p className="mt-2 text-sm font-medium text-white">Plano</p>
+          <p className="mt-1 text-xs text-gray-400">Veja o plano e os limites da produtora.</p>
+        </Link>
+      </section>
+    </div>
+  );
+}

@@ -17,7 +17,7 @@ import { emailComBotao, enviarEmail, escapeHtml } from "@/lib/email";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-const ACOES = ["verificar_email", "invite", "add", "update", "remove"] as const;
+const ACOES = ["verificar_email", "invite", "add", "update", "remove", "perfil", "ativo", "reenviar"] as const;
 type Acao = (typeof ACOES)[number];
 
 interface Corpo {
@@ -32,6 +32,8 @@ interface Corpo {
   telefone?: string | null;
   foto_url?: string | null;
   mini_bio?: string | null;
+  especialidade?: string | null;
+  ativo?: boolean;
 }
 
 function erro(mensagem: string, status: number) {
@@ -200,6 +202,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // ── PERFIL PÚBLICO (nome, telefone, foto, especialidade, mini bio) ──
+    if (action === "perfil") {
+      const alvo = await carregarAlvo(admin, caller, body.userId);
+      if (alvo instanceof NextResponse) return alvo;
+      const { error: perfilError } = await admin.from("usuarios").update({
+        nome: texto(body.nome, 200),
+        telefone: texto(body.telefone, 20)?.replace(/\D/g, "") || null,
+        foto_url: texto(body.foto_url, 1000),
+        especialidade: texto(body.especialidade, 80),
+        mini_bio: texto(body.mini_bio, 300),
+      }).eq("id", alvo.id);
+      if (perfilError) return erro(perfilError.message, 400);
+      return NextResponse.json({ success: true });
+    }
+
+    // ── DESATIVAR / REATIVAR ACESSO ──
+    if (action === "ativo") {
+      const alvo = await carregarAlvo(admin, caller, body.userId);
+      if (alvo instanceof NextResponse) return alvo;
+      const ativo = body.ativo === true;
+      await admin.from("usuarios").update({ ativo }).eq("id", alvo.id);
+      await admin.auth.admin.updateUserById(alvo.id, { ban_duration: ativo ? "none" : "876000h" });
+      return NextResponse.json({ success: true });
+    }
+
+    // ── REENVIAR LINK DE ACESSO (quem ainda não criou a senha) ──
+    if (action === "reenviar") {
+      const alvo = await carregarAlvo(admin, caller, body.userId);
+      if (alvo instanceof NextResponse) return alvo;
+      const { data: conta } = await admin.auth.admin.getUserById(alvo.id);
+      const emailAlvo = conta.user?.email;
+      if (!emailAlvo) return erro("Conta sem e-mail.", 400);
+      const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: "recovery", email: emailAlvo });
+      if (linkError || !link.properties?.hashed_token) return erro("Não foi possível gerar o link.", 400);
+      try {
+        await enviarEmail({
+          para: emailAlvo,
+          assunto: "Seu acesso ao ARXUM Fest",
+          html: emailComBotao({
+            titulo: "Olá!",
+            paragrafos: ["Este é o seu link para criar a senha e acessar o <strong>ARXUM Fest</strong>.", "O link vale por 1 hora."],
+            botaoTexto: "Criar senha e entrar",
+            botaoUrl: urlAbsoluta(`/auth/confirmar?token_hash=${encodeURIComponent(link.properties.hashed_token)}&type=recovery&next=/definir-senha`),
+          }),
+        });
+      } catch {
+        return erro("Não foi possível enviar o e-mail agora.", 502);
+      }
+      return NextResponse.json({ success: true });
+    }
+
     // ── ATUALIZAR CARGO ──
     if (action === "update") {
       if (!body.role) return erro("Cargo ausente.", 400);
@@ -242,7 +295,8 @@ export async function POST(req: NextRequest) {
       nome: texto(body.nome, 200),
       telefone: texto(body.telefone, 20)?.replace(/\D/g, "") || null,
       foto_url: texto(body.foto_url, 1000),
-      mini_bio: texto(body.mini_bio, 160),
+      mini_bio: texto(body.mini_bio, 300),
+      especialidade: texto(body.especialidade, 80),
     };
 
     // Conta já existente: só pode ser (re)vinculada se estiver sem produtora e
@@ -259,7 +313,9 @@ export async function POST(req: NextRequest) {
       }
       const { error: vinculoError } = await admin
         .from("usuarios")
-        .update({ produtora_id: produtoraId, ativo: true, ...(grupoId ? { organizacao_id: grupoId } : {}), ...perfil })
+        .update({ produtora_id: produtoraId, ativo: true, ...(grupoId ? { organizacao_id: grupoId } : {}),
+          // só o que foi informado: não apaga a foto/bio que a pessoa já tinha
+          ...Object.fromEntries(Object.entries(perfil).filter(([, v]) => v !== null)) })
         .eq("id", existente.id);
       if (vinculoError) return erro(vinculoError.message, 400);
       return NextResponse.json({ success: true, vinculado: true, userId: existente.id });

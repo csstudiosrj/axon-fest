@@ -94,7 +94,7 @@ export default async function Precos() {
           </Titulo>
           <Paragrafo className="mt-7 max-w-[600px] sm:text-[19px]">
             Monte e publique o evento sem custo fixo. A taxa de serviço incide apenas sobre o que é vendido pelo
-            sistema: inscrições, ingressos e produtos da loja.
+            sistema: inscrições, ingressos e produtos.
           </Paragrafo>
         </Container>
       </section>

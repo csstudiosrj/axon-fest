@@ -3,6 +3,7 @@ import { randomBytes, randomInt, randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { TablesInsert } from "@/lib/supabase/database.types";
 import { perfilPorSlug, type SlugPerfil } from "@/lib/perfis";
+import { modeloTermo } from "@/lib/termos";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Demonstração: cria uma produtora fictícia completa para testar o sistema de
@@ -86,7 +87,8 @@ export async function criarDemonstracao(admin: Admin) {
     const perfis = checar(await admin.from("perfis_festival").select("id, slug"), "perfis") as { id: string; slug: string }[];
     const perfilId = (slug: string) => perfis.find((p) => p.slug === slug)?.id ?? null;
 
-    await admin.from("tenant_config").insert({ produtora_id: pid, perfil_id: perfilId("danca"), nome_organizacao: "Produtora Demonstração", configurado_em: new Date().toISOString() });
+    await admin.from("tenant_config").insert({ produtora_id: pid, perfil_id: perfilId("danca"), nome_organizacao: "Produtora Demonstração", configurado_em: new Date().toISOString(),
+      termo_legal_texto: "Texto de exemplo da demonstração. Declaro que participo do festival por livre vontade e que estou apto(a) às atividades." });
 
     // Equipe
     for (const [papel, role, nome] of [["Dono do festival", "admin", "Demo Admin"], ["Produtor", "produtor", "Demo Produtor"], ["Operador de caixa", "operador", "Demo Operador"]] as const) {
@@ -119,6 +121,11 @@ export async function criarDemonstracao(admin: Admin) {
         tipo_premiacao: "apenas_trofeus_e_medalhas", slug: `demo-${f.slug}-${sufixo}`,
         descricao: `Evento fictício criado para demonstração do ARXUM Fest (${perfil.nome}).`,
       }).select("id").single(), "evento") as { id: string };
+
+      await admin.from("termos_documentos").insert({
+        evento_id: evento.id, produtora_id: pid, tipo: "regulamento", titulo: "Regulamento", ativo: true, formato: "html",
+        conteudo: modeloTermo("regulamento", { festival: f.nome, produtora: "Produtora Demonstração", documento: null, cidade: f.cidade }),
+      });
 
       const categorias = checar(await admin.from("categorias").insert(
         f.categorias.map((nome) => ({ evento_id: evento.id, nome, produtora_id: pid, valor_solo: 80, valor_duo: 120, valor_conjunto: 200, competitiva: true }))

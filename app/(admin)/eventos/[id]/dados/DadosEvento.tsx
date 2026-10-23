@@ -80,6 +80,9 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
     status: evento.status ?? "Em Montagem",
     slug: evento.slug ?? "",
     cor_primaria: evento.cor_primaria ?? "#d4af37",
+    cor_secundaria: evento.cor_secundaria ?? "#b8860b",
+    fonte_familia: evento.fonte_familia ?? "sans",
+    instagram_handle: evento.instagram_handle ?? "",
     tema_escuro: evento.tema_escuro ?? true,
     logo_url: evento.logo_url,
     banner_url: evento.banner_url,
@@ -95,12 +98,15 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
     const slug = slugificar(f.slug);
     if (!f.nome.trim()) return setMsg({ tipo: "erro", texto: "Informe o nome do evento." });
     if (!slug) return setMsg({ tipo: "erro", texto: "Informe o endereço da página pública." });
+    // Aceita @perfil, perfil ou o link do perfil
+    const instagram = f.instagram_handle.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^@/, "").replace(/[/?#].*$/, "").replace(/[^a-zA-Z0-9_.]/g, "").slice(0, 30);
     if (f.data_inicio && f.data_fim && f.data_fim < f.data_inicio) return setMsg({ tipo: "erro", texto: "A data de fim é anterior à de início." });
     setSalvando(true);
     const { error } = await createClient().from("eventos").update({
       nome: f.nome.trim(), perfil_id: f.perfil_id, formato: f.formato, tipo_premiacao: f.tipo_premiacao,
       data_inicio: f.data_inicio || null, data_fim: f.data_fim || null, local: f.local.trim() || null,
       descricao: f.descricao.trim() || null, status: f.status, slug, cor_primaria: f.cor_primaria, tema_escuro: f.tema_escuro,
+      cor_secundaria: f.cor_secundaria, fonte_familia: f.fonte_familia, instagram_handle: instagram || null, exibir_feed_instagram: !!instagram,
       logo_url: f.logo_url, banner_url: f.banner_url, regulamento_url: f.regulamento_url,
     }).eq("id", evento.id);
     setSalvando(false);
@@ -171,6 +177,23 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
               <input type="color" value={f.cor_primaria} onChange={(e) => set("cor_primaria", e.target.value)} disabled={dis} className="h-10 w-14 rounded border border-axon-border bg-transparent" />
               <input value={f.cor_primaria} onChange={(e) => set("cor_primaria", e.target.value)} disabled={dis} maxLength={7} className={campo} />
             </div>
+          </Rotulo>
+          <Rotulo texto="Cor secundária">
+            <div className="flex items-center gap-2">
+              <input type="color" value={f.cor_secundaria} onChange={(e) => set("cor_secundaria", e.target.value)} disabled={dis} className="h-10 w-14 rounded border border-axon-border bg-transparent" />
+              <input value={f.cor_secundaria} onChange={(e) => set("cor_secundaria", e.target.value)} disabled={dis} maxLength={7} className={campo} />
+            </div>
+          </Rotulo>
+          <Rotulo texto="Fonte dos títulos">
+            <select value={f.fonte_familia} onChange={(e) => set("fonte_familia", e.target.value)} disabled={dis} className={campo}>
+              <option value="sans">Moderna (sem serifa)</option>
+              <option value="serif">Clássica (com serifa)</option>
+              <option value="montserrat">Montserrat</option>
+              <option value="mono">Técnica (monoespaçada)</option>
+            </select>
+          </Rotulo>
+          <Rotulo texto="Instagram do festival" ajuda="Opcional. Aparece como botão “Ver perfil” na página.">
+            <input value={f.instagram_handle} onChange={(e) => set("instagram_handle", e.target.value)} disabled={dis} maxLength={80} placeholder="@seufestival" className={campo} />
           </Rotulo>
           <Rotulo texto="Tema">
             <select value={f.tema_escuro ? "escuro" : "claro"} onChange={(e) => set("tema_escuro", e.target.value === "escuro")} disabled={dis} className={campo}>

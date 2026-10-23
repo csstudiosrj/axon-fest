@@ -113,8 +113,7 @@ export default function ConfirmarParticipacaoPage() {
   // ─────────────────────────────────────────────────────────────────────────
   const carregarDados = useCallback(async () => {
     if (!token) return;
-    setCarregando(true);
-    setErro(null);
+    // (carregando já começa true e só roda uma vez, ao abrir o link)
     try {
       const res = await fetch(apiUrl("/api/confirmar-participacao"), {
         method: "POST",
@@ -154,7 +153,7 @@ export default function ConfirmarParticipacaoPage() {
   }, [token, isResponsavelLink]);
 
   useEffect(() => {
-    carregarDados();
+    void Promise.resolve().then(carregarDados);
   }, [carregarDados]);
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -476,9 +475,9 @@ export default function ConfirmarParticipacaoPage() {
                 <FileText className="w-5 h-5" />
                 <span className="text-sm font-semibold">Termo de Participação</span>
               </div>
-              {tenantConfig?.termo_participante ? (
+              {tenantConfig?.termo_legal_texto ? (
                 <div className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap max-h-52 overflow-y-auto pr-1">
-                  {tenantConfig.termo_participante}
+                  {tenantConfig.termo_legal_texto}
                 </div>
               ) : (
                 <p className="text-gray-400 text-sm leading-relaxed">

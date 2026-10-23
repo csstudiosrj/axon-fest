@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     if (usuarioError) throw usuarioError;
 
     const confirmar = urlAbsoluta(
-      `/auth/confirmar?token_hash=${encodeURIComponent(link.properties.hashed_token)}&type=signup&next=/cadastro`
+      `/auth/confirmar?token_hash=${encodeURIComponent(link.properties.hashed_token)}&type=signup&next=/dashboard`
     );
 
     await enviarEmail({
