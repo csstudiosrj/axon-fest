@@ -14,7 +14,7 @@ const ROLES_LOGIN: readonly string[] = [...ROLES, ...ROLES_PAINEL_ADMIN, ...ROLE
 
 const MENSAGENS_ERRO: Record<string, string> = {
   "sem-acesso": "Sua conta não tem acesso a esta área.",
-  "link-invalido": "Link inválido ou expirado. Peça um novo convite à organização ou use “Esqueci minha senha”.",
+  "link-invalido": "Este link já foi usado ou expirou. Clique em “Esqueci minha senha” para receber um novo.",
 };
 
 // Só aceita caminhos internos em ?next= (evita open redirect)
@@ -83,7 +83,7 @@ export default function AdminLoginPage({
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      setError(message === "Invalid login credentials" ? "E-mail ou senha incorretos." : message);
+      setError(message === "Invalid login credentials" ? "E-mail ou senha incorretos. Se você entrou por convite e ainda não criou sua senha, use “Esqueci minha senha”." : message);
       setLoading(false);
     }
   };

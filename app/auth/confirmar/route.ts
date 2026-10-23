@@ -15,8 +15,10 @@ export async function GET(request: NextRequest) {
   const nextParam = searchParams.get("next") ?? "/login";
   const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/login";
 
-  // Monta o endereço com o prefixo do app (/fest): a cópia de nextUrl perde o basePath
-  const ir = (caminho: string) => NextResponse.redirect(new URL(`${BASE_PATH}${caminho}`, request.url));
+  // Redireciona com endereço relativo: em produção o app é servido em www.arxum.com.br
+  // por reescrita, e request.url aponta para o domínio interno (arxum-fest.vercel.app),
+  // onde o cookie da sessão recém-criada não existe. Relativo, o navegador fica no mesmo domínio.
+  const ir = (caminho: string) => new NextResponse(null, { status: 307, headers: { Location: `${BASE_PATH}${caminho}` } });
 
   if (tokenHash && type && TIPOS.includes(type)) {
     const supabase = await createClient();
