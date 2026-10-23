@@ -16,7 +16,7 @@ async function chamar(corpo: Record<string, unknown>) {
   const res = await fetch(apiUrl("/api/grupo/elenco"), {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo),
   });
-  const json = (await res.json().catch(() => ({}))) as { error?: string; existe?: boolean; jaTinhaCadastro?: boolean; emailEnviado?: boolean; emailMascarado?: string | null };
+  const json = (await res.json().catch(() => ({}))) as { error?: string; existe?: boolean; jaTinhaCadastro?: boolean; temConta?: boolean; emailEnviado?: boolean; emailMascarado?: string | null };
   if (!res.ok) throw new Error(json.error ?? "Não foi possível concluir.");
   return json;
 }
@@ -69,6 +69,7 @@ function Formulario({ perfilSlug, eventoId, editando, onFechar, onFeito }: {
         const r = await chamar({ acao: "adicionar", evento_id: eventoId, ...f });
         onFeito(r.jaTinhaCadastro
           ? "Esta pessoa já tinha cadastro no ARXUM Fest. Enviamos o convite para o e-mail que ela cadastrou; os dados aparecem aqui quando ela confirmar."
+          : r.temConta ? `Este e-mail já é de uma conta do ARXUM Fest: ligamos o cadastro a essa pessoa. Ela recebe em ${f.email} o link para confirmar e assinar o termo.`
           : r.emailEnviado ? `Cadastro feito. A pessoa recebe em ${f.email} o link para confirmar o cadastro e assinar o termo.` : "Cadastrado(a), mas o e-mail não pôde ser enviado agora. Use “Reenviar convite” em instantes.");
       }
     } catch (err) {

@@ -44,10 +44,11 @@ export interface CategoriaEvento {
   faixa_etaria_min: number | null;
   faixa_etaria_max: number | null;
   faixa_etaria_label: string | null;
-  tempo_apresentacao_min: number | null;
-  tempo_apresentacao_max: number | null;
+  tempo_min_segundos: number | null;
+  tempo_max_segundos: number | null;
   observacoes: string | null;
   restantes: number | null; // vagas que sobram (null = sem limite)
+  mostrar_vagas: boolean; // a produtora escolheu mostrar quantas sobram
 }
 
 // Apresentações do grupo no evento, com elenco e arquivos (leitura com RLS)
@@ -96,7 +97,7 @@ export async function carregarCategorias(eventoId: string): Promise<CategoriaEve
   const supabase = await createClient();
   const [{ data }, { data: evento }, { data: ocup }] = await Promise.all([
     supabase.from("categorias").select("*").eq("evento_id", eventoId).order("nome"),
-    supabase.from("eventos").select("vagas_total").eq("id", eventoId).maybeSingle(),
+    supabase.from("eventos").select("vagas_total, mostrar_vagas").eq("id", eventoId).maybeSingle(),
     supabase.rpc("ocupacao_evento", { p_evento: eventoId }),
   ]);
   const todas = data ?? [];
@@ -121,10 +122,11 @@ export async function carregarCategorias(eventoId: string): Promise<CategoriaEve
       faixa_etaria_min: (c.faixa_etaria_min as number | null) ?? null,
       faixa_etaria_max: (c.faixa_etaria_max as number | null) ?? null,
       faixa_etaria_label: (c.faixa_etaria_label as string | null) ?? null,
-      tempo_apresentacao_min: (c.tempo_apresentacao_min as number | null) ?? null,
-      tempo_apresentacao_max: (c.tempo_apresentacao_max as number | null) ?? null,
+      tempo_min_segundos: (c.tempo_min_segundos as number | null) ?? null,
+      tempo_max_segundos: (c.tempo_max_segundos as number | null) ?? null,
       observacoes: (c.observacoes as string | null) ?? null,
       restantes: restantesCategoria(c, todas, ocupacao, evento?.vagas_total ?? null),
+      mostrar_vagas: evento?.mostrar_vagas ?? false,
     }))
     .sort((a, b) => `${a.pai_nome ?? ""} ${a.nome}`.localeCompare(`${b.pai_nome ?? ""} ${b.nome}`, "pt-BR"));
 }

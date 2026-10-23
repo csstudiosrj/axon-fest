@@ -55,3 +55,26 @@ export function cnpjValido(valor: string | null | undefined): boolean {
 }
 
 export const telefoneValido = (valor: string | null | undefined) => [10, 11].includes(soDigitos(valor).length);
+
+// Duração "m:ss" enquanto digita: os 2 últimos dígitos são os segundos (330 → 3:30)
+export function mascaraTempo(valor: string | null | undefined): string {
+  const d = soDigitos(valor).replace(/^0+(?=\d{3})/, "").slice(0, 4);
+  if (d.length <= 2) return d;
+  return `${d.slice(0, -2)}:${d.slice(-2)}`;
+}
+
+// "3:30" → 210 segundos; "3" → 180 (só minutos); vazio → null; segundos ≥ 60 → NaN
+export function segundosDe(valor: string): number | null {
+  const t = valor.trim();
+  if (!t) return null;
+  if (!t.includes(":")) return Number(soDigitos(t)) * 60;
+  const [m, s] = t.split(":");
+  const seg = Number(s || 0);
+  return seg >= 60 ? NaN : Number(m || 0) * 60 + seg;
+}
+
+// 210 → "3:30"
+export function formatarTempo(segundos: number | null | undefined): string {
+  if (segundos == null) return "";
+  return `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}`;
+}

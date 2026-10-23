@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bold, CheckCircle2, Clock, ExternalLink, Heading2, Italic, List, ListOrdered, Loader2, Search, Trash2, Wand2 } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Loader2, Search, Trash2, Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { BASE_PATH } from "@/lib/base-path";
 import { TIPOS_TERMO, modeloTermo, type TipoTermo } from "@/lib/termos";
-import { confirmar } from "@/app/_components/Dialogos";
+import { confirmar, useAvisoNaoSalvo } from "@/app/_components/Dialogos";
+import { EditorTexto } from "@/app/_components/EditorTexto";
 
 export interface DocumentoTermo {
   id: string;
@@ -38,7 +39,7 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
   documento: DocumentoTermo | undefined;
   evento: { id: string; nome: string; slug: string | null };
   produtoraId: string;
-  produtora: { nome: string; documento: string | null };
+  produtora: { nome: string; documento: string | null; cidade: string | null };
   onSalvo: (texto: string) => void;
 }) {
   const info = TIPOS_TERMO.find((t) => t.tipo === tipo)!;
@@ -48,22 +49,15 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
   const [vazio, setVazio] = useState(!documento?.conteudo);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-
-  // O editor é um contentEditable: o conteúdo inicial entra direto no DOM
-  useEffect(() => {
-    if (editor.current) editor.current.innerHTML = documento?.conteudo ?? "";
-  }, [documento?.conteudo]);
-
-  const comando = (cmd: string, valor?: string) => {
-    document.execCommand(cmd, false, valor);
-    editor.current?.focus();
-  };
+  const [mexeu, setMexeu] = useState(false);
+  useAvisoNaoSalvo(mexeu);
 
   const usarModelo = async () => {
     if (!editor.current) return;
     if (editor.current.innerText.trim() && !(await confirmar("Substituir o texto atual pelo modelo?"))) return;
-    editor.current.innerHTML = modeloTermo(tipo, { festival: evento.nome, produtora: produtora.nome, documento: produtora.documento, cidade: null });
+    editor.current.innerHTML = modeloTermo(tipo, { festival: evento.nome, produtora: produtora.nome, documento: produtora.documento, cidade: produtora.cidade });
     setVazio(false);
+    setMexeu(true);
   };
 
   const salvar = async () => {
@@ -82,6 +76,7 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
       : await supabase.from("termos_documentos").insert({ ...dados, tipo, evento_id: evento.id, produtora_id: produtoraId });
     setSalvando(false);
     if (error) return setErro(error.message);
+    setMexeu(false);
     onSalvo(publicado ? "Documento salvo e publicado na página do evento." : "Documento salvo como rascunho (não aparece na página do evento).");
   };
 
@@ -92,8 +87,6 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
     onSalvo("Documento excluído.");
   };
 
-  const botao = "rounded-md p-2 text-gray-300 hover:bg-white/10 hover:text-white";
-
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-400">{info.descricao} {documento && <span className="text-gray-500">· versão {documento.versao}, atualizado em {dataHora(documento.atualizado_em)}</span>}</p>
@@ -102,28 +95,9 @@ function Editor({ tipo, documento, evento, produtoraId, produtora, onSalvo }: {
         <input value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={150}
           className="mt-1.5 w-full rounded-lg border border-axon-border bg-axon-bg px-3 py-2.5 text-sm text-white outline-none focus:border-axon-gold" />
       </label>
-      <div className="overflow-hidden rounded-lg border border-axon-border">
-        <div className="flex flex-wrap items-center gap-0.5 border-b border-axon-border bg-axon-bg px-2 py-1.5">
-          <button type="button" title="Título de seção" onClick={() => comando("formatBlock", "<h2>")} className={botao}><Heading2 size={15} /></button>
-          <button type="button" title="Parágrafo" onClick={() => comando("formatBlock", "<p>")} className={`${botao} text-xs font-semibold`}>¶</button>
-          <button type="button" title="Negrito" onClick={() => comando("bold")} className={botao}><Bold size={15} /></button>
-          <button type="button" title="Itálico" onClick={() => comando("italic")} className={botao}><Italic size={15} /></button>
-          <button type="button" title="Lista" onClick={() => comando("insertUnorderedList")} className={botao}><List size={15} /></button>
-          <button type="button" title="Lista numerada" onClick={() => comando("insertOrderedList")} className={botao}><ListOrdered size={15} /></button>
-          <span className="flex-1" />
-          <button type="button" onClick={usarModelo} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-axon-gold hover:bg-axon-gold/10"><Wand2 size={13} /> Usar modelo</button>
-        </div>
-        <div
-          ref={editor}
-          contentEditable
-          suppressContentEditableWarning
-          role="textbox"
-          aria-label={`Texto do ${info.nome}`}
-          aria-multiline
-          onInput={(e) => setVazio(!e.currentTarget.innerText.trim())}
-          className="min-h-[320px] bg-axon-bg/40 px-4 py-3 text-sm leading-relaxed text-gray-200 outline-none [&_h2]:mb-3 [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-white [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5"
-        />
-      </div>
+      <EditorTexto ref={editor} valorInicial={documento?.conteudo ?? ""} rotulo={`Texto do ${info.nome}`} altura="min-h-[320px]"
+        onMudar={(_, v) => { setVazio(v); setMexeu(true); }}
+        acoes={<button type="button" onClick={usarModelo} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-axon-gold hover:bg-axon-gold/10"><Wand2 size={13} /> Usar modelo</button>} />
       {vazio && <p className="text-xs text-gray-500">Escreva o texto ou clique em “Usar modelo”. O modelo já vem com o nome do evento e da produtora; revise os trechos entre colchetes [ ] e adapte ao seu festival.</p>}
       <label className="flex items-center gap-2 text-sm text-gray-200">
         <input type="checkbox" checked={publicado} onChange={(e) => setPublicado(e.target.checked)} className="accent-[#d4af37]" />
@@ -203,7 +177,7 @@ export function Termos({ eventos, evento, produtoraId, produtora, documentos, as
   eventos: { id: string; nome: string }[];
   evento: { id: string; nome: string; slug: string | null };
   produtoraId: string;
-  produtora: { nome: string; documento: string | null };
+  produtora: { nome: string; documento: string | null; cidade: string | null };
   documentos: DocumentoTermo[];
   assinaturas: Assinatura[];
 }) {

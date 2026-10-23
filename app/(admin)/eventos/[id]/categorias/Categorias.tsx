@@ -8,6 +8,7 @@ import { perfilPorSlug } from "@/lib/perfis";
 import type { Tables } from "@/lib/supabase/database.types";
 import { Aviso, Cartao, Rotulo, brl, campo } from "../_ui";
 import { confirmar } from "@/app/_components/Dialogos";
+import { formatarTempo, mascaraTempo, segundosDe } from "@/lib/mascaras";
 
 type Categoria = Tables<"categorias">;
 
@@ -46,7 +47,7 @@ function Formulario({ eventoId, produtoraId, perfilSlug, categoria, paiInicial, 
     solo: c?.permite_solo ?? true, duo: c?.permite_duo ?? true, conjunto: c?.permite_conjunto ?? true,
     valorSolo: txt(c?.valor_solo ?? 0), valorDuo: txt(c?.valor_duo ?? 0), valorConjunto: txt(c?.valor_conjunto ?? 0),
     minPessoas: txt(c?.min_participantes), maxPessoas: txt(c?.max_participantes),
-    tempoMin: txt(c?.tempo_apresentacao_min), tempoMax: txt(c?.tempo_apresentacao_max),
+    tempoMin: formatarTempo(c?.tempo_min_segundos), tempoMax: formatarTempo(c?.tempo_max_segundos),
     competitiva: c?.competitiva ?? true, premio1: txt(c?.premio_dinheiro_1), premio2: txt(c?.premio_dinheiro_2), premio3: txt(c?.premio_dinheiro_3),
     observacoes: c?.observacoes ?? "",
     vagas: txt(c?.vagas),
@@ -66,13 +67,17 @@ function Formulario({ eventoId, produtoraId, perfilSlug, categoria, paiInicial, 
     if (iMin != null && iMax != null && iMax < iMin) return setErro("Idade máxima menor que a mínima.");
     const pMin = num(f.minPessoas), pMax = num(f.maxPessoas);
     if (pMin != null && pMax != null && pMax < pMin) return setErro("Máximo de pessoas menor que o mínimo.");
+    const tMin = segundosDe(f.tempoMin), tMax = segundosDe(f.tempoMax);
+    if (Number.isNaN(tMin) || Number.isNaN(tMax)) return setErro("Tempo inválido: os segundos vão de 00 a 59 (ex.: 3:30).");
+    if (tMin != null && tMax != null && tMax < tMin) return setErro("Tempo máximo menor que o mínimo.");
     setSalvando(true);
     const dados = {
       evento_id: eventoId, produtora_id: produtoraId, nome: f.nome.trim(), categoria_pai_id: f.pai || null, genero: f.genero,
       faixa_etaria_min: iMin, faixa_etaria_max: iMax, faixa_etaria_label: f.idadeTexto.trim() || null,
       permite_solo: f.solo, permite_duo: f.duo, permite_conjunto: f.conjunto,
       valor_solo: valores[0]!, valor_duo: valores[1]!, valor_conjunto: valores[2]!,
-      min_participantes: pMin, max_participantes: pMax, tempo_apresentacao_min: num(f.tempoMin), tempo_apresentacao_max: num(f.tempoMax),
+      min_participantes: pMin, max_participantes: pMax, tempo_min_segundos: tMin, tempo_max_segundos: tMax,
+      tempo_apresentacao_min: tMin == null ? null : Math.floor(tMin / 60), tempo_apresentacao_max: tMax == null ? null : Math.ceil(tMax / 60),
       competitiva: misto ? f.competitiva : true,
       premio_dinheiro_1: premioEmDinheiro ? num(f.premio1) : null, premio_dinheiro_2: premioEmDinheiro ? num(f.premio2) : null, premio_dinheiro_3: premioEmDinheiro ? num(f.premio3) : null,
       observacoes: f.observacoes.trim() || null,
@@ -90,19 +95,22 @@ function Formulario({ eventoId, produtoraId, perfilSlug, categoria, paiInicial, 
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:p-4" onClick={onFechar}>
       <form onSubmit={salvar} onClick={(e) => e.stopPropagation()} className="flex max-h-[94vh] w-full max-w-2xl flex-col rounded-t-2xl border border-axon-border bg-axon-panel sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-axon-border px-5 py-4">
-          <h2 className="font-semibold text-white">{c ? "Editar categoria" : f.pai ? "Nova subcategoria" : "Nova categoria"}</h2>
+          <h2 className="font-semibold text-white">{c ? (c.categoria_pai_id ? "Editar subcategoria" : "Editar categoria principal") : f.pai ? `Nova subcategoria de ${principais.find((p) => p.id === f.pai)?.nome ?? ""}` : "Nova categoria principal"}</h2>
           <button type="button" onClick={onFechar} aria-label="Fechar" className="text-gray-400 hover:text-white"><X size={18} /></button>
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Rotulo texto="Nome"><input required value={f.nome} onChange={(e) => set("nome", e.target.value)} maxLength={80} placeholder="Ex.: Jazz Infantil" className={campo} /></Rotulo>
-            <Rotulo texto="Dentro de" ajuda="Deixe em branco para uma categoria principal.">
-              <select value={f.pai} onChange={(e) => set("pai", e.target.value)} className={campo}>
-                <option value="">— (categoria principal)</option>
-                {principais.filter((p) => p.id !== c?.id).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-              </select>
-            </Rotulo>
+            <Rotulo texto="Nome"><input required value={f.nome} onChange={(e) => set("nome", e.target.value)} maxLength={80} placeholder={f.pai ? "Ex.: Infantil (7 a 11 anos)" : "Ex.: Jazz"} className={campo} /></Rotulo>
+            {/* Mover entre principais só na edição de uma subcategoria (principal com subcategorias não vira sub) */}
+            {c?.categoria_pai_id && (
+              <Rotulo texto="Dentro da categoria">
+                <select value={f.pai} onChange={(e) => set("pai", e.target.value)} className={campo}>
+                  {principais.filter((p) => p.id !== c.id).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                </select>
+              </Rotulo>
+            )}
           </div>
+          {!f.pai && <p className="rounded-lg border border-axon-border bg-axon-bg px-3 py-2 text-xs text-gray-400">Se esta categoria for ter subcategorias (por idade ou nível), as taxas e regras abaixo valem só enquanto ela não tiver nenhuma: depois, cada subcategoria tem as suas.</p>}
 
           <div>
             <p className="text-xs text-gray-400">Formações aceitas e taxa de inscrição (por apresentação)</p>
@@ -130,8 +138,8 @@ function Formulario({ eventoId, produtoraId, perfilSlug, categoria, paiInicial, 
             <Rotulo texto="Pessoas em cena (máx.)"><input inputMode="numeric" value={f.maxPessoas} onChange={(e) => set("maxPessoas", e.target.value.replace(/\D/g, ""))} className={campo} /></Rotulo>
             <Rotulo texto="Vagas (máx. de inscrições)" ajuda={f.pai ? "Em branco = sem limite." : "Em branco = sem limite. Numa categoria principal, conta junto as subcategorias."}><input inputMode="numeric" value={f.vagas} onChange={(e) => set("vagas", e.target.value.replace(/\D/g, "").replace(/^0+/, ""))} placeholder="Sem limite" className={campo} /></Rotulo>
             <Rotulo texto="Faixa etária (texto livre)" ajuda="Opcional, ex.: Infantil (7 a 11)"><input value={f.idadeTexto} onChange={(e) => set("idadeTexto", e.target.value)} maxLength={40} className={campo} /></Rotulo>
-            <Rotulo texto="Tempo mínimo (min)"><input inputMode="numeric" value={f.tempoMin} onChange={(e) => set("tempoMin", e.target.value.replace(/\D/g, ""))} className={campo} /></Rotulo>
-            <Rotulo texto="Tempo máximo (min)"><input inputMode="numeric" value={f.tempoMax} onChange={(e) => set("tempoMax", e.target.value.replace(/\D/g, ""))} className={campo} /></Rotulo>
+            <Rotulo texto="Tempo mínimo (min:seg)" ajuda="Ex.: 2:30"><input inputMode="numeric" value={f.tempoMin} onChange={(e) => set("tempoMin", mascaraTempo(e.target.value))} placeholder="0:00" className={campo} /></Rotulo>
+            <Rotulo texto="Tempo máximo (min:seg)" ajuda="Ex.: 4:00"><input inputMode="numeric" value={f.tempoMax} onChange={(e) => set("tempoMax", mascaraTempo(e.target.value))} placeholder="0:00" className={campo} /></Rotulo>
           </div>
 
           {misto && (
@@ -199,7 +207,7 @@ export function Categorias({ eventoId, produtoraId, perfilSlug, categorias, usos
     const formacoes = [c.permite_solo && `${perfil.formacoes.solo} ${brl(c.valor_solo)}`, c.permite_duo && `${perfil.formacoes.duo} ${brl(c.valor_duo)}`, c.permite_conjunto && `${perfil.formacoes.conjunto} ${brl(c.valor_conjunto)}`].filter(Boolean);
     const detalhes = [faixa(c), c.genero && c.genero !== "livre" ? GENEROS.find((g) => g.valor === c.genero)?.nome : null,
       (c.min_participantes || c.max_participantes) ? `${c.min_participantes ?? 1}–${c.max_participantes ?? "∞"} pessoas` : null,
-      (c.tempo_apresentacao_min || c.tempo_apresentacao_max) ? `${c.tempo_apresentacao_min ?? 0}–${c.tempo_apresentacao_max ?? "∞"} min` : null,
+      (c.tempo_min_segundos || c.tempo_max_segundos) ? `${formatarTempo(c.tempo_min_segundos ?? 0)} a ${c.tempo_max_segundos ? formatarTempo(c.tempo_max_segundos) : "∞"} min` : null,
       misto && c.competitiva === false ? "mostra" : null].filter(Boolean);
     return (
       <li className={`flex flex-wrap items-center gap-3 px-5 py-3 ${nivel ? "bg-white/[0.015] pl-10" : ""}`}>
@@ -224,7 +232,14 @@ export function Categorias({ eventoId, produtoraId, perfilSlug, categorias, usos
     <div className="space-y-4">
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       <Cartao titulo="Categorias" descricao={`Os ${perfil.termos.grupo.plural} escolhem uma categoria (ou subcategoria) e a formação ao inscrever cada ${perfil.termos.apresentacao.singular}. A taxa vem daqui.`}
-        acao={podeGerir ? <button type="button" onClick={() => setForm({ categoria: null, pai: null })} className="inline-flex items-center gap-1.5 rounded-lg bg-axon-gold px-3 py-2 text-sm font-semibold text-black"><Plus size={14} /> Nova categoria</button> : undefined}>
+        acao={podeGerir ? <button type="button" onClick={() => setForm({ categoria: null, pai: null })} className="inline-flex items-center gap-1.5 rounded-lg bg-axon-gold px-3 py-2 text-sm font-semibold text-black"><Plus size={14} /> Nova categoria principal</button> : undefined}>
+        {podeGerir && (
+          <ol className="mx-5 mt-4 list-decimal space-y-1 rounded-lg border border-axon-border bg-axon-bg py-3 pl-9 pr-4 text-xs text-gray-400">
+            <li>Crie primeiro as <strong className="text-gray-200">categorias principais</strong> (ex.: Jazz, Ballet, Danças Urbanas).</li>
+            <li>Se quiser dividir por idade ou nível, clique em <strong className="text-axon-gold">+ Subcategoria</strong> na linha da principal (ex.: Jazz › Infantil, Jazz › Adulto).</li>
+            <li>Principal sem subcategoria recebe as inscrições direto; com subcategorias, os grupos escolhem a subcategoria.</li>
+          </ol>
+        )}
         {principais.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-gray-400">Nenhuma categoria ainda. Crie as categorias (ex.: Jazz, Ballet) e, se quiser, subcategorias por idade.</p>
         ) : (

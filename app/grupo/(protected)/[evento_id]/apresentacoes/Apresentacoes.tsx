@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { mensagemEnvio, uploadFiles } from "@/utils/uploadthing";
+import { formatarTempo } from "@/lib/mascaras";
 import { idadeEm } from "@/lib/documentos";
 import { maiuscula, MIME_ARQUIVO, novo, perfilPorSlug, type ArquivoTecnico, type Perfil } from "@/lib/perfis";
 import type { IntegranteElenco } from "@/lib/grupo/contexto";
@@ -44,27 +45,29 @@ function formacoes(perfil: Perfil, c: CategoriaEvento | undefined): { tipo: Tipo
 
 const nomePessoa = (p: IntegranteElenco) => p.nome_artistico || p.nome || `Convidado(a) · CPF final ${p.documento_final ?? "—"}`;
 
-// Avisos de regra da categoria (a produção confere; aqui só orienta)
+// Regras da categoria: `bloqueios` impedem salvar; `avisos` só orientam (confirmação chega depois, por e-mail).
+// Sem ninguém marcado ainda, salva (o elenco pode ser escolhido depois).
 function avisosElenco(c: CategoriaEvento | undefined, tipo: Tipo, escolhidos: IntegranteElenco[], dataEvento: string | null) {
   const n = escolhidos.length;
+  const bloqueios: string[] = [];
   const avisos: string[] = [];
-  if (n === 0) return avisos;
-  if (tipo === "solo" && n !== 1) avisos.push("Solo deve ter exatamente 1 pessoa em cena.");
-  if (tipo === "duo" && n !== 2) avisos.push("Duo deve ter exatamente 2 pessoas em cena.");
-  if ((tipo === "conjunto" || tipo === "grupo") && n < 3) avisos.push("Conjunto deve ter pelo menos 3 pessoas em cena.");
-  if (c?.min_participantes && n < c.min_participantes) avisos.push(`A categoria pede no mínimo ${c.min_participantes} pessoas.`);
-  if (c?.max_participantes && n > c.max_participantes) avisos.push(`A categoria aceita no máximo ${c.max_participantes} pessoas.`);
+  if (n === 0) return { bloqueios, avisos };
+  if (tipo === "solo" && n !== 1) bloqueios.push("Solo deve ter exatamente 1 pessoa em cena.");
+  if (tipo === "duo" && n !== 2) bloqueios.push("Duo deve ter exatamente 2 pessoas em cena.");
+  if ((tipo === "conjunto" || tipo === "grupo") && n < 3) bloqueios.push("Conjunto deve ter pelo menos 3 pessoas em cena.");
+  if (c?.min_participantes && n < c.min_participantes) bloqueios.push(`A categoria pede no mínimo ${c.min_participantes} pessoas.`);
+  if (c?.max_participantes && n > c.max_participantes) bloqueios.push(`A categoria aceita no máximo ${c.max_participantes} pessoas.`);
   if (c && (c.faixa_etaria_min != null || c.faixa_etaria_max != null)) {
     const fora = escolhidos.filter((p) => {
       const idade = idadeEm(p.data_nascimento, dataEvento);
       if (idade === null) return false;
       return (c.faixa_etaria_min != null && idade < c.faixa_etaria_min) || (c.faixa_etaria_max != null && idade > c.faixa_etaria_max);
     });
-    if (fora.length) avisos.push(`Fora da faixa etária da categoria: ${fora.map(nomePessoa).join(", ")}.`);
+    if (fora.length) bloqueios.push(`Fora da faixa etária da categoria: ${fora.map(nomePessoa).join(", ")}.`);
   }
   const pendentes = escolhidos.filter((p) => !p.confirmado || !p.termo_assinado).length;
   if (pendentes) avisos.push(`${pendentes} ${pendentes === 1 ? "pessoa ainda não confirmou ou não assinou" : "pessoas ainda não confirmaram ou não assinaram"} o termo.`);
-  return avisos;
+  return { bloqueios, avisos };
 }
 
 // ── Formulário de nova/editar apresentação ──────────────────────────────────
@@ -94,7 +97,7 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
   const tipoValido = opcoes.some((o) => o.tipo === tipo) ? tipo : opcoes[0]?.tipo ?? "solo";
   const travadoPorPagamento = !!editando && pago(editando.status_pagamento);
   const pessoas = elenco.filter((p) => escolhidos.has(p.participante_id));
-  const avisos = avisosElenco(categoria, tipoValido, pessoas, evento.data_inicio);
+  const { bloqueios, avisos } = avisosElenco(categoria, tipoValido, pessoas, evento.data_inicio);
 
   const grupos = useMemo(() => {
     const m = new Map<string, CategoriaEvento[]>();
@@ -109,7 +112,7 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
   const opcaoCategoria = (c: CategoriaEvento) => {
     const atual = c.id === editando?.categoria_id;
     const esgotada = c.restantes === 0 && !atual;
-    const vagas = esgotada ? " — esgotada" : c.restantes != null && !atual ? ` — ${c.restantes} vaga${c.restantes === 1 ? "" : "s"}` : "";
+    const vagas = esgotada ? " — esgotada" : c.restantes != null && c.mostrar_vagas && !atual ? ` — ${c.restantes} vaga${c.restantes === 1 ? "" : "s"}` : "";
     return <option key={c.id} value={c.id} disabled={esgotada}>{c.nome}{vagas}</option>;
   };
 
@@ -124,6 +127,7 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
     e.preventDefault();
     setErro(null);
     if (!categoria) return setErro("Escolha a categoria.");
+    if (bloqueios.length) return setErro("Corrija os itens em vermelho antes de salvar: eles não atendem às regras da categoria.");
     setSalvando(true);
     const supabase = createClient();
     const dados = {
@@ -207,8 +211,8 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
               {(categoria.faixa_etaria_label || categoria.faixa_etaria_min != null || categoria.faixa_etaria_max != null) && (
                 <span>Idade: {categoria.faixa_etaria_label ?? `${categoria.faixa_etaria_min ?? 0}–${categoria.faixa_etaria_max ?? "∞"} anos`}</span>
               )}
-              {(categoria.tempo_apresentacao_min || categoria.tempo_apresentacao_max) && (
-                <span>Tempo: {categoria.tempo_apresentacao_min ?? 0}–{categoria.tempo_apresentacao_max ?? "∞"} min</span>
+              {(categoria.tempo_min_segundos || categoria.tempo_max_segundos) && (
+                <span>Tempo: {formatarTempo(categoria.tempo_min_segundos ?? 0)} a {categoria.tempo_max_segundos ? formatarTempo(categoria.tempo_max_segundos) : "∞"} min</span>
               )}
               {(categoria.min_participantes || categoria.max_participantes) && (
                 <span>Pessoas em cena: {categoria.min_participantes ?? 1}–{categoria.max_participantes ?? "∞"}</span>
@@ -237,6 +241,11 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
                 ))}
               </div>
             )}
+            {bloqueios.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {bloqueios.map((a) => <li key={a} className="flex items-start gap-1.5 text-xs text-red-300"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {a}</li>)}
+              </ul>
+            )}
             {avisos.length > 0 && (
               <ul className="mt-2 space-y-1">
                 {avisos.map((a) => <li key={a} className="flex items-start gap-1.5 text-xs text-axon-gold"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {a}</li>)}
@@ -254,7 +263,7 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
 
         <div className="flex justify-end gap-2 border-t border-axon-border px-5 py-4">
           <button type="button" onClick={onFechar} className="rounded-lg px-4 py-2 text-sm text-gray-300 hover:text-white">Cancelar</button>
-          <button type="submit" disabled={salvando} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
+          <button type="submit" disabled={salvando || bloqueios.length > 0} title={bloqueios.length ? "Corrija os itens em vermelho" : undefined} className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">
             {salvando && <Loader2 size={15} className="animate-spin" />} Salvar
           </button>
         </div>
@@ -428,7 +437,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
         apresentacoes.map((a) => {
           const cat = a.categoria_id ? catPorId.get(a.categoria_id) : undefined;
           const pessoas = a.elenco.map((id) => porId.get(id)).filter((p): p is IntegranteElenco => !!p);
-          const avisos = avisosElenco(cat, a.tipo, pessoas, evento.data_inicio);
+          const regras = avisosElenco(cat, a.tipo, pessoas, evento.data_inicio);
           return (
             <Cartao key={a.id} className="scroll-mt-24 overflow-hidden">
               <div id={a.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
@@ -454,7 +463,8 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
               <div className="border-t border-axon-border px-5 py-3">
                 <p className="text-xs text-gray-500">Em cena ({pessoas.length})</p>
                 <p className="mt-1 text-sm text-gray-200">{pessoas.length ? pessoas.map(nomePessoa).join(", ") : <span className="text-gray-500">Ninguém selecionado</span>}</p>
-                {avisos.map((w) => <p key={w} className="mt-1 flex items-start gap-1.5 text-xs text-axon-gold"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {w}</p>)}
+                {regras.bloqueios.map((w) => <p key={w} className="mt-1 flex items-start gap-1.5 text-xs text-red-300"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {w}</p>)}
+                {regras.avisos.map((w) => <p key={w} className="mt-1 flex items-start gap-1.5 text-xs text-axon-gold"><AlertTriangle size={12} className="mt-0.5 shrink-0" /> {w}</p>)}
                 {a.observacoes && <p className="mt-2 text-xs text-gray-400">Obs.: {a.observacoes}</p>}
               </div>
 

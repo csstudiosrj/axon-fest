@@ -16,3 +16,8 @@ export function limparHtml(html: string | null | undefined): string {
   const comTags = /<[a-z][\s\S]*>/i.test(texto) ? texto : texto.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
   return sanitizeHtml(comTags, PERMITIDO);
 }
+
+// Só o texto (para resumos e meta description)
+export function textoPuro(html: string | null | undefined): string {
+  return sanitizeHtml((html ?? "").replace(/<\/(p|h2|h3|li)>/gi, " "), { allowedTags: [], allowedAttributes: {} }).replace(/\s+/g, " ").trim();
+}

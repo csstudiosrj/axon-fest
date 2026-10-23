@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getUsuarioAtual } from "@/lib/auth/session";
 import { ROLES_GRUPO } from "@/lib/auth/roles";
-import { cpfValido, soDigitos } from "@/lib/documentos";
+import { cpfValido, idadeEm, soDigitos } from "@/lib/documentos";
 import { enviarConfirmacaoVinculo } from "@/lib/grupo/vinculo";
 import { perfilPorSlug } from "@/lib/perfis";
 import { inscricoesAbertas } from "@/lib/eventos/status";
@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
 
       let participanteId: string;
       let jaTinhaCadastro = false;
+      let temConta = false;
       if (existente) {
         jaTinhaCadastro = true;
         participanteId = existente.id as string;
@@ -106,6 +107,23 @@ export async function POST(req: NextRequest) {
         if (!nome || nome.length < 3) return erro("Informe o nome completo.");
         if (!email || !EMAIL.test(email)) return erro("Informe um e-mail válido: é por ele que a pessoa confirma a participação.");
         if (!dataValida(nascimento)) return erro("Data de nascimento inválida.");
+
+        // Pessoa única no sistema: um e-mail é de uma pessoa só. Menor de idade pode usar o
+        // e-mail do responsável (irmãos com o mesmo e-mail); maior precisa do próprio.
+        const maior = (idadeEm(nascimento) ?? 0) >= 18;
+        const padraoEmail = email.replace(/[\\%_]/g, (c) => `\\${c}`);
+        const { data: mesmoEmail } = await admin.from("participantes").select("id, data_nascimento")
+          .ilike("email_contato", padraoEmail).neq("documento", documento);
+        if (maior && (mesmoEmail ?? []).some((p) => (idadeEm(p.data_nascimento) ?? 0) >= 18)) {
+          return erro("Este e-mail já está no cadastro de outra pessoa. Cada maior de idade precisa do próprio e-mail (menores podem usar o do responsável).", 409);
+        }
+        const { data: conta } = maior
+          ? await admin.from("usuarios").select("id, role").ilike("email", padraoEmail).maybeSingle()
+          : { data: null };
+        if (conta) {
+          const { data: ligado } = await admin.from("participantes").select("id").eq("usuario_id", conta.id).maybeSingle();
+          if (ligado) return erro("Este e-mail já está no cadastro de outra pessoa. Confira o CPF digitado.", 409);
+        }
 
         // Origem: produtora do festival em que o grupo está agora (ou a de origem do grupo) e o próprio grupo
         let origem: string | null = null;
@@ -129,12 +147,15 @@ export async function POST(req: NextRequest) {
           origem_produtora_id: origem,
           origem_grupo_id: grupoId,
           criado_por: usuario.id,
+          // Mesmo e-mail de uma conta do sistema (jurado, equipe…): é a mesma pessoa
+          usuario_id: conta?.id ?? null,
         }).select("id").single();
         if (error || !novo) {
           console.error("[api/grupo/elenco] participante", error);
           return erro("Não foi possível salvar o cadastro.", 500);
         }
         participanteId = novo.id as string;
+        temConta = !!conta;
       }
 
       const token = crypto.randomUUID();
@@ -149,7 +170,7 @@ export async function POST(req: NextRequest) {
       const enviado = await enviarSemFalhar(admin, token, perfil);
       const emailMascarado = jaTinhaCadastro && existente?.email_contato
         ? (existente.email_contato as string).replace(/^(.)[^@]*(@.)[^.]*(.*)$/, "$1***$2***$3") : null;
-      return NextResponse.json({ success: true, existe: jaTinhaCadastro, jaTinhaCadastro, emailEnviado: enviado, emailMascarado });
+      return NextResponse.json({ success: true, existe: jaTinhaCadastro, jaTinhaCadastro, temConta, emailEnviado: enviado, emailMascarado });
     }
 
     // As demais ações atuam sobre um vínculo deste grupo

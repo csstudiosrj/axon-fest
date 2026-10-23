@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { urlAbsoluta } from "@/lib/base-path";
 import { emailComBotao, enviarEmail, escapeHtml } from "@/lib/email";
+import { termoParticipacaoBase } from "@/lib/termos";
 
 // Rota pública: o acesso é autorizado só pelo token do vínculo (UUID aleatório
 // enviado por e-mail). Por isso nada além do necessário é devolvido ao navegador.
@@ -107,7 +108,9 @@ export async function POST(request: NextRequest) {
         .eq("produtora_id", grupo.origem_produtora_id)
         .limit(1)
         .maybeSingle();
-      tenantConfig = config;
+      const { data: prod } = await supabase.from("produtoras").select("nome, documento, cidade, estado").eq("id", grupo.origem_produtora_id).maybeSingle();
+      // Sem termo próprio salvo, vale o texto base com os dados da produtora
+      tenantConfig = { termo_participante: config?.termo_participante ?? null, termo_legal_texto: config?.termo_legal_texto || (prod ? termoParticipacaoBase(prod) : null) };
     }
 
     const idade = calcularIdade(participante.data_nascimento);

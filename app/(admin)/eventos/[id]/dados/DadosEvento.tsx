@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, FileText, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -11,7 +11,8 @@ import { urlAbsoluta } from "@/lib/base-path";
 import { SeletorPerfil } from "../../../_components/SeletorPerfil";
 import type { EventoPainel } from "@/lib/eventos/painel";
 import { Aviso, Cartao, Rotulo, campo } from "../_ui";
-import { confirmar } from "@/app/_components/Dialogos";
+import { confirmar, useAvisoNaoSalvo } from "@/app/_components/Dialogos";
+import { EditorTexto, paraHtml } from "@/app/_components/EditorTexto";
 
 const FORMATOS = [
   { valor: "competitivo", nome: "Competitivo", ajuda: "Jurados avaliam e há classificação." },
@@ -78,7 +79,8 @@ export function DadosEvento({ evento, podeGerir, podePagina, temInscricoes }: { 
     data_fim: evento.data_fim ?? "",
     local: evento.local ?? "",
     vagas_total: evento.vagas_total != null ? String(evento.vagas_total) : "",
-    descricao: evento.descricao ?? "",
+    mostrar_vagas: evento.mostrar_vagas ?? false,
+    descricao: paraHtml(evento.descricao),
     status: evento.status ?? "Em Montagem",
     slug: evento.slug ?? "",
     cor_primaria: evento.cor_primaria ?? "#d4af37",
@@ -92,6 +94,9 @@ export function DadosEvento({ evento, podeGerir, podePagina, temInscricoes }: { 
   });
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const atual = useMemo(() => JSON.stringify(f), [f]);
+  const [salvo, setSalvo] = useState(atual);
+  useAvisoNaoSalvo((podeGerir || podePagina) && atual !== salvo);
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
 
   const salvar = async (e: React.FormEvent) => {
@@ -113,7 +118,7 @@ export function DadosEvento({ evento, podeGerir, podePagina, temInscricoes }: { 
     const { error } = await createClient().from("eventos").update(!podeGerir ? pagina : {
       nome: f.nome.trim(), perfil_id: f.perfil_id, formato: f.formato, tipo_premiacao: f.tipo_premiacao,
       data_inicio: f.data_inicio || null, data_fim: f.data_fim || null, local: f.local.trim() || null,
-      vagas_total: f.vagas_total ? Number(f.vagas_total) : null,
+      vagas_total: f.vagas_total ? Number(f.vagas_total) : null, mostrar_vagas: f.mostrar_vagas,
       descricao: f.descricao.trim() || null, status: f.status, slug, cor_primaria: f.cor_primaria, tema_escuro: f.tema_escuro,
       cor_secundaria: f.cor_secundaria, fonte_familia: f.fonte_familia, instagram_handle: instagram || null, exibir_feed_instagram: !!instagram,
       logo_url: f.logo_url, banner_url: f.banner_url, regulamento_url: f.regulamento_url,
@@ -124,6 +129,7 @@ export function DadosEvento({ evento, podeGerir, podePagina, temInscricoes }: { 
       return;
     }
     set("slug", slug);
+    setSalvo(JSON.stringify({ ...f, slug }));
     setMsg({ tipo: "ok", texto: "Alterações salvas." });
     router.refresh();
   };
@@ -176,12 +182,20 @@ export function DadosEvento({ evento, podeGerir, podePagina, temInscricoes }: { 
           <Rotulo texto="Vagas no evento" ajuda="Máximo de apresentações no festival inteiro. Em branco = sem limite. Também dá para limitar por categoria.">
             <input inputMode="numeric" value={f.vagas_total} onChange={(e) => set("vagas_total", e.target.value.replace(/\D/g, "").replace(/^0+/, ""))} disabled={dis} placeholder="Sem limite" className={campo} />
           </Rotulo>
+          <label className="flex items-start gap-2 self-end pb-2 text-sm text-gray-200">
+            <input type="checkbox" checked={f.mostrar_vagas} onChange={(e) => set("mostrar_vagas", e.target.checked)} disabled={dis} className="mt-0.5 accent-[#d4af37]" />
+            <span>Mostrar aos grupos e na página pública quantas vagas restam<span className="block text-xs text-gray-500">Desligado: só aparece “esgotado” quando acabar.</span></span>
+          </label>
         </div>
       </Cartao>
 
       <Cartao titulo="Página pública" descricao="Endereço, identidade visual e regulamento.">
         <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-          <div className="md:col-span-2"><Rotulo texto="Descrição (aparece na página pública)"><textarea rows={4} value={f.descricao} onChange={(e) => set("descricao", e.target.value)} disabled={disPagina} maxLength={4000} className={`${campo} resize-y`} /></Rotulo></div>
+          <div className="md:col-span-2">
+            <p className="mb-1.5 text-xs text-gray-400">Descrição (aparece na página pública)</p>
+            <EditorTexto valorInicial={evento.descricao ?? ""} rotulo="Descrição do evento" desabilitado={disPagina}
+              onMudar={(html, vazio) => set("descricao", vazio ? "" : html)} />
+          </div>
 
           <div className="md:col-span-2">
             <Rotulo texto="Endereço da página" ajuda={`${urlAbsoluta("/e/")}${slugificar(f.slug) || "…"}`}>

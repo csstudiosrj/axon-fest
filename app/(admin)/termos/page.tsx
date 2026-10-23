@@ -2,6 +2,8 @@ import Link from "next/link";
 import { exigirAcesso } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { idadeEm } from "@/lib/documentos";
+import { mascaraCpfCnpj } from "@/lib/mascaras";
+import { cidadeUf } from "@/lib/termos";
 import { Termos, type Assinatura, type DocumentoTermo } from "./Termos";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +32,7 @@ export default async function PaginaTermos({ searchParams }: { searchParams: Pro
   const evento = eventos.find((e) => e.id === params.evento) ?? eventos[0];
   const [{ data: docs }, { data: produtora }, { data: aps }] = await Promise.all([
     supabase.from("termos_documentos").select("id, tipo, titulo, conteudo, ativo, versao, atualizado_em").eq("evento_id", evento.id),
-    supabase.from("produtoras").select("nome, documento").eq("id", usuario.produtora_id).maybeSingle(),
+    supabase.from("produtoras").select("nome, documento, cidade, estado").eq("id", usuario.produtora_id).maybeSingle(),
     supabase.from("apresentacoes")
       .select("grupos ( nome ), apresentacao_elenco ( participantes ( id, nome, data_nascimento, termo_assinado, termo_assinado_em, responsavel_nome ) )")
       .eq("evento_id", evento.id),
@@ -56,7 +58,7 @@ export default async function PaginaTermos({ searchParams }: { searchParams: Pro
       eventos={eventos.map((e) => ({ id: e.id, nome: e.nome }))}
       evento={{ id: evento.id, nome: evento.nome, slug: evento.slug }}
       produtoraId={usuario.produtora_id}
-      produtora={{ nome: produtora?.nome ?? "", documento: produtora?.documento ?? null }}
+      produtora={{ nome: produtora?.nome ?? "", documento: produtora?.documento ? mascaraCpfCnpj(produtora.documento) : null, cidade: produtora ? cidadeUf(produtora) : null }}
       documentos={(docs ?? []) as DocumentoTermo[]}
       assinaturas={assinaturas}
     />
