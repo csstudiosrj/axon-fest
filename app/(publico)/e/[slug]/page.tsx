@@ -1059,7 +1059,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
             </h2>
             <p className={`text-sm ${tema.softText}`}>
               {evento.status === "inscricoes_abertas"
-                ? "Garanta sua participação agora mesmo. Vagas limitadas por categoria."
+                ? "Garanta a participação do seu grupo: a inscrição é feita online, por aqui."
                 : "As inscrições para este festival estão indisponíveis no momento."}
             </p>
           </div>
