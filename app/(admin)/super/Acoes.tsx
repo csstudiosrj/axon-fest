@@ -51,20 +51,30 @@ export function AcoesConta({ id, nome, email, ativo, podeEntrar = true }: { id: 
   const executar = async (corpo: Record<string, unknown>, sucesso: string) => {
     setOcupado(true);
     setMsg(null);
+    let deuCerto = false;
     try {
       const r = await chamar({ id, ...corpo });
       if (r.link) setLink(r.link);
       else setMsg({ ok: true, texto: sucesso });
+      deuCerto = true;
       router.refresh();
     } catch (e) {
       setMsg({ ok: false, texto: (e as Error).message });
     }
     setOcupado(false);
+    return deuCerto;
   };
 
-  const trocarEmail = () => {
-    const novo = window.prompt(`Novo e-mail de acesso de ${nome}:`, email);
-    if (novo && novo.trim().toLowerCase() !== email) void executar({ acao: "trocar_email", email: novo }, `E-mail alterado para ${novo.trim().toLowerCase()}.`);
+  const trocarEmail = async () => {
+    const novo = window.prompt(`Novo e-mail de acesso de ${nome}:`, email)?.trim().toLowerCase();
+    if (!novo || novo === email) return;
+    if (!(await executar({ acao: "trocar_email", email: novo }, `E-mail alterado para ${novo}.`))) return;
+    // Lista filtrada pelo e-mail antigo: passa a buscar pelo novo para a pessoa continuar na tela
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("q")?.toLowerCase() === email.toLowerCase()) {
+      params.set("q", novo);
+      router.replace(`?${params}`);
+    }
   };
 
   return (

@@ -12,7 +12,7 @@ import { lerOcupacao, situacaoVagas } from "@/lib/eventos/vagas";
 // recebe pelo Resend o link de confirmação e já cai no portal do grupo.
 
 const JANELA_MS = 60 * 60 * 1000;
-const MAX_POR_JANELA = 5;
+const MAX_POR_JANELA = 20; // mesma rede (escola, produção ajudando grupos) pode cadastrar vários grupos
 const tentativas = new Map<string, number[]>();
 
 function limitar(ip: string): boolean {
