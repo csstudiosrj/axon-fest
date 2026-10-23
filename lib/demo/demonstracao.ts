@@ -91,7 +91,8 @@ export async function criarDemonstracao(admin: Admin) {
       termo_legal_texto: "Texto de exemplo da demonstração. Declaro que participo do festival por livre vontade e que estou apto(a) às atividades." });
 
     // Equipe
-    for (const [papel, role, nome] of [["Dono do festival", "admin", "Demo Admin"], ["Produtor", "produtor", "Demo Produtor"], ["Operador de caixa", "operador", "Demo Operador"]] as const) {
+    for (const [papel, role, nome] of [["Dono do festival", "admin", "Demo Admin"], ["Produção", "produtor", "Demo Produção"], ["Financeiro", "financeiro", "Demo Financeiro"],
+      ["Marketing", "marketing", "Demo Marketing"], ["Operador de caixa", "operador", "Demo Operador"]] as const) {
       const email = `${role}.${sufixo}@${DOMINIO}`;
       await criarUsuario(admin, email, senha, { nome, role, produtora_id: pid });
       logins.push({ papel, email });
@@ -99,7 +100,9 @@ export async function criarDemonstracao(admin: Admin) {
     const jurados: string[] = [];
     for (const [i, nome] of JURADOS.entries()) {
       const email = `jurado${i + 1}.${sufixo}@${DOMINIO}`;
-      jurados.push(await criarUsuario(admin, email, senha, { nome, role: "jurado", produtora_id: pid, mini_bio: "Jurado(a) da demonstração." }));
+      const juradoId = await criarUsuario(admin, email, senha, { nome, role: "jurado", produtora_id: pid, mini_bio: "Jurado(a) da demonstração." });
+      jurados.push(juradoId);
+      await admin.from("produtora_jurados").insert({ produtora_id: pid, jurado_id: juradoId, status: "aceito", respondido_em: new Date().toISOString() });
       logins.push({ papel: `Jurado ${i + 1}`, email });
     }
 

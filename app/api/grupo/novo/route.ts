@@ -3,13 +3,16 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { urlAbsoluta } from "@/lib/base-path";
 import { emailComBotao, enviarEmail, escapeHtml } from "@/lib/email";
 import { inscricoesAbertas } from "@/lib/eventos/status";
+import { cpfValido } from "@/lib/documentos";
+import { cnpjValido } from "@/lib/mascaras";
+import { lerOcupacao, situacaoVagas } from "@/lib/eventos/vagas";
 
 // Cadastro de grupo NOVO pela página de inscrição do evento, feito todo no
 // servidor: conta (ainda não confirmada), grupo, vínculo e inscrição. A pessoa
 // recebe pelo Resend o link de confirmação e já cai no portal do grupo.
 
 const JANELA_MS = 60 * 60 * 1000;
-const MAX_POR_JANELA = 5;
+const MAX_POR_JANELA = 20; // mesma rede (escola, produção ajudando grupos) pode cadastrar vários grupos
 const tentativas = new Map<string, number[]>();
 
 function limitar(ip: string): boolean {
@@ -39,23 +42,35 @@ export async function POST(req: NextRequest) {
   const documento = campo(body.documento, 20).replace(/\D/g, "");
   const tipoDocumento = documento.length === 14 ? "cnpj" : documento.length === 11 ? "cpf" : null;
   const emailContato = campo(body.email_contato, 200).toLowerCase() || null;
+  const endereco = {
+    cep: campo(body.cep, 12).replace(/\D/g, "") || null,
+    logradouro: campo(body.logradouro, 160) || null,
+    numero: campo(body.numero, 20) || null,
+    complemento: campo(body.complemento, 80) || null,
+    bairro: campo(body.bairro, 80) || null,
+  };
 
   if (!nomeGrupo || !responsavel || !telefone || !cidade || !estado) return erro("Preencha todos os campos obrigatórios.", 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return erro("Informe um e-mail válido.", 400);
   if (senha.length < 8) return erro("A senha precisa ter pelo menos 8 caracteres.", 400);
-  if (documento && !tipoDocumento) return erro("CPF ou CNPJ inválido.", 400);
+  if (!documento || !(tipoDocumento === "cpf" ? cpfValido(documento) : tipoDocumento === "cnpj" && cnpjValido(documento))) return erro("CPF ou CNPJ inválido.", 400);
+  if (telefone.length < 10) return erro("Telefone incompleto: informe DDD e número.", 400);
+  if (body.aceite !== true) return erro("É preciso aceitar o regulamento para se inscrever.", 400);
 
   const admin = createAdminClient();
-  const { data: evento } = await admin.from("eventos").select("id, nome, status, produtora_id").eq("id", eventoId).maybeSingle();
+  const { data: evento } = await admin.from("eventos").select("id, nome, status, produtora_id, vagas_total").eq("id", eventoId).maybeSingle();
   if (!evento) return erro("Evento não encontrado.", 404);
   if (!inscricoesAbertas(evento.status)) return erro("As inscrições deste evento não estão abertas.", 409);
+  const [{ data: cats }, { data: ocup }] = await Promise.all([
+    admin.from("categorias").select("id, categoria_pai_id, vagas").eq("evento_id", evento.id),
+    admin.rpc("ocupacao_evento", { p_evento: evento.id }),
+  ]);
+  if (situacaoVagas(cats ?? [], lerOcupacao(ocup), evento.vagas_total).esgotado) return erro("As vagas deste festival estão esgotadas.", 409);
 
   const { data: existente } = await admin.from("usuarios").select("id").eq("email", email).maybeSingle();
   if (existente) return erro("Este e-mail já tem conta. Use a opção de entrar com e-mail e senha.", 409);
-  if (documento) {
-    const { data: doc } = await admin.from("grupos").select("id").eq("documento", documento).maybeSingle();
-    if (doc) return erro("Já existe um grupo com este CPF/CNPJ. Entre com o login do grupo.", 409);
-  }
+  const { data: doc } = await admin.from("grupos").select("id").eq("documento", documento).maybeSingle();
+  if (doc) return erro("Já existe um grupo com este CPF/CNPJ. Entre com o login do grupo.", 409);
 
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({
     type: "signup", email, password: senha, options: { data: { nome: responsavel } },
@@ -76,7 +91,7 @@ export async function POST(req: NextRequest) {
   try {
     const { data: grupo, error: gErr } = await admin.from("grupos").insert({
       nome: nomeGrupo, responsavel, email, email_contato: emailContato, telefone, cidade, estado,
-      documento: documento || null, tipo_documento: tipoDocumento, origem_produtora_id: evento.produtora_id,
+      documento, tipo_documento: tipoDocumento, origem_produtora_id: evento.produtora_id, ...endereco,
     }).select("id").single();
     if (gErr || !grupo) throw gErr ?? new Error("grupo");
     grupoId = grupo.id;
@@ -88,6 +103,7 @@ export async function POST(req: NextRequest) {
 
     const { error: iErr } = await admin.from("inscricoes_grupo_evento").insert({
       grupo_id: grupoId, evento_id: evento.id, status: "ativo", origem: "landing",
+      aceite_em: new Date().toISOString(), aceite_ip: ip,
     });
     if (iErr) throw iErr;
 

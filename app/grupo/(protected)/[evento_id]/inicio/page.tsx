@@ -11,7 +11,7 @@ interface Pendencia { texto: string; href: string; grave?: boolean }
 
 export default async function ResumoEvento({ params }: { params: Promise<{ evento_id: string }> }) {
   const { evento_id } = await params;
-  const { evento, perfil, grupo, usuario } = await carregarContextoGrupo(evento_id);
+  const { evento, perfil, grupo, usuario, diretor } = await carregarContextoGrupo(evento_id);
   const situacao = situacaoEvento(evento.status);
   const base = `/grupo/${evento.id}`;
   const T = perfil.termos;
@@ -46,13 +46,13 @@ export default async function ResumoEvento({ params }: { params: Promise<{ event
   if (pendentesNoEvento) {
     pendencias.push({ texto: `${pendentesNoEvento} ${pendentesNoEvento === 1 ? "pessoa em cena ainda não confirmou ou não assinou o termo" : "pessoas em cena ainda não confirmaram ou não assinaram o termo"}.`, href: `${base}/elenco` });
   }
-  if (valorPendente > 0) pendencias.push({ texto: `Pagamento pendente de ${brl(valorPendente)}. Siga as orientações da produção do festival.`, href: `${base}/apresentacoes` });
+  if (diretor && valorPendente > 0) pendencias.push({ texto: `Pagamento pendente de ${brl(valorPendente)}. Siga as orientações da produção do festival.`, href: `${base}/apresentacoes` });
 
   const numeros = [
-    { rotulo: maiuscula(T.apresentacao.plural), valor: String(apresentacoes.length), detalhe: apresentacoes.length ? `Total ${brl(valorTotal)}` : "Nenhuma inscrita" },
+    { rotulo: maiuscula(T.apresentacao.plural), valor: String(apresentacoes.length), detalhe: apresentacoes.length ? (diretor ? `Total ${brl(valorTotal)}` : "suas inscrições") : "Nenhuma inscrita" },
     { rotulo: maiuscula(T.elenco), valor: String(elenco.length), detalhe: aguardando ? `${aguardando} aguardando confirmação` : elenco.length ? "Todos confirmados" : "Ninguém cadastrado" },
     { rotulo: "Termos", valor: String(elenco.filter((p) => p.termo_assinado).length), detalhe: semTermo ? `${semTermo} sem assinatura` : "assinados" },
-    { rotulo: "A pagar", valor: brl(valorPendente), detalhe: valorPendente > 0 ? "Pendente" : valorTotal > 0 ? "Tudo pago" : "Nada a pagar" },
+    ...(diretor ? [{ rotulo: "A pagar", valor: brl(valorPendente), detalhe: valorPendente > 0 ? "Pendente" : valorTotal > 0 ? "Tudo pago" : "Nada a pagar" }] : []),
   ];
 
   return (

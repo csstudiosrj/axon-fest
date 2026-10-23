@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Check } from "lucide-react";
-import { brl, obterConfiguracoes, type Configuracoes } from "@/lib/site/configuracoes";
+import { brl, obterCatalogo, obterConfiguracoes, preencherTexto, type Configuracoes, type ItemCatalogoPublico } from "@/lib/site/configuracoes";
 import { BotaoPrimario, BotaoSecundario, CabecalhoSecao, Container, Paragrafo, Rotulo, Titulo } from "../_components/ui";
 import { SimuladorTaxa } from "./SimuladorTaxa";
 
@@ -12,44 +12,22 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function conteudo({ precos: PRECOS, taxaTexto: T }: Configuracoes) {
-const PLANOS = [
-  {
-    nome: "Start",
-    preco: "Grátis",
-    detalhe: `por ${PRECOS.mesesStart} meses`,
-    descricao: "Para tirar a primeira edição do papel sem custo fixo.",
-    itens: [
-      "Todos os módulos liberados",
-      "Eventos, equipe e jurados sem limite",
-      "Página pública com a sua marca",
-      `Caixa no celular: ${PRECOS.caixaPercentual}% em fatura mensal, isento abaixo de ${brl(PRECOS.caixaIsencaoAte)}/mês`,
-      `Taxa de ${T} por venda feita pelo sistema`,
-    ],
-    nota: `Após ${PRECOS.mesesStart} meses, a conta fica em modo leitura por mais ${PRECOS.mesesGuarda} meses para você assinar o Pro. Depois disso, os dados são apagados.`,
-    cta: { href: "/criar-conta", label: "Começar grátis" },
-    destaque: false,
-  },
-  {
-    nome: "Pro",
-    preco: PRECOS.mensalidadePro
-      ? brl(PRECOS.mensalidadePro)
-      : "Sob consulta",
-    detalhe: PRECOS.mensalidadePro ? "por mês" : "assinatura mensal",
-    descricao: "Para festivais que voltam todo ano e precisam do histórico.",
-    itens: [
-      "Tudo do Start, sem prazo",
-      "Dados e histórico de todas as edições guardados",
-      "Grupos e participantes reaproveitados a cada ano",
-      "Atendimento prioritário",
-      `Taxa de ${T} por venda feita pelo sistema`,
-    ],
-    nota: "Sem fidelidade: cancele quando quiser.",
-    cta: { href: "/contato?assunto=pro", label: "Falar sobre o Pro" },
-    destaque: true,
-  },
-];
+const PERIODO: Record<string, string> = { mensal: "por mês", anual: "por ano", unico: "pagamento único", gratis: "" };
 
+// Cartão do catálogo (preço, itens e botão) com os valores atuais das taxas
+function cartao(i: ItemCatalogoPublico, c: Configuracoes) {
+  const preco = i.periodo === "gratis" || i.preco === 0 ? "Grátis" : i.preco === null ? "Sob consulta" : brl(i.preco);
+  return {
+    nome: i.nome, preco, destaque: i.destaque,
+    detalhe: preencherTexto(i.detalhe || (i.preco ? PERIODO[i.periodo] ?? "" : ""), c),
+    descricao: i.descricao ? preencherTexto(i.descricao, c) : "",
+    itens: i.itens.map((t) => preencherTexto(t, c)),
+    nota: i.nota ? preencherTexto(i.nota, c) : "",
+    cta: { href: i.cta_link || "/contato", label: i.cta_texto || "Falar com a gente" },
+  };
+}
+
+function conteudo({ precos: PRECOS, taxaTexto: T }: Configuracoes) {
 const PERGUNTAS = [
   {
     p: "Quando a taxa é cobrada?",
@@ -77,13 +55,16 @@ const PERGUNTAS = [
   },
 ];
 
-return { PLANOS, PERGUNTAS };
+return { PERGUNTAS };
 }
 
 export default async function Precos() {
   const config = await obterConfiguracoes();
   const { precos: PRECOS, taxaTexto: T } = config;
-  const { PLANOS, PERGUNTAS } = conteudo(config);
+  const { PERGUNTAS } = conteudo(config);
+  const catalogo = await obterCatalogo();
+  const PLANOS = catalogo.filter((i) => i.tipo === "plano").map((i) => cartao(i, config));
+  const PACOTES = catalogo.filter((i) => i.tipo === "pacote").map((i) => cartao(i, config));
   return (
     <>
       <section className="border-b border-arx-line">
@@ -100,14 +81,14 @@ export default async function Precos() {
       </section>
 
       <section className="border-b border-arx-line">
-        <Container className="grid gap-6 py-16 sm:py-24 lg:grid-cols-2">
+        <Container className={`grid gap-6 py-16 sm:py-24 ${PLANOS.length >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
           {PLANOS.map((p) => (
             <article key={p.nome}
               className={`flex flex-col rounded-xl border p-8 sm:p-10 ${p.destaque ? "border-arx-fest/35 bg-arx-surface" : "border-arx-line bg-arx-obsidian"}`}>
               <div className="flex items-center justify-between gap-4">
                 <h2 className="text-[15px] font-semibold uppercase tracking-[0.18em] text-white">{p.nome}</h2>
                 {p.destaque && (
-                  <span className="rounded-full bg-arx-fest/12 px-2.5 py-1 text-[11px] font-medium text-arx-fest">Para quem repete edições</span>
+                  <span className="rounded-full bg-arx-fest/12 px-2.5 py-1 text-[11px] font-medium text-arx-fest">Recomendado</span>
                 )}
               </div>
               <p className="mt-8 text-[44px] font-medium leading-none tracking-[-0.03em] text-white">{p.preco}</p>
@@ -120,7 +101,7 @@ export default async function Precos() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-8 text-[13px] leading-[1.6] text-arx-slate">{p.nota}</p>
+              {p.nota && <p className="mt-8 text-[13px] leading-[1.6] text-arx-slate">{p.nota}</p>}
               <div className="mt-auto pt-8">
                 {p.destaque
                   ? <BotaoPrimario href={p.cta.href} className="w-full">{p.cta.label}</BotaoPrimario>
@@ -130,6 +111,29 @@ export default async function Precos() {
           ))}
         </Container>
       </section>
+
+      {PACOTES.length > 0 && (
+        <section className="border-b border-arx-line">
+          <Container className="py-16 sm:py-20">
+            <CabecalhoSecao rotulo="Pacotes" titulo="Extras para o seu festival." />
+            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {PACOTES.map((p) => (
+                <article key={p.nome} className="flex flex-col rounded-xl border border-arx-line bg-arx-obsidian p-6">
+                  <h3 className="text-[15px] font-semibold text-white">{p.nome}</h3>
+                  <p className="mt-3 text-[28px] font-medium tracking-[-0.02em] text-white">{p.preco} <span className="text-[13px] font-normal text-arx-slate">{p.detalhe}</span></p>
+                  {p.descricao && <p className="mt-3 text-[14px] leading-[1.6] text-arx-mist">{p.descricao}</p>}
+                  {p.itens.length > 0 && (
+                    <ul className="mt-4 space-y-2">
+                      {p.itens.map((item) => <li key={item} className="flex gap-2 text-[14px] text-arx-frost"><Check size={15} className="mt-0.5 shrink-0 text-arx-fest" />{item}</li>)}
+                    </ul>
+                  )}
+                  <div className="mt-auto pt-6"><BotaoSecundario href={p.cta.href} className="w-full">{p.cta.label}</BotaoSecundario></div>
+                </article>
+              ))}
+            </div>
+          </Container>
+        </section>
+      )}
 
       <section className="border-b border-arx-line">
         <Container className="grid items-center gap-12 py-20 sm:py-28 lg:grid-cols-2 lg:gap-20">

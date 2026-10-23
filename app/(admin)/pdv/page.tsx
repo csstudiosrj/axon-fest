@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { getUsuarioAtual } from "@/lib/auth/session";
+import { exigirAcesso } from "@/lib/auth/guards";
 import { Produtos, type ProdutoPainel } from "./_componentes/Produtos";
 import { Vendas, type LinhaVenda } from "./_componentes/Vendas";
 import { ConfigPdv } from "./_componentes/ConfigPdv";
@@ -14,7 +13,7 @@ const ABAS = [
   { id: "configuracoes", nome: "PIX e PIN" },
 ] as const;
 
-const GESTORES = ["admin", "produtor", "produtora_admin", "super_admin"];
+const GESTORES = ["admin", "financeiro", "produtora_admin", "assistente", "super_admin"];
 
 // Data AAAA-MM-DD no horário de Brasília
 const diaSP = (d: Date) => d.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
@@ -27,8 +26,7 @@ function periodoPadrao() {
 
 export default async function PdvPage({ searchParams }: { searchParams: Promise<{ aba?: string; evento?: string; de?: string; ate?: string }> }) {
   const params = await searchParams;
-  const usuario = await getUsuarioAtual();
-  if (!usuario) redirect("/login");
+  const usuario = await exigirAcesso("pdv");
   const aba = ABAS.some((a) => a.id === params.aba) ? (params.aba as (typeof ABAS)[number]["id"]) : "produtos";
 
   if (!usuario.produtora_id) {

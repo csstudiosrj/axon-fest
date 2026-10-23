@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getUsuarioAtual } from "@/lib/auth/session";
+import { exigirAcesso } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { idadeEm } from "@/lib/documentos";
 import { Termos, type Assinatura, type DocumentoTermo } from "./Termos";
@@ -8,8 +7,7 @@ import { Termos, type Assinatura, type DocumentoTermo } from "./Termos";
 export const dynamic = "force-dynamic";
 
 export default async function PaginaTermos({ searchParams }: { searchParams: Promise<{ evento?: string }> }) {
-  const usuario = await getUsuarioAtual();
-  if (!usuario) redirect("/login");
+  const usuario = await exigirAcesso("termos");
   if (!usuario.produtora_id) {
     return <p className="mx-auto max-w-3xl text-sm text-gray-400">Os termos são criados por produtora. Sua conta não está ligada a uma produtora; use o Super Admin.</p>;
   }

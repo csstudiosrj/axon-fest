@@ -58,3 +58,34 @@ export async function obterConfiguracoes(): Promise<Configuracoes> {
 
 // Texto para campos da empresa ainda não preenchidos
 export const ouPendente = (v: string | null | undefined) => (v && v.trim() ? v : "[a definir]");
+
+// Catálogo de planos e pacotes (Super Admin → Planos e taxas)
+export interface ItemCatalogoPublico {
+  id: string; tipo: "plano" | "pacote"; nome: string; descricao: string | null; preco: number | null;
+  periodo: string; detalhe: string | null; itens: string[]; nota: string | null; cta_texto: string | null; cta_link: string | null; destaque: boolean;
+}
+
+export const TAG_CATALOGO = "catalogo-planos";
+
+export const obterCatalogo = unstable_cache(
+  async (): Promise<ItemCatalogoPublico[]> => {
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON!, { auth: { persistSession: false } });
+    const { data, error } = await supabase.from("planos_catalogo")
+      .select("id, tipo, nome, descricao, preco, periodo, detalhe, itens, nota, cta_texto, cta_link, destaque")
+      .eq("ativo", true).order("ordem");
+    if (error) throw new Error(`Catálogo indisponível: ${error.message}`);
+    return (data ?? []) as ItemCatalogoPublico[];
+  },
+  ["catalogo-planos"],
+  { tags: [TAG_CATALOGO], revalidate: 300 }
+);
+
+// Troca {taxa}, {caixa}, {isencao}, {mesesStart} e {mesesGuarda} pelos valores atuais
+export function preencherTexto(texto: string, c: Configuracoes) {
+  return texto
+    .replaceAll("{taxa}", c.taxaTexto)
+    .replaceAll("{caixa}", `${c.precos.caixaPercentual}%`)
+    .replaceAll("{isencao}", brl(c.precos.caixaIsencaoAte))
+    .replaceAll("{mesesStart}", String(c.precos.mesesStart))
+    .replaceAll("{mesesGuarda}", String(c.precos.mesesGuarda));
+}

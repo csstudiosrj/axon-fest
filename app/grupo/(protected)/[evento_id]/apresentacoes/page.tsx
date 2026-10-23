@@ -9,7 +9,7 @@ export default async function PaginaApresentacoes({ params, searchParams }: {
   searchParams: Promise<{ nova?: string }>;
 }) {
   const [{ evento_id }, { nova }] = await Promise.all([params, searchParams]);
-  const { evento, perfil, grupo, usuario } = await carregarContextoGrupo(evento_id);
+  const { evento, perfil, grupo, usuario, diretor } = await carregarContextoGrupo(evento_id);
   const [categorias, apresentacoes, elenco] = await Promise.all([
     carregarCategorias(evento.id),
     carregarApresentacoes(evento.id, grupo.id),
@@ -28,6 +28,7 @@ export default async function PaginaApresentacoes({ params, searchParams }: {
       podeEditar={situacao.podeEditar}
       podeEnviarArquivos={situacao.podeEnviarArquivos}
       abrirNova={nova === "1" && situacao.podeEditar}
+      verValores={diretor}
     />
   );
 }

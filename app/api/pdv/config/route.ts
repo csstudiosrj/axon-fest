@@ -4,7 +4,7 @@ import { getUsuarioAtual } from "@/lib/auth/session";
 
 // Grava PIX e PIN do PDV da produtora. O PIN é só de escrita: nunca volta
 // para o navegador. Quem pode: gestores da produtora (admin, produtor).
-const GESTORES = ["admin", "produtor", "produtora_admin", "super_admin"];
+const GESTORES = ["admin", "financeiro", "produtora_admin", "super_admin"];
 
 export async function POST(req: NextRequest) {
   const usuario = await getUsuarioAtual();

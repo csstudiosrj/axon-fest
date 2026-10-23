@@ -65,14 +65,14 @@ isOneToOne: false
                   ]
                 },"apresentacoes": {
                   Row: {
-                    "arquivo_audio": string | null,"arquivo_mapa_luz": string | null,"audio_duracao": number | null,"audio_nome_original": string | null,"categoria_id": string | null,"categoria_id_old": string,"created_at": string,"data_apresentacao": string | null,"desempate": number | null,"evento_id": string | null,"grupo_id": string | null,"id": string,"local_id": string | null,"nome": string,"observacoes": string | null,"ordem_apresentacao": number | null,"produtora_id": string | null,"quantidade_bailarinos": number | null,"status_audio": string | null,"status_pagamento": string | null,"tipo": string,"valor_total": number | null
+                    "arquivo_audio": string | null,"arquivo_mapa_luz": string | null,"audio_duracao": number | null,"audio_nome_original": string | null,"categoria_id": string | null,"categoria_id_old": string,"created_at": string,"criado_por": string | null,"data_apresentacao": string | null,"desempate": number | null,"evento_id": string | null,"grupo_id": string | null,"id": string,"local_id": string | null,"nome": string,"observacoes": string | null,"ordem_apresentacao": number | null,"produtora_id": string | null,"quantidade_bailarinos": number | null,"status_audio": string | null,"status_pagamento": string | null,"tipo": string,"valor_total": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "arquivo_audio"?: string | null,"arquivo_mapa_luz"?: string | null,"audio_duracao"?: number | null,"audio_nome_original"?: string | null,"categoria_id"?: string | null,"categoria_id_old": string,"created_at"?: string,"data_apresentacao"?: string | null,"desempate"?: number | null,"evento_id"?: string | null,"grupo_id"?: string | null,"id"?: string,"local_id"?: string | null,"nome": string,"observacoes"?: string | null,"ordem_apresentacao"?: number | null,"produtora_id"?: string | null,"quantidade_bailarinos"?: number | null,"status_audio"?: string | null,"status_pagamento"?: string | null,"tipo": string,"valor_total"?: number | null
+                    "arquivo_audio"?: string | null,"arquivo_mapa_luz"?: string | null,"audio_duracao"?: number | null,"audio_nome_original"?: string | null,"categoria_id"?: string | null,"categoria_id_old": string,"created_at"?: string,"criado_por"?: string | null,"data_apresentacao"?: string | null,"desempate"?: number | null,"evento_id"?: string | null,"grupo_id"?: string | null,"id"?: string,"local_id"?: string | null,"nome": string,"observacoes"?: string | null,"ordem_apresentacao"?: number | null,"produtora_id"?: string | null,"quantidade_bailarinos"?: number | null,"status_audio"?: string | null,"status_pagamento"?: string | null,"tipo": string,"valor_total"?: number | null
                   }
                   Update: {
-                    "arquivo_audio"?: string | null,"arquivo_mapa_luz"?: string | null,"audio_duracao"?: number | null,"audio_nome_original"?: string | null,"categoria_id"?: string | null,"categoria_id_old"?: string,"created_at"?: string,"data_apresentacao"?: string | null,"desempate"?: number | null,"evento_id"?: string | null,"grupo_id"?: string | null,"id"?: string,"local_id"?: string | null,"nome"?: string,"observacoes"?: string | null,"ordem_apresentacao"?: number | null,"produtora_id"?: string | null,"quantidade_bailarinos"?: number | null,"status_audio"?: string | null,"status_pagamento"?: string | null,"tipo"?: string,"valor_total"?: number | null
+                    "arquivo_audio"?: string | null,"arquivo_mapa_luz"?: string | null,"audio_duracao"?: number | null,"audio_nome_original"?: string | null,"categoria_id"?: string | null,"categoria_id_old"?: string,"created_at"?: string,"criado_por"?: string | null,"data_apresentacao"?: string | null,"desempate"?: number | null,"evento_id"?: string | null,"grupo_id"?: string | null,"id"?: string,"local_id"?: string | null,"nome"?: string,"observacoes"?: string | null,"ordem_apresentacao"?: number | null,"produtora_id"?: string | null,"quantidade_bailarinos"?: number | null,"status_audio"?: string | null,"status_pagamento"?: string | null,"tipo"?: string,"valor_total"?: number | null
                   }
                   Relationships: [
                     {
@@ -80,6 +80,18 @@ isOneToOne: false
       columns: ["categoria_id"]
 isOneToOne: false
       referencedRelation: "categorias"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "apresentacoes_criado_por_fkey"
+      columns: ["criado_por"]
+isOneToOne: false
+      referencedRelation: "jurados_publicos"
+      referencedColumns: ["jurado_id"]
+    },{
+      foreignKeyName: "apresentacoes_criado_por_fkey"
+      columns: ["criado_por"]
+isOneToOne: false
+      referencedRelation: "usuarios"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "apresentacoes_local_id_fkey"
@@ -411,14 +423,14 @@ isOneToOne: false
                   ]
                 },"grupos": {
                   Row: {
-                    "cidade": string | null,"created_at": string,"documento": string | null,"email": string,"email_contato": string | null,"estado": string | null,"id": string,"nome": string,"origem_produtora_id": string | null,"produtora_id": string | null,"responsavel": string | null,"telefone": string | null,"tipo_documento": string | null
+                    "ativo": boolean,"bairro": string | null,"cep": string | null,"cidade": string | null,"complemento": string | null,"created_at": string,"documento": string | null,"email": string,"email_contato": string | null,"estado": string | null,"id": string,"logradouro": string | null,"nome": string,"numero": string | null,"origem_produtora_id": string | null,"produtora_id": string | null,"responsavel": string | null,"telefone": string | null,"tipo_documento": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "cidade"?: string | null,"created_at"?: string,"documento"?: string | null,"email": string,"email_contato"?: string | null,"estado"?: string | null,"id"?: string,"nome": string,"origem_produtora_id"?: string | null,"produtora_id"?: string | null,"responsavel"?: string | null,"telefone"?: string | null,"tipo_documento"?: string | null
+                    "ativo"?: boolean,"bairro"?: string | null,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string,"documento"?: string | null,"email": string,"email_contato"?: string | null,"estado"?: string | null,"id"?: string,"logradouro"?: string | null,"nome": string,"numero"?: string | null,"origem_produtora_id"?: string | null,"produtora_id"?: string | null,"responsavel"?: string | null,"telefone"?: string | null,"tipo_documento"?: string | null
                   }
                   Update: {
-                    "cidade"?: string | null,"created_at"?: string,"documento"?: string | null,"email"?: string,"email_contato"?: string | null,"estado"?: string | null,"id"?: string,"nome"?: string,"origem_produtora_id"?: string | null,"produtora_id"?: string | null,"responsavel"?: string | null,"telefone"?: string | null,"tipo_documento"?: string | null
+                    "ativo"?: boolean,"bairro"?: string | null,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string,"documento"?: string | null,"email"?: string,"email_contato"?: string | null,"estado"?: string | null,"id"?: string,"logradouro"?: string | null,"nome"?: string,"numero"?: string | null,"origem_produtora_id"?: string | null,"produtora_id"?: string | null,"responsavel"?: string | null,"telefone"?: string | null,"tipo_documento"?: string | null
                   }
                   Relationships: [
                     {
@@ -431,14 +443,14 @@ isOneToOne: false
                   ]
                 },"inscricoes_grupo_evento": {
                   Row: {
-                    "created_at": string | null,"data_inscricao": string | null,"evento_id": string,"grupo_id": string,"id": string,"origem": string | null,"status": string | null
+                    "aceite_em": string | null,"aceite_ip": string | null,"created_at": string | null,"data_inscricao": string | null,"evento_id": string,"grupo_id": string,"id": string,"origem": string | null,"status": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string | null,"data_inscricao"?: string | null,"evento_id": string,"grupo_id": string,"id"?: string,"origem"?: string | null,"status"?: string | null
+                    "aceite_em"?: string | null,"aceite_ip"?: string | null,"created_at"?: string | null,"data_inscricao"?: string | null,"evento_id": string,"grupo_id": string,"id"?: string,"origem"?: string | null,"status"?: string | null
                   }
                   Update: {
-                    "created_at"?: string | null,"data_inscricao"?: string | null,"evento_id"?: string,"grupo_id"?: string,"id"?: string,"origem"?: string | null,"status"?: string | null
+                    "aceite_em"?: string | null,"aceite_ip"?: string | null,"created_at"?: string | null,"data_inscricao"?: string | null,"evento_id"?: string,"grupo_id"?: string,"id"?: string,"origem"?: string | null,"status"?: string | null
                   }
                   Relationships: [
                     {
@@ -457,14 +469,14 @@ isOneToOne: false
                   ]
                 },"locais_evento": {
                   Row: {
-                    "cidade": string | null,"created_at": string,"endereco": string | null,"estado": string | null,"evento_id": string,"id": string,"nome_local": string
+                    "bairro": string | null,"cep": string | null,"cidade": string | null,"complemento": string | null,"created_at": string,"endereco": string | null,"estado": string | null,"evento_id": string,"id": string,"nome_local": string,"numero": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "cidade"?: string | null,"created_at"?: string,"endereco"?: string | null,"estado"?: string | null,"evento_id": string,"id"?: string,"nome_local": string
+                    "bairro"?: string | null,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string,"endereco"?: string | null,"estado"?: string | null,"evento_id": string,"id"?: string,"nome_local": string,"numero"?: string | null
                   }
                   Update: {
-                    "cidade"?: string | null,"created_at"?: string,"endereco"?: string | null,"estado"?: string | null,"evento_id"?: string,"id"?: string,"nome_local"?: string
+                    "bairro"?: string | null,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string,"endereco"?: string | null,"estado"?: string | null,"evento_id"?: string,"id"?: string,"nome_local"?: string,"numero"?: string | null
                   }
                   Relationships: [
                     {
@@ -509,14 +521,14 @@ isOneToOne: false
                   ]
                 },"participantes": {
                   Row: {
-                    "confirmado_vinculo": boolean | null,"created_at": string,"criado_por": string | null,"data_nascimento": string,"documento": string | null,"email_contato": string | null,"estilo_id": string | null,"festival_id": string | null,"funcao": string | null,"id": string,"nome": string,"nome_artistico": string | null,"origem_produtora_id": string | null,"produtora_id": string | null,"responsavel_cpf": string | null,"responsavel_nome": string | null,"responsavel_parentesco": string | null,"status_disponibilidade": string | null,"termo_assinado": boolean | null,"termo_assinado_em": string | null,"termo_assinado_ip": string | null,"termo_assinado_user_agent": string | null,"tipo_documento": string | null
+                    "confirmado_vinculo": boolean | null,"created_at": string,"criado_por": string | null,"data_nascimento": string,"documento": string | null,"email_contato": string | null,"estilo_id": string | null,"festival_id": string | null,"funcao": string | null,"id": string,"nome": string,"nome_artistico": string | null,"origem_grupo_id": string | null,"origem_produtora_id": string | null,"produtora_id": string | null,"responsavel_cpf": string | null,"responsavel_nome": string | null,"responsavel_parentesco": string | null,"status_disponibilidade": string | null,"termo_assinado": boolean | null,"termo_assinado_em": string | null,"termo_assinado_ip": string | null,"termo_assinado_user_agent": string | null,"tipo_documento": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "confirmado_vinculo"?: boolean | null,"created_at"?: string,"criado_por"?: string | null,"data_nascimento": string,"documento"?: string | null,"email_contato"?: string | null,"estilo_id"?: string | null,"festival_id"?: string | null,"funcao"?: string | null,"id"?: string,"nome": string,"nome_artistico"?: string | null,"origem_produtora_id"?: string | null,"produtora_id"?: string | null,"responsavel_cpf"?: string | null,"responsavel_nome"?: string | null,"responsavel_parentesco"?: string | null,"status_disponibilidade"?: string | null,"termo_assinado"?: boolean | null,"termo_assinado_em"?: string | null,"termo_assinado_ip"?: string | null,"termo_assinado_user_agent"?: string | null,"tipo_documento"?: string | null
+                    "confirmado_vinculo"?: boolean | null,"created_at"?: string,"criado_por"?: string | null,"data_nascimento": string,"documento"?: string | null,"email_contato"?: string | null,"estilo_id"?: string | null,"festival_id"?: string | null,"funcao"?: string | null,"id"?: string,"nome": string,"nome_artistico"?: string | null,"origem_grupo_id"?: string | null,"origem_produtora_id"?: string | null,"produtora_id"?: string | null,"responsavel_cpf"?: string | null,"responsavel_nome"?: string | null,"responsavel_parentesco"?: string | null,"status_disponibilidade"?: string | null,"termo_assinado"?: boolean | null,"termo_assinado_em"?: string | null,"termo_assinado_ip"?: string | null,"termo_assinado_user_agent"?: string | null,"tipo_documento"?: string | null
                   }
                   Update: {
-                    "confirmado_vinculo"?: boolean | null,"created_at"?: string,"criado_por"?: string | null,"data_nascimento"?: string,"documento"?: string | null,"email_contato"?: string | null,"estilo_id"?: string | null,"festival_id"?: string | null,"funcao"?: string | null,"id"?: string,"nome"?: string,"nome_artistico"?: string | null,"origem_produtora_id"?: string | null,"produtora_id"?: string | null,"responsavel_cpf"?: string | null,"responsavel_nome"?: string | null,"responsavel_parentesco"?: string | null,"status_disponibilidade"?: string | null,"termo_assinado"?: boolean | null,"termo_assinado_em"?: string | null,"termo_assinado_ip"?: string | null,"termo_assinado_user_agent"?: string | null,"tipo_documento"?: string | null
+                    "confirmado_vinculo"?: boolean | null,"created_at"?: string,"criado_por"?: string | null,"data_nascimento"?: string,"documento"?: string | null,"email_contato"?: string | null,"estilo_id"?: string | null,"festival_id"?: string | null,"funcao"?: string | null,"id"?: string,"nome"?: string,"nome_artistico"?: string | null,"origem_grupo_id"?: string | null,"origem_produtora_id"?: string | null,"produtora_id"?: string | null,"responsavel_cpf"?: string | null,"responsavel_nome"?: string | null,"responsavel_parentesco"?: string | null,"status_disponibilidade"?: string | null,"termo_assinado"?: boolean | null,"termo_assinado_em"?: string | null,"termo_assinado_ip"?: string | null,"termo_assinado_user_agent"?: string | null,"tipo_documento"?: string | null
                   }
                   Relationships: [
                     {
@@ -536,6 +548,12 @@ isOneToOne: false
       columns: ["estilo_id"]
 isOneToOne: false
       referencedRelation: "estilos"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "participantes_origem_grupo_id_fkey"
+      columns: ["origem_grupo_id"]
+isOneToOne: false
+      referencedRelation: "grupos"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "participantes_produtora_id_fkey"
@@ -707,6 +725,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"planos_catalogo": {
+                  Row: {
+                    "ativo": boolean,"atualizado_em": string,"codigo": string | null,"criado_em": string,"cta_link": string | null,"cta_texto": string | null,"descricao": string | null,"destaque": boolean,"detalhe": string | null,"id": string,"itens": (string)[],"nome": string,"nota": string | null,"ordem": number,"periodo": string,"preco": number | null,"tipo": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "ativo"?: boolean,"atualizado_em"?: string,"codigo"?: string | null,"criado_em"?: string,"cta_link"?: string | null,"cta_texto"?: string | null,"descricao"?: string | null,"destaque"?: boolean,"detalhe"?: string | null,"id"?: string,"itens"?: (string)[],"nome": string,"nota"?: string | null,"ordem"?: number,"periodo"?: string,"preco"?: number | null,"tipo"?: string
+                  }
+                  Update: {
+                    "ativo"?: boolean,"atualizado_em"?: string,"codigo"?: string | null,"criado_em"?: string,"cta_link"?: string | null,"cta_texto"?: string | null,"descricao"?: string | null,"destaque"?: boolean,"detalhe"?: string | null,"id"?: string,"itens"?: (string)[],"nome"?: string,"nota"?: string | null,"ordem"?: number,"periodo"?: string,"preco"?: number | null,"tipo"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"posts_marketing": {
                   Row: {
                     "agendado_para": string,"created_at": string,"erro": string | null,"id": string,"imagem_url": string | null,"legenda": string,"plataforma": string,"produtora_id": string | null,"publicado_em": string | null,"status": string
@@ -747,19 +779,69 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"produtoras": {
+                },"produtora_jurados": {
                   Row: {
-                    "ativo": boolean,"created_at": string | null,"demonstracao": boolean,"documento": string | null,"email": string | null,"id": string,"logo_url": string | null,"nome": string,"plano": string,"plano_inicio": string,"pro_ate": string | null,"telefone": string | null
+                    "convidado_por": string | null,"criado_em": string,"id": string,"jurado_id": string,"produtora_id": string,"respondido_em": string | null,"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "ativo"?: boolean,"created_at"?: string | null,"demonstracao"?: boolean,"documento"?: string | null,"email"?: string | null,"id"?: string,"logo_url"?: string | null,"nome": string,"plano"?: string,"plano_inicio"?: string,"pro_ate"?: string | null,"telefone"?: string | null
+                    "convidado_por"?: string | null,"criado_em"?: string,"id"?: string,"jurado_id": string,"produtora_id": string,"respondido_em"?: string | null,"status"?: string
                   }
                   Update: {
-                    "ativo"?: boolean,"created_at"?: string | null,"demonstracao"?: boolean,"documento"?: string | null,"email"?: string | null,"id"?: string,"logo_url"?: string | null,"nome"?: string,"plano"?: string,"plano_inicio"?: string,"pro_ate"?: string | null,"telefone"?: string | null
+                    "convidado_por"?: string | null,"criado_em"?: string,"id"?: string,"jurado_id"?: string,"produtora_id"?: string,"respondido_em"?: string | null,"status"?: string
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "produtora_jurados_convidado_por_fkey"
+      columns: ["convidado_por"]
+isOneToOne: false
+      referencedRelation: "jurados_publicos"
+      referencedColumns: ["jurado_id"]
+    },{
+      foreignKeyName: "produtora_jurados_convidado_por_fkey"
+      columns: ["convidado_por"]
+isOneToOne: false
+      referencedRelation: "usuarios"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "produtora_jurados_jurado_id_fkey"
+      columns: ["jurado_id"]
+isOneToOne: false
+      referencedRelation: "jurados_publicos"
+      referencedColumns: ["jurado_id"]
+    },{
+      foreignKeyName: "produtora_jurados_jurado_id_fkey"
+      columns: ["jurado_id"]
+isOneToOne: false
+      referencedRelation: "usuarios"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "produtora_jurados_produtora_id_fkey"
+      columns: ["produtora_id"]
+isOneToOne: false
+      referencedRelation: "produtoras"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"produtoras": {
+                  Row: {
+                    "ativo": boolean,"bairro": string | null,"cep": string | null,"cidade": string | null,"complemento": string | null,"created_at": string | null,"demonstracao": boolean,"documento": string | null,"email": string | null,"estado": string | null,"id": string,"logo_url": string | null,"logradouro": string | null,"nome": string,"numero": string | null,"plano": string,"plano_catalogo_id": string | null,"plano_inicio": string,"pro_ate": string | null,"telefone": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "ativo"?: boolean,"bairro"?: string | null,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string | null,"demonstracao"?: boolean,"documento"?: string | null,"email"?: string | null,"estado"?: string | null,"id"?: string,"logo_url"?: string | null,"logradouro"?: string | null,"nome": string,"numero"?: string | null,"plano"?: string,"plano_catalogo_id"?: string | null,"plano_inicio"?: string,"pro_ate"?: string | null,"telefone"?: string | null
+                  }
+                  Update: {
+                    "ativo"?: boolean,"bairro"?: string | null,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string | null,"demonstracao"?: boolean,"documento"?: string | null,"email"?: string | null,"estado"?: string | null,"id"?: string,"logo_url"?: string | null,"logradouro"?: string | null,"nome"?: string,"numero"?: string | null,"plano"?: string,"plano_catalogo_id"?: string | null,"plano_inicio"?: string,"pro_ate"?: string | null,"telefone"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "produtoras_plano_catalogo_id_fkey"
+      columns: ["plano_catalogo_id"]
+isOneToOne: false
+      referencedRelation: "planos_catalogo"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"produtos": {
                   Row: {
@@ -778,6 +860,32 @@ isOneToOne: false
       columns: ["produtora_id"]
 isOneToOne: false
       referencedRelation: "produtoras"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"registro_super": {
+                  Row: {
+                    "acao": string,"alvo_id": string | null,"alvo_nome": string | null,"alvo_tipo": string | null,"ator_id": string | null,"criado_em": string,"detalhes": Json | null,"id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "acao": string,"alvo_id"?: string | null,"alvo_nome"?: string | null,"alvo_tipo"?: string | null,"ator_id"?: string | null,"criado_em"?: string,"detalhes"?: Json | null,"id"?: string
+                  }
+                  Update: {
+                    "acao"?: string,"alvo_id"?: string | null,"alvo_nome"?: string | null,"alvo_tipo"?: string | null,"ator_id"?: string | null,"criado_em"?: string,"detalhes"?: Json | null,"id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "registro_super_ator_id_fkey"
+      columns: ["ator_id"]
+isOneToOne: false
+      referencedRelation: "jurados_publicos"
+      referencedColumns: ["jurado_id"]
+    },{
+      foreignKeyName: "registro_super_ator_id_fkey"
+      columns: ["ator_id"]
+isOneToOne: false
+      referencedRelation: "usuarios"
       referencedColumns: ["id"]
     }
                   ]
@@ -1019,10 +1127,19 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "checar_vagas":
+            "apresentacao_minha_no_grupo":
+{ Args: { "p_criado_por": string,"p_grupo": string }; Returns: boolean
+                           },
+"checar_vagas":
 { Args: { "p_apresentacao": string,"p_categoria": string,"p_evento": string,"p_nova": boolean }; Returns: undefined
                            },
+"eh_conteudo":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "eh_equipe":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"eh_financeiro":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
 "eh_gestor":
@@ -1065,6 +1182,9 @@ isOneToOne: false
                            },
 "inscricoes_abertas":
 { Args: { "p_status": string }; Returns: boolean
+                           },
+"jurado_da_minha_produtora":
+{ Args: { "p_usuario": string }; Returns: boolean
                            },
 "meu_grupo_inscrito":
 { Args: { "p_evento": string }; Returns: boolean

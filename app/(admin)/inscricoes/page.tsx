@@ -1,8 +1,8 @@
+import { pode } from "@/lib/auth/permissoes";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getUsuarioAtual } from "@/lib/auth/session";
+import { exigirAcesso } from "@/lib/auth/guards";
 import { infoStatus } from "@/lib/eventos/status";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +11,7 @@ const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 
 // Inscrições ficam dentro de cada evento; aqui o organizador escolhe qual
 export default async function InscricoesPorEvento() {
-  const usuario = await getUsuarioAtual();
-  if (!usuario) redirect("/login");
+  const usuario = await exigirAcesso("evento_inscricoes");
   const supabase = await createClient();
   let q = supabase.from("eventos").select("id, nome, status, data_inicio").order("data_inicio", { ascending: false, nullsFirst: false });
   if (usuario.role !== "super_admin") q = q.eq("produtora_id", usuario.produtora_id ?? "");
@@ -29,7 +28,7 @@ export default async function InscricoesPorEvento() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-white">Inscrições & Elenco</h1>
-        <p className="mt-1 text-sm text-gray-400">Escolha o evento para ver grupos, apresentações, pagamentos e elenco.</p>
+        <p className="mt-1 text-sm text-gray-400">Escolha o evento para ver os grupos inscritos, as apresentações e o elenco.</p>
       </div>
       {(eventos ?? []).length === 0 ? (
         <p className="rounded-xl border border-dashed border-axon-border px-6 py-12 text-center text-sm text-gray-400">
@@ -47,7 +46,7 @@ export default async function InscricoesPorEvento() {
                 <Link href={`/eventos/${e.id}/inscricoes`} className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-white/[0.02]">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-white">{e.nome}</p>
-                    <p className="text-xs text-gray-400">{grupos} grupo(s) · {minhas.length} apresentação(ões){pendente ? ` · ${brl(pendente)} a receber` : ""}</p>
+                    <p className="text-xs text-gray-400">{grupos} grupo(s) · {minhas.length} apresentação(ões){pendente && pode(usuario.role, "valores") ? ` · ${brl(pendente)} a receber` : ""}</p>
                   </div>
                   <span className={`rounded-full border px-2.5 py-0.5 text-xs ${st.cor}`}>{st.rotulo}</span>
                   <ArrowRight size={15} className="text-gray-500" />

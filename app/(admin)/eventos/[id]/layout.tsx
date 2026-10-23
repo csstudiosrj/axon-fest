@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LayoutEvento({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { evento, perfil } = await carregarEvento(id);
+  const { evento, perfil, pode } = await carregarEvento(id);
   const status = infoStatus(evento.status);
   const base = `/eventos/${evento.id}`;
   const periodo = [dataBR(evento.data_inicio), dataBR(evento.data_fim)].filter(Boolean);
@@ -35,13 +35,13 @@ export default async function LayoutEvento({ children, params }: { children: Rea
         </div>
         <div className="border-b border-axon-border">
           <AbasEvento base={base} abas={[
-            { caminho: "", nome: "Resumo" },
-            { caminho: "/dados", nome: "Dados e página" },
-            { caminho: "/categorias", nome: "Categorias" },
-            { caminho: "/inscricoes", nome: "Inscrições" },
-            { caminho: "/programacao", nome: "Programação" },
-            { caminho: "/jurados", nome: "Jurados" },
-          ]} />
+            { caminho: "", nome: "Resumo", ver: true },
+            { caminho: "/dados", nome: pode("evento_dados") ? "Dados e página" : "Página pública", ver: pode("evento_dados") || pode("evento_pagina") },
+            { caminho: "/categorias", nome: "Categorias", ver: pode("evento_categorias") },
+            { caminho: "/inscricoes", nome: pode("pagamentos") ? "Inscrições e pagamentos" : "Inscrições", ver: pode("evento_inscricoes") },
+            { caminho: "/programacao", nome: "Programação", ver: pode("evento_programacao") },
+            { caminho: "/jurados", nome: "Jurados", ver: pode("evento_jurados") },
+          ].filter((a) => a.ver)} />
         </div>
       </div>
       {children}

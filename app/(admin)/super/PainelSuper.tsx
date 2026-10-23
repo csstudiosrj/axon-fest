@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Building2, Check, Copy, FlaskConical, Loader2, Mail, Percent, Trash2 } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
-import { Produtoras, type LinhaProdutora } from "./Produtoras";
 
 type Valores = Record<string, unknown>;
 
@@ -60,7 +59,9 @@ const GRUPOS: { chave: string; titulo: string; descricao: string; icone: typeof 
   },
 ];
 
-function FormularioGrupo({ grupo, inicial }: { grupo: (typeof GRUPOS)[number]; inicial: Valores }) {
+// Recebe só a chave (precos, contato, empresa): a definição dos campos fica aqui no navegador
+export function FormularioGrupo({ chave, inicial }: { chave: "precos" | "contato" | "empresa"; inicial: Valores }) {
+  const grupo = GRUPOS.find((g) => g.chave === chave)!;
   const [valores, setValores] = useState<Record<string, string>>(
     Object.fromEntries(grupo.campos.map((c) => [c.campo, inicial[c.campo] === null || inicial[c.campo] === undefined ? "" : String(inicial[c.campo])]))
   );
@@ -114,7 +115,7 @@ function FormularioGrupo({ grupo, inicial }: { grupo: (typeof GRUPOS)[number]; i
   );
 }
 
-function Demonstracao({ existente }: { existente: { id: string; nome: string; created_at: string } | null }) {
+export function Demonstracao({ existente }: { existente: { id: string; nome: string; created_at: string } | null }) {
   const router = useRouter();
   const [ocupado, setOcupado] = useState<"criar" | "apagar" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -194,23 +195,5 @@ function Demonstracao({ existente }: { existente: { id: string; nome: string; cr
         </div>
       </div>
     </section>
-  );
-}
-
-export function PainelSuper({ configuracoes, demonstracao, produtoras }: {
-  configuracoes: Record<string, Valores>;
-  demonstracao: { id: string; nome: string; created_at: string } | null;
-  produtoras: LinhaProdutora[];
-}) {
-  return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-white">Super Admin</h1>
-        <p className="mt-1 text-sm text-gray-400">Configurações do ARXUM Fest que valem para todas as produtoras.</p>
-      </div>
-      <Produtoras linhas={produtoras} />
-      <Demonstracao existente={demonstracao} />
-      {GRUPOS.map((g) => <FormularioGrupo key={g.chave} grupo={g} inicial={configuracoes[g.chave] ?? {}} />)}
-    </div>
   );
 }

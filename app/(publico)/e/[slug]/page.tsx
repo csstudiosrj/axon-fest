@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { limparHtml } from "@/lib/termos-html";
+import { Direitos } from "@/app/_components/Direitos";
 import { lerOcupacao, situacaoVagas } from "@/lib/eventos/vagas";
 import type { Metadata } from "next";
 import {
@@ -1481,9 +1482,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
         </div>
 
         <footer className={`border-t pt-6 text-center ${tema.footerBorder}`}>
-          <p className={`text-xs ${tema.faintText}`}>
-            Portal de inscrições operado pela plataforma de gestão de festivais.
-          </p>
+          <Direitos className={`text-xs ${tema.faintText}`} />
         </footer>
       </div>
     </main>

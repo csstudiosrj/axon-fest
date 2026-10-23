@@ -4,17 +4,31 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Building2, LogOut, Menu, Ticket, X } from "lucide-react";
+import { Building2, LogOut, Menu, Ticket, Users, X } from "lucide-react";
+import { Direitos } from "@/app/_components/Direitos";
 
 const NAV = [
-  { label: "Meus festivais", href: "/grupo/dashboard", icon: Ticket },
-  { label: "Dados do grupo", href: "/grupo/perfil", icon: Building2 },
+  { label: "Meus festivais", href: "/grupo/dashboard", icon: Ticket, diretor: false },
+  { label: "Equipe do grupo", href: "/grupo/equipe", icon: Users, diretor: true },
+  { label: "Dados do grupo", href: "/grupo/perfil", icon: Building2, diretor: false },
 ];
 
-export default function GrupoShell({ children, usuario, grupoNome }: {
+// Nome da tela atual (topo)
+function tituloDa(pathname: string) {
+  if (pathname.startsWith("/grupo/equipe")) return "Equipe do grupo";
+  if (pathname.startsWith("/grupo/perfil")) return "Dados do grupo";
+  if (/\/apresentacoes/.test(pathname)) return "Apresentações";
+  if (/\/elenco/.test(pathname)) return "Elenco";
+  if (/\/resultado/.test(pathname)) return "Resultado";
+  if (/\/inicio/.test(pathname)) return "Resumo do festival";
+  return "Meus festivais";
+}
+
+export default function GrupoShell({ children, usuario, grupoNome, diretor }: {
   children: React.ReactNode;
   usuario: { nome: string | null; email: string };
   grupoNome: string | null;
+  diretor: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -48,7 +62,7 @@ export default function GrupoShell({ children, usuario, grupoNome }: {
         )}
 
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
-          {NAV.map(({ label, href, icon: Icone }) => (
+          {NAV.filter((n) => diretor || !n.diretor).map(({ label, href, icon: Icone }) => (
             <Link key={href} href={href} onClick={() => setMenuAberto(false)}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${ativo(href) ? "bg-axon-gold/10 text-axon-gold" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}>
               <Icone size={16} /> {label}
@@ -63,7 +77,7 @@ export default function GrupoShell({ children, usuario, grupoNome }: {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium text-white">{usuario.nome ?? "Usuário"}</p>
-              <p className="truncate text-[11px] text-gray-500">{usuario.email}</p>
+              <p className="truncate text-[11px] text-gray-500">{diretor ? "Diretor(a)" : "Coreógrafo(a)"} · {usuario.email}</p>
             </div>
           </div>
           <button type="button" onClick={sair}
@@ -74,12 +88,14 @@ export default function GrupoShell({ children, usuario, grupoNome }: {
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 items-center justify-between border-b border-axon-border bg-axon-panel px-4 lg:hidden">
-          <button type="button" onClick={() => setMenuAberto(true)} className="text-gray-400" aria-label="Abrir menu"><Menu size={20} /></button>
-          <span className="text-sm font-bold"><span className="text-axon-gold">ARXUM</span> Fest</span>
-          <div className="w-5" />
+        <header className="flex h-14 items-center gap-3 border-b border-axon-border bg-axon-panel px-4 lg:px-6">
+          <button type="button" onClick={() => setMenuAberto(true)} className="text-gray-400 lg:hidden" aria-label="Abrir menu"><Menu size={20} /></button>
+          <h1 className="truncate text-base font-semibold text-white" data-titulo-tela>{tituloDa(pathname)}</h1>
         </header>
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main className="flex-1 overflow-y-auto">
+          {children}
+          <Direitos className="px-4 py-8 text-center text-xs text-gray-600" />
+        </main>
       </div>
     </div>
   );
