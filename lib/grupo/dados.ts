@@ -1,4 +1,5 @@
 import "server-only";
+import { lerOcupacao, restantesCategoria } from "@/lib/eventos/vagas";
 import { createClient } from "@/lib/supabase/server";
 
 export interface ArquivoEnviado {
@@ -46,6 +47,7 @@ export interface CategoriaEvento {
   tempo_apresentacao_min: number | null;
   tempo_apresentacao_max: number | null;
   observacoes: string | null;
+  restantes: number | null; // vagas que sobram (null = sem limite)
 }
 
 // Apresentações do grupo no evento, com elenco e arquivos (leitura com RLS)
@@ -92,8 +94,13 @@ export async function carregarApresentacoes(eventoId: string, grupoId: string): 
 // Categorias em que o grupo pode se inscrever: as "folhas" da árvore
 export async function carregarCategorias(eventoId: string): Promise<CategoriaEvento[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("categorias").select("*").eq("evento_id", eventoId).order("nome");
+  const [{ data }, { data: evento }, { data: ocup }] = await Promise.all([
+    supabase.from("categorias").select("*").eq("evento_id", eventoId).order("nome"),
+    supabase.from("eventos").select("vagas_total").eq("id", eventoId).maybeSingle(),
+    supabase.rpc("ocupacao_evento", { p_evento: eventoId }),
+  ]);
   const todas = data ?? [];
+  const ocupacao = lerOcupacao(ocup);
   const nomePorId = new Map(todas.map((c) => [c.id as string, c.nome as string]));
   const temFilhas = new Set(todas.map((c) => c.categoria_pai_id as string | null).filter(Boolean));
   return todas
@@ -117,6 +124,7 @@ export async function carregarCategorias(eventoId: string): Promise<CategoriaEve
       tempo_apresentacao_min: (c.tempo_apresentacao_min as number | null) ?? null,
       tempo_apresentacao_max: (c.tempo_apresentacao_max as number | null) ?? null,
       observacoes: (c.observacoes as string | null) ?? null,
+      restantes: restantesCategoria(c, todas, ocupacao, evento?.vagas_total ?? null),
     }))
     .sort((a, b) => `${a.pai_nome ?? ""} ${a.nome}`.localeCompare(`${b.pai_nome ?? ""} ${b.nome}`, "pt-BR"));
 }

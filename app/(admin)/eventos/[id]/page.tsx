@@ -47,7 +47,8 @@ export default async function ResumoEvento({ params }: { params: Promise<{ id: s
 
   const numeros = [
     { rotulo: maiuscula(T.grupo.plural), valor: String(grupos ?? 0), href: `${base}/inscricoes` },
-    { rotulo: maiuscula(T.apresentacao.plural), valor: String(lista.length), href: `${base}/inscricoes` },
+    { rotulo: evento.vagas_total != null ? `${maiuscula(T.apresentacao.plural)} / vagas` : maiuscula(T.apresentacao.plural),
+      valor: evento.vagas_total != null ? `${lista.length} / ${evento.vagas_total}` : String(lista.length), href: `${base}/inscricoes` },
     { rotulo: "Recebido", valor: brl(recebido), href: `${base}/inscricoes` },
     { rotulo: "A receber", valor: brl(aReceber), href: `${base}/inscricoes?status=Pendente` },
     { rotulo: "Arquivos para conferir", valor: String(emAnalise), href: `/midias?evento=${evento.id}` },

@@ -22,7 +22,7 @@ export default function GrupoShell({ children, usuario, grupoNome }: {
 
   async function sair() {
     await createClient().auth.signOut();
-    router.push("/grupo/login");
+    router.push("/login");
     router.refresh();
   }
 

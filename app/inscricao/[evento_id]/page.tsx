@@ -3,6 +3,8 @@ import { inscricoesAbertas } from "@/lib/eventos/status";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import InscricaoForm from "./InscricaoForm";
+import Link from "next/link";
+import { lerOcupacao, situacaoVagas } from "@/lib/eventos/vagas";
 
 interface EventoInscricao {
   id: string;
@@ -25,7 +27,7 @@ export default async function InscricaoPage({ params }: PageProps) {
 
   const { data: row, error } = await supabase
     .from("eventos")
-    .select("id, nome, cor_primaria, cor_secundaria, tema_escuro, logo_url, status, perfis_festival:perfil_id ( slug )")
+    .select("id, nome, cor_primaria, cor_secundaria, tema_escuro, logo_url, status, vagas_total, perfis_festival:perfil_id ( slug )")
     .eq("id", evento_id)
     .single();
 
@@ -41,6 +43,13 @@ export default async function InscricaoPage({ params }: PageProps) {
     status: row.status ?? "Em Montagem",
     perfil_slug: (() => { const r = (row as { perfis_festival?: { slug?: string } | { slug?: string }[] | null }).perfis_festival; return (Array.isArray(r) ? r[0]?.slug : r?.slug) ?? null; })(),
   };
+
+  const [{ data: catsVagas }, { data: ocup }] = await Promise.all([
+    supabase.from("categorias").select("id, categoria_pai_id, vagas").eq("evento_id", evento.id),
+    supabase.rpc("ocupacao_evento", { p_evento: evento.id }),
+  ]);
+  const { esgotado } = situacaoVagas(catsVagas ?? [], lerOcupacao(ocup), row.vagas_total ?? null);
+  const fechado = !inscricoesAbertas(evento.status) || esgotado;
 
   const accent = evento.cor_primaria ?? "var(--fallback-accent)";
   const isDark = evento.tema_escuro;
@@ -84,7 +93,7 @@ export default async function InscricaoPage({ params }: PageProps) {
 
       <div className="mx-auto flex w-full max-w-2xl justify-center px-4 py-10 sm:px-6 sm:py-14">
         <div className="w-full">
-          {!inscricoesAbertas(evento.status) ? (
+          {fechado ? (
             <div className={`rounded-3xl border ${borderClass} ${panelClass} p-8 sm:p-10`} style={{ borderColor: `${accent}24` }}>
               <div
                 className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-axon-border bg-axon-gold-dim"
@@ -96,9 +105,11 @@ export default async function InscricaoPage({ params }: PageProps) {
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
               </div>
-              <h2 className={`text-xl font-bold ${headingClass}`}>Inscrições indisponíveis</h2>
+              <h2 className={`text-xl font-bold ${headingClass}`}>{esgotado && inscricoesAbertas(evento.status) ? "Vagas esgotadas" : "Inscrições indisponíveis"}</h2>
               <p className={`mt-2 text-sm leading-relaxed ${textClass}`}>
-                {evento.status === "inscricoes_encerradas"
+                {esgotado && inscricoesAbertas(evento.status)
+                  ? <>Todas as vagas deste festival foram preenchidas. Se o seu grupo já está inscrito, <Link href="/login" className="underline">entre aqui</Link>.</>
+                  : evento.status === "inscricoes_encerradas"
                   ? "O período de inscrições para este festival foi encerrado."
                   : evento.status === "em_andamento"
                     ? "Este festival já está em andamento e não aceita novas inscrições."

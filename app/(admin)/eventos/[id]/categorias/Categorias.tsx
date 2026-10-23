@@ -48,6 +48,7 @@ function Formulario({ eventoId, produtoraId, perfilSlug, categoria, paiInicial, 
     tempoMin: txt(c?.tempo_apresentacao_min), tempoMax: txt(c?.tempo_apresentacao_max),
     competitiva: c?.competitiva ?? true, premio1: txt(c?.premio_dinheiro_1), premio2: txt(c?.premio_dinheiro_2), premio3: txt(c?.premio_dinheiro_3),
     observacoes: c?.observacoes ?? "",
+    vagas: txt(c?.vagas),
   });
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -74,6 +75,7 @@ function Formulario({ eventoId, produtoraId, perfilSlug, categoria, paiInicial, 
       competitiva: misto ? f.competitiva : true,
       premio_dinheiro_1: premioEmDinheiro ? num(f.premio1) : null, premio_dinheiro_2: premioEmDinheiro ? num(f.premio2) : null, premio_dinheiro_3: premioEmDinheiro ? num(f.premio3) : null,
       observacoes: f.observacoes.trim() || null,
+      vagas: num(f.vagas) || null,
     };
     const supabase = createClient();
     const { error } = c ? await supabase.from("categorias").update(dados).eq("id", c.id) : await supabase.from("categorias").insert(dados);
@@ -125,6 +127,7 @@ function Formulario({ eventoId, produtoraId, perfilSlug, categoria, paiInicial, 
             <Rotulo texto="Idade máxima"><input inputMode="numeric" value={f.idadeMax} onChange={(e) => set("idadeMax", e.target.value.replace(/\D/g, ""))} className={campo} /></Rotulo>
             <Rotulo texto="Pessoas em cena (mín.)"><input inputMode="numeric" value={f.minPessoas} onChange={(e) => set("minPessoas", e.target.value.replace(/\D/g, ""))} className={campo} /></Rotulo>
             <Rotulo texto="Pessoas em cena (máx.)"><input inputMode="numeric" value={f.maxPessoas} onChange={(e) => set("maxPessoas", e.target.value.replace(/\D/g, ""))} className={campo} /></Rotulo>
+            <Rotulo texto="Vagas (máx. de inscrições)" ajuda={f.pai ? "Em branco = sem limite." : "Em branco = sem limite. Numa categoria principal, conta junto as subcategorias."}><input inputMode="numeric" value={f.vagas} onChange={(e) => set("vagas", e.target.value.replace(/\D/g, "").replace(/^0+/, ""))} placeholder="Sem limite" className={campo} /></Rotulo>
             <Rotulo texto="Faixa etária (texto livre)" ajuda="Opcional, ex.: Infantil (7 a 11)"><input value={f.idadeTexto} onChange={(e) => set("idadeTexto", e.target.value)} maxLength={40} className={campo} /></Rotulo>
             <Rotulo texto="Tempo mínimo (min)"><input inputMode="numeric" value={f.tempoMin} onChange={(e) => set("tempoMin", e.target.value.replace(/\D/g, ""))} className={campo} /></Rotulo>
             <Rotulo texto="Tempo máximo (min)"><input inputMode="numeric" value={f.tempoMax} onChange={(e) => set("tempoMax", e.target.value.replace(/\D/g, ""))} className={campo} /></Rotulo>
@@ -180,6 +183,16 @@ export function Categorias({ eventoId, produtoraId, perfilSlug, categorias, usos
     router.refresh();
   };
 
+  // Inscrições da categoria (a principal soma as subcategorias) e as vagas, se houver limite
+  const vagasTexto = (c: Categoria) => {
+    const ocupadas = (usos[c.id] ?? 0) + filhas(c.id).reduce((s, x) => s + (usos[x.id] ?? 0), 0);
+    if (c.vagas != null) {
+      const cheia = ocupadas >= c.vagas;
+      return <span className={`ml-1 text-xs font-normal ${cheia ? "text-amber-300" : "text-gray-500"}`}>· {ocupadas} de {c.vagas} vagas{cheia ? " (esgotada)" : ""}</span>;
+    }
+    return ocupadas ? <span className="ml-1 text-xs font-normal text-gray-500">· {ocupadas} inscrição(ões)</span> : null;
+  };
+
   const Linha = ({ c, nivel }: { c: Categoria; nivel: 0 | 1 }) => {
     const temFilhas = nivel === 0 && filhas(c.id).length > 0;
     const formacoes = [c.permite_solo && `${perfil.formacoes.solo} ${brl(c.valor_solo)}`, c.permite_duo && `${perfil.formacoes.duo} ${brl(c.valor_duo)}`, c.permite_conjunto && `${perfil.formacoes.conjunto} ${brl(c.valor_conjunto)}`].filter(Boolean);
@@ -191,7 +204,7 @@ export function Categorias({ eventoId, produtoraId, perfilSlug, categorias, usos
       <li className={`flex flex-wrap items-center gap-3 px-5 py-3 ${nivel ? "bg-white/[0.015] pl-10" : ""}`}>
         {nivel === 1 && <ChevronRight size={14} className="-ml-5 text-gray-600" />}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-white">{c.nome} {usos[c.id] ? <span className="ml-1 text-xs font-normal text-gray-500">· {usos[c.id]} inscrição(ões)</span> : null}</p>
+          <p className="text-sm font-medium text-white">{c.nome} {vagasTexto(c)}</p>
           <p className="mt-0.5 text-xs text-gray-400">{temFilhas ? "Agrupa as subcategorias abaixo (as inscrições são feitas nelas)." : formacoes.join(" · ")}</p>
           {!temFilhas && detalhes.length > 0 && <p className="text-xs text-gray-500">{detalhes.join(" · ")}</p>}
         </div>

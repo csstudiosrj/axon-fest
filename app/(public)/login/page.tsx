@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 import { ROLES, ROLES_GRUPO, ROLES_PAINEL_ADMIN, destinoPorRole } from "@/lib/auth/roles";
 
-// Login único da produtora, operador (caixa) e jurado. Grupos também são aceitos.
+// Login único: produção, equipe, operador (caixa), jurado e grupos. Cada um vai para a sua área.
 const ROLES_LOGIN: readonly string[] = [...ROLES, ...ROLES_PAINEL_ADMIN, ...ROLES_GRUPO];
 
 const MENSAGENS_ERRO: Record<string, string> = {
@@ -63,7 +63,7 @@ export default function AdminLoginPage({
 
         if (!ROLES_LOGIN.includes(userData.role)) {
           await supabase.auth.signOut();
-          setError("Acesso negado. Área restrita à organização do festival.");
+          setError("Esta conta não tem acesso ao sistema. Fale com a organização do festival.");
           setLoading(false);
           return;
         }
@@ -85,7 +85,7 @@ export default function AdminLoginPage({
             <h1 className="text-3xl font-bold tracking-tight text-white">
               ARXUM <span className="text-axon-gold">Fest</span>
             </h1>
-            <p className="mt-2 text-sm text-gray-400">Acesso restrito à organização do evento.</p>
+            <p className="mt-2 text-sm text-gray-400">Produção, equipe, jurados, caixa e grupos inscritos: entre com seu e-mail e senha.</p>
           </div>
 
           <form onSubmit={handleLogin} className="mt-8 space-y-6">
@@ -98,7 +98,7 @@ export default function AdminLoginPage({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-md border border-axon-border bg-axon-panel px-4 py-3 text-white focus:border-axon-gold focus:outline-none focus:ring-1 focus:ring-axon-gold transition-colors"
-                  placeholder="admin@festival.com"
+                  placeholder="seu@email.com"
                 />
               </div>
               <div>
@@ -129,6 +129,11 @@ export default function AdminLoginPage({
             </button>
             <p className="text-center text-sm">
               <Link href="/esqueci-senha" className="text-gray-400 hover:text-axon-gold">Esqueci minha senha</Link>
+            </p>
+            <p className="text-center text-xs leading-relaxed text-gray-500">
+              Grupo, escola ou companhia ainda sem cadastro? Faça a inscrição pelo link do festival.
+              <br />
+              Produtora nova? <Link href="/criar-conta" className="text-gray-400 hover:text-axon-gold">Crie sua conta</Link>.
             </p>
           </form>
         </div>

@@ -175,7 +175,7 @@ function Demonstracao({ existente }: { existente: { id: string; nome: string; cr
                 <li key={l.email} className="flex flex-wrap justify-between gap-2"><span className="text-gray-400">{l.papel}</span><span className="font-mono text-gray-200">{l.email}</span></li>
               ))}
             </ul>
-            <p className="mt-3 text-xs text-gray-400">Produção, jurados e operador entram em /fest/login; grupos em /fest/grupo/login. PIN do caixa: 1234.</p>
+            <p className="mt-3 text-xs text-gray-400">Todos entram em /fest/login (cada um cai na sua área). PIN do caixa: 1234.</p>
           </div>
         )}
 
