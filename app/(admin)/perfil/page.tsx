@@ -128,10 +128,10 @@ function SecaoSenha({
   const [mostrar, setMostrar] = useState(false);
   const [erro, setErro] = useState("");
 
-  const valido = nova.length >= 6 && nova === confirma;
+  const valido = nova.length >= 8 && nova === confirma;
 
   const handleSalvar = async () => {
-    if (!valido) { setErro("As senhas não coincidem ou são muito curtas (mín. 6 caracteres)."); return; }
+    if (!valido) { setErro("As senhas não coincidem ou são muito curtas (mín. 8 caracteres)."); return; }
     setErro("");
     await onSalvar(nova, atual);
     setAtual(""); setNova(""); setConfirma("");
@@ -149,7 +149,7 @@ function SecaoSenha({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Senha Atual", val: atual, set: setAtual, ph: "••••••••" },
-          { label: "Nova Senha", val: nova, set: setNova, ph: "Mín. 6 caracteres" },
+          { label: "Nova Senha", val: nova, set: setNova, ph: "Mín. 8 caracteres" },
           { label: "Confirmar Nova Senha", val: confirma, set: setConfirma, ph: "Repita a nova senha" },
         ].map(({ label, val, set, ph }) => (
           <div key={label} className="space-y-1.5">
