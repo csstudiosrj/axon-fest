@@ -4,7 +4,7 @@
 // as mesmas regras nas gravações (migration 20261101000000_portal_unico.sql).
 //
 //   Admin ........ tudo
-//   Produção ..... eventos, categorias, programação, mídias, jurados, apuração, termos
+//   Produção ..... eventos, categorias, programação, check-in e certificados, mídias, jurados, apuração, termos
 //   Financeiro ... inscrições e pagamentos, PDV (produtos, vendas, PIX), caixa
 //   Marketing .... página pública do evento, termos, inscritos (sem valores)
 //   Operador ..... caixa (cantina e lojinha) OU bilheteria, conforme o setor
@@ -13,12 +13,12 @@
 
 export const AREAS = [
   "dashboard", "eventos", "evento_dados", "evento_pagina", "evento_categorias", "evento_inscricoes", "evento_programacao",
-  "evento_jurados", "pagamentos", "valores", "midias", "jurados", "apuracao", "pdv", "caixa", "termos", "equipe",
+  "evento_jurados", "checkin", "pagamentos", "valores", "midias", "jurados", "apuracao", "pdv", "caixa", "termos", "equipe",
   "configuracoes", "plano", "super",
 ] as const;
 export type Area = (typeof AREAS)[number];
 
-const PRODUCAO: Area[] = ["dashboard", "eventos", "evento_dados", "evento_pagina", "evento_categorias", "evento_programacao", "evento_jurados", "midias", "jurados", "apuracao", "termos"];
+const PRODUCAO: Area[] = ["dashboard", "eventos", "evento_dados", "evento_pagina", "evento_categorias", "evento_programacao", "evento_jurados", "checkin", "midias", "jurados", "apuracao", "termos"];
 const FINANCEIRO: Area[] = ["dashboard", "eventos", "evento_inscricoes", "pagamentos", "valores", "pdv", "caixa"];
 const MARKETING: Area[] = ["dashboard", "eventos", "evento_pagina", "evento_inscricoes", "termos"];
 

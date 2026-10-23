@@ -1484,6 +1484,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
         </div>
 
         <footer className={`border-t pt-6 text-center ${tema.footerBorder}`}>
+          <Link href="/certificados" className={`text-xs underline-offset-2 hover:underline ${tema.faintText}`}>Certificados de participação</Link>
           <Direitos className={`text-xs ${tema.faintText}`} />
         </footer>
       </div>

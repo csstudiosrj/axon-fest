@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import QRCode from "qrcode";
+import { BASE_PATH } from "@/lib/base-path";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, CheckCircle2, Clock, FileAudio, FileImage, FileText, Loader2, Pencil, Plus, Trash2, Upload, Users, X,
+  AlertTriangle, CheckCircle2, Clock, FileAudio, FileImage, FileText, Loader2, Pencil, Plus, QrCode, Trash2, Upload, Users, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { mensagemEnvio, uploadFiles } from "@/utils/uploadthing";
@@ -68,6 +70,26 @@ function avisosElenco(c: CategoriaEvento | undefined, tipo: Tipo, escolhidos: In
   const pendentes = escolhidos.filter((p) => !p.confirmado || !p.termo_assinado).length;
   if (pendentes) avisos.push(`${pendentes} ${pendentes === 1 ? "pessoa ainda não confirmou ou não assinou" : "pessoas ainda não confirmaram ou não assinaram"} o termo.`);
   return { bloqueios, avisos };
+}
+
+// QR do check-in: a produção aponta a câmera e abre a apresentação na tela de check-in do painel
+function JanelaQr({ eventoId, apresentacao, onFechar }: { eventoId: string; apresentacao: { id: string; nome: string }; onFechar: () => void }) {
+  const [qr, setQr] = useState("");
+  useEffect(() => {
+    const url = `${window.location.origin}${BASE_PATH}/eventos/${eventoId}/checkin?ap=${apresentacao.id}`;
+    QRCode.toDataURL(url, { width: 320, margin: 2 }).then(setQr).catch(() => setQr(""));
+  }, [eventoId, apresentacao.id]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onFechar}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs space-y-3 rounded-2xl border border-axon-border bg-axon-panel p-5 text-center">
+        <h3 className="font-semibold text-white">{apresentacao.nome}</h3>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {qr ? <img src={qr} alt="QR Code do check-in" className="mx-auto rounded-xl bg-white p-2" width={260} height={260} /> : <div className="mx-auto h-[260px] w-[260px] animate-pulse rounded-xl bg-axon-bg" />}
+        <p className="text-xs text-gray-400">No dia, mostre este código à produção na hora do check-in.</p>
+        <button type="button" onClick={onFechar} className="w-full rounded-lg border border-axon-border py-2 text-sm text-gray-300">Fechar</button>
+      </div>
+    </div>
+  );
 }
 
 // ── Formulário de nova/editar apresentação ──────────────────────────────────
@@ -386,6 +408,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
   const perfil = perfilPorSlug(perfilSlug);
   const T = perfil.termos;
   const [form, setForm] = useState<{ editando: ApresentacaoGrupo | null } | null>(abrirNova ? { editando: null } : null);
+  const [qrDe, setQrDe] = useState<{ id: string; nome: string } | null>(null);
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   const porId = new Map(elenco.map((p) => [p.participante_id, p]));
   const catPorId = new Map(categorias.map((c) => [c.id, c]));
@@ -450,14 +473,17 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
                     {a.data_apresentacao && <Selo>{dataCurta(a.data_apresentacao)}</Selo>}
                   </div>
                 </div>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setQrDe({ id: a.id, nome: a.nome })} title="QR do check-in" className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"><QrCode size={15} /></button>
                 {podeEditar && (
-                  <div className="flex items-center gap-1">
+                  <>
                     <button type="button" onClick={() => setForm({ editando: a })} title="Editar" className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"><Pencil size={15} /></button>
                     {!pago(a.status_pagamento) && (
                       <button type="button" onClick={() => excluir(a)} title="Excluir" className="rounded-lg p-2 text-gray-400 hover:bg-red-400/10 hover:text-red-300"><Trash2 size={15} /></button>
                     )}
-                  </div>
+                  </>
                 )}
+                </div>
               </div>
 
               <div className="border-t border-axon-border px-5 py-3">
@@ -485,6 +511,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
         })
       )}
 
+      {qrDe && <JanelaQr eventoId={evento.id} apresentacao={qrDe} onFechar={() => setQrDe(null)} />}
       {form && (
         <Formulario verValores={verValores} perfil={perfil} evento={evento} grupoId={grupoId} categorias={categorias} elenco={elenco} editando={form.editando}
           onFechar={() => setForm(null)}

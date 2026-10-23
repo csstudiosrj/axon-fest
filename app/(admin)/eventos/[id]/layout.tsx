@@ -36,6 +36,8 @@ export default async function LayoutEvento({ children, params }: { children: Rea
             { caminho: "/inscricoes", nome: pode("pagamentos") ? "Inscrições e pagamentos" : "Inscrições", ver: pode("evento_inscricoes") },
             { caminho: "/programacao", nome: "Programação", ver: pode("evento_programacao") },
             { caminho: "/jurados", nome: "Jurados", ver: pode("evento_jurados") },
+            { caminho: "/checkin", nome: "Check-in", ver: pode("checkin") },
+            { caminho: "/certificados", nome: "Certificados", ver: pode("checkin") },
           ].filter((a) => a.ver)} />
         </div>
       </div>
