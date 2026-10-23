@@ -55,10 +55,9 @@ export default function EsqueciSenha() {
           </form>
         )}
 
-        <div className="flex justify-between text-sm">
-          <Link href="/login" className="text-axon-gold hover:underline">Login da organização</Link>
-          <Link href="/grupo/login" className="text-axon-gold hover:underline">Login de grupos</Link>
-        </div>
+        <p className="text-center text-sm">
+          <Link href="/login" className="text-axon-gold hover:underline">Voltar para o login</Link>
+        </p>
       </div>
     </div>
   );

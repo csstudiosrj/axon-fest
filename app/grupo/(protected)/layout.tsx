@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import GrupoShell from "../_components/EscolaShell";
 
 export default async function GrupoProtectedLayout({ children }: { children: React.ReactNode }) {
-  const usuario = await exigirArea(ROLES_GRUPO, { login: "/grupo/login", area: "/grupo" });
+  const usuario = await exigirArea(ROLES_GRUPO, { login: "/login", area: "/grupo" });
 
   let grupoNome: string | null = null;
   if (usuario.organizacao_id) {

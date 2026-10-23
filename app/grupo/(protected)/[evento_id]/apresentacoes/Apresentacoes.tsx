@@ -103,6 +103,14 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
     return [...m.entries()];
   }, [categorias]);
 
+  // Categoria esgotada fica bloqueada (menos a que a apresentação já ocupa)
+  const opcaoCategoria = (c: CategoriaEvento) => {
+    const atual = c.id === editando?.categoria_id;
+    const esgotada = c.restantes === 0 && !atual;
+    const vagas = esgotada ? " — esgotada" : c.restantes != null && !atual ? ` — ${c.restantes} vaga${c.restantes === 1 ? "" : "s"}` : "";
+    return <option key={c.id} value={c.id} disabled={esgotada}>{c.nome}{vagas}</option>;
+  };
+
   const alternar = (id: string) => {
     const s = new Set(escolhidos);
     if (s.has(id)) s.delete(id);
@@ -177,9 +185,9 @@ function Formulario({ perfil, evento, grupoId, categorias, elenco, editando, onF
                 {grupos.map(([pai, cats]) =>
                   pai ? (
                     <optgroup key={pai} label={pai}>
-                      {cats.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      {cats.map(opcaoCategoria)}
                     </optgroup>
-                  ) : cats.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)
+                  ) : cats.map(opcaoCategoria)
                 )}
               </select>
             </label>
@@ -369,6 +377,7 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   const porId = new Map(elenco.map((p) => [p.participante_id, p]));
   const catPorId = new Map(categorias.map((c) => [c.id, c]));
+  const esgotado = categorias.length > 0 && categorias.every((c) => c.restantes === 0);
   const nomeFormacao = (t: Tipo) => perfil.formacoes[t];
 
   const excluir = async (a: ApresentacaoGrupo) => {
@@ -392,13 +401,16 @@ export function Apresentacoes({ evento, grupoId, perfilSlug, categorias, apresen
           </p>
         </div>
         {podeEditar && (
-          <button type="button" onClick={() => setForm({ editando: null })} disabled={categorias.length === 0}
+          <button type="button" onClick={() => setForm({ editando: null })} disabled={categorias.length === 0 || esgotado}
             className="inline-flex items-center gap-2 rounded-lg bg-axon-gold px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-40">
             <Plus size={15} /> {novo(T.apresentacao)}
           </button>
         )}
       </div>
 
+      {podeEditar && esgotado && (
+        <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">As vagas deste festival estão esgotadas. Fale com a produção se precisar de uma vaga.</p>
+      )}
       {podeEditar && categorias.length === 0 && (
         <p className="rounded-lg border border-axon-gold/30 bg-axon-gold/10 px-4 py-3 text-sm text-axon-gold">A produção ainda não cadastrou as categorias deste festival.</p>
       )}

@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { limparHtml } from "@/lib/termos-html";
+import { lerOcupacao, situacaoVagas } from "@/lib/eventos/vagas";
 import type { Metadata } from "next";
 import {
   MapPin,
@@ -199,6 +200,7 @@ interface DadosEventoPublico {
   categoriasPremiacao: CategoriaPremiacao[];
   produtosLoja: ProdutoLoja[];
   resultado: ResultadoGrupo[];
+  vagas: { restamEvento: number | null; esgotado: boolean };
 }
 
 function formatarData(iso: string | null): string {
@@ -686,7 +688,9 @@ function BotaoInscricao({
   eventoId,
   corPrimaria,
   tema,
+  esgotado,
 }: {
+  esgotado: boolean;
   status: Evento["status"];
   eventoId: string;
   corPrimaria: string | null;
@@ -694,7 +698,7 @@ function BotaoInscricao({
 }) {
   const cor = corPrimaria ?? "#d4af37";
   const textoCor = corTextoContraste(corPrimaria);
-  const aberto = status === "inscricoes_abertas";
+  const aberto = status === "inscricoes_abertas" && !esgotado;
 
   if (aberto) {
     return (
@@ -714,8 +718,9 @@ function BotaoInscricao({
     );
   }
 
-  const labelBloqueio =
-    status === "inscricoes_encerradas" || status === "finalizado"
+  const labelBloqueio = esgotado && status === "inscricoes_abertas"
+    ? "Vagas esgotadas"
+    : status === "inscricoes_encerradas" || status === "finalizado"
       ? "Inscrições Encerradas"
       : "Inscrições Bloqueadas";
 
@@ -736,7 +741,7 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
   const { data: eventoData, error } = await supabase
     .from("eventos")
     .select(
-      "id, nome, descricao, data_inicio, data_fim, local, status, logo_url, banner_url, formato, tipo_premiacao, multilocal, cor_primaria, cor_secundaria, fonte_familia, tema_escuro, exibir_loja_publica, exibir_feed_instagram, instagram_handle, regulamento_url, termo_imagem_url, autorizacao_menor_url"
+      "id, nome, descricao, data_inicio, data_fim, local, status, logo_url, banner_url, formato, tipo_premiacao, multilocal, cor_primaria, cor_secundaria, fonte_familia, tema_escuro, exibir_loja_publica, exibir_feed_instagram, instagram_handle, regulamento_url, termo_imagem_url, autorizacao_menor_url, vagas_total"
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -745,6 +750,13 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
 
   const ev = normalizarEvento(eventoData as EventoRow);
   const competitivo = ev.formato === "competitivo" || ev.formato === "misto";
+
+  // Vagas: quantas sobram e se esgotou (o banco trava as inscrições além do limite)
+  const [{ data: catsVagas }, { data: ocup }] = await Promise.all([
+    supabase.from("categorias").select("id, categoria_pai_id, vagas").eq("evento_id", ev.id),
+    supabase.rpc("ocupacao_evento", { p_evento: ev.id }),
+  ]);
+  const vagas = situacaoVagas(catsVagas ?? [], lerOcupacao(ocup), (eventoData as { vagas_total: number | null }).vagas_total);
 
   const [juradosRes, locaisRes, termosRes, categoriasRes, produtosRes] = await Promise.all([
     competitivo
@@ -867,7 +879,7 @@ async function fetchDadosEvento(slug: string): Promise<DadosEventoPublico | null
     g.linhas.push({ posicao: r.posicao, apresentacao: r.apresentacao_nome, grupo: r.grupo_nome, nota: r.nota === null ? null : Number(r.nota) });
   }
 
-  return { evento: ev, jurados, locais, termos, categoriasPremiacao, produtosLoja, resultado };
+  return { evento: ev, jurados, locais, termos, categoriasPremiacao, produtosLoja, resultado, vagas };
 }
 
 interface PageProps {
@@ -908,7 +920,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
     notFound();
   }
 
-  const { evento, jurados, locais, termos, categoriasPremiacao, produtosLoja, resultado } = dados;
+  const { evento, jurados, locais, termos, categoriasPremiacao, produtosLoja, resultado, vagas } = dados;
   const corPrimaria = evento.cor_primaria ?? "#d4af37";
   const corSecundaria = evento.cor_secundaria ?? "#b8860b";
   const fonteFamilia = evento.fonte_familia;
@@ -1054,13 +1066,17 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
           <div>
             <h2 className="mb-0.5 text-base font-bold" style={{ color: corPrimaria }}>
               {evento.status === "inscricoes_abertas"
-                ? "Inscrições abertas"
+                ? vagas.esgotado ? "Vagas esgotadas" : "Inscrições abertas"
                 : "Acompanhe este festival"}
             </h2>
             <p className={`text-sm ${tema.softText}`}>
-              {evento.status === "inscricoes_abertas"
-                ? "Garanta a participação do seu grupo: a inscrição é feita online, por aqui."
-                : "As inscrições para este festival estão indisponíveis no momento."}
+              {evento.status !== "inscricoes_abertas"
+                ? "As inscrições para este festival estão indisponíveis no momento."
+                : vagas.esgotado
+                  ? "Todas as vagas deste festival foram preenchidas."
+                  : vagas.restamEvento != null
+                    ? `Restam ${vagas.restamEvento} vaga${vagas.restamEvento === 1 ? "" : "s"}. A inscrição é feita online, por aqui.`
+                    : "Garanta a participação do seu grupo: a inscrição é feita online, por aqui."}
             </p>
           </div>
           <BotaoInscricao
@@ -1068,6 +1084,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
             eventoId={evento.id}
             corPrimaria={evento.cor_primaria}
             tema={tema}
+            esgotado={vagas.esgotado}
           />
         </div>
 
@@ -1459,6 +1476,7 @@ export default async function PaginaPublicaFestivalPage({ params }: PageProps) {
             eventoId={evento.id}
             corPrimaria={evento.cor_primaria}
             tema={tema}
+            esgotado={vagas.esgotado}
           />
         </div>
 

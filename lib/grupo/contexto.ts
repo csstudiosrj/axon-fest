@@ -42,8 +42,8 @@ export function perfilDoEvento(linha: { perfis_festival?: unknown }): Perfil {
 
 export async function exigirUsuarioGrupo() {
   const usuario = await getUsuarioAtual();
-  if (!usuario) redirect("/grupo/login");
-  if (!ROLES_GRUPO.includes(usuario.role) || !usuario.organizacao_id) redirect("/grupo/login?erro=sem-acesso");
+  if (!usuario) redirect("/login");
+  if (!ROLES_GRUPO.includes(usuario.role) || !usuario.organizacao_id) redirect("/login?erro=sem-acesso");
   return usuario as UsuarioAtual & { organizacao_id: string };
 }
 

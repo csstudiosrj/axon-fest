@@ -76,6 +76,7 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
     data_inicio: evento.data_inicio ?? "",
     data_fim: evento.data_fim ?? "",
     local: evento.local ?? "",
+    vagas_total: evento.vagas_total != null ? String(evento.vagas_total) : "",
     descricao: evento.descricao ?? "",
     status: evento.status ?? "Em Montagem",
     slug: evento.slug ?? "",
@@ -105,6 +106,7 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
     const { error } = await createClient().from("eventos").update({
       nome: f.nome.trim(), perfil_id: f.perfil_id, formato: f.formato, tipo_premiacao: f.tipo_premiacao,
       data_inicio: f.data_inicio || null, data_fim: f.data_fim || null, local: f.local.trim() || null,
+      vagas_total: f.vagas_total ? Number(f.vagas_total) : null,
       descricao: f.descricao.trim() || null, status: f.status, slug, cor_primaria: f.cor_primaria, tema_escuro: f.tema_escuro,
       cor_secundaria: f.cor_secundaria, fonte_familia: f.fonte_familia, instagram_handle: instagram || null, exibir_feed_instagram: !!instagram,
       logo_url: f.logo_url, banner_url: f.banner_url, regulamento_url: f.regulamento_url,
@@ -160,6 +162,9 @@ export function DadosEvento({ evento, podeGerir, temInscricoes }: { evento: Even
             <select value={f.tipo_premiacao} onChange={(e) => set("tipo_premiacao", e.target.value)} disabled={dis} className={campo}>
               {PREMIACOES.map((x) => <option key={x.valor} value={x.valor}>{x.nome}</option>)}
             </select>
+          </Rotulo>
+          <Rotulo texto="Vagas no evento" ajuda="Máximo de apresentações no festival inteiro. Em branco = sem limite. Também dá para limitar por categoria.">
+            <input inputMode="numeric" value={f.vagas_total} onChange={(e) => set("vagas_total", e.target.value.replace(/\D/g, "").replace(/^0+/, ""))} disabled={dis} placeholder="Sem limite" className={campo} />
           </Rotulo>
           <div className="md:col-span-2"><Rotulo texto="Descrição (aparece na página pública)"><textarea rows={4} value={f.descricao} onChange={(e) => set("descricao", e.target.value)} disabled={dis} maxLength={4000} className={`${campo} resize-y`} /></Rotulo></div>
         </div>
