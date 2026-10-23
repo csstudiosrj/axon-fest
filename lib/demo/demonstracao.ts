@@ -87,8 +87,7 @@ export async function criarDemonstracao(admin: Admin) {
     const perfis = checar(await admin.from("perfis_festival").select("id, slug"), "perfis") as { id: string; slug: string }[];
     const perfilId = (slug: string) => perfis.find((p) => p.slug === slug)?.id ?? null;
 
-    await admin.from("tenant_config").insert({ produtora_id: pid, perfil_id: perfilId("danca"), nome_organizacao: "Produtora Demonstração", configurado_em: new Date().toISOString(),
-      termo_legal_texto: "Texto de exemplo da demonstração. Declaro que participo do festival por livre vontade e que estou apto(a) às atividades." });
+    await admin.from("tenant_config").insert({ produtora_id: pid, perfil_id: perfilId("danca"), nome_organizacao: "Produtora Demonstração", configurado_em: new Date().toISOString() });
 
     // Equipe
     for (const [papel, role, nome] of [["Dono do festival", "admin", "Demo Admin"], ["Produção", "produtor", "Demo Produção"], ["Financeiro", "financeiro", "Demo Financeiro"],
