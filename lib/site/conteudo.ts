@@ -3,9 +3,10 @@
 
 // Outros produtos da família ARXUM (fora do basePath /fest: links absolutos)
 export const PRODUTOS_ARXUM = [
-  { nome: "Calc", href: "https://www.arxum.com.br/calculadoras", cor: "#1db954" },
-  { nome: "Crew", href: "https://www.arxum.com.br/crew", cor: "#7c3aed" },
-  { nome: "Suite", href: "https://www.arxum.com.br/suite", cor: "#dc2626" },
+  { nome: "Crew", href: "https://www.arxum.com.br/crew", cor: "#8b5cf6" },
+  { nome: "Edu", href: "https://www.arxum.com.br/edu", cor: "#0d9488" },
+  { nome: "Studio", href: "https://www.arxum.com.br/studio", cor: "#3b82f6" },
+  { nome: "Suite", href: "https://www.arxum.com.br/suite", cor: "#ef4444" },
 ];
 
 export const NAV = [
