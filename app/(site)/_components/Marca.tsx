@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-// Símbolo ARXUM (Manual de Marca §01) na cor do produto Fest
+// Símbolo do ARXUM Fest: ingresso com estrela (Manual de Marca §01)
 export function Simbolo({ size = 26, cor = "var(--color-arx-fest)" }: { size?: number; cor?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" aria-hidden="true">
-      <polyline points="6,27 12,9 17,20 22,13 28,27" fill="none" stroke={cor} strokeWidth="2.4"
-        strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="17" cy="20" r="2.3" fill={cor} />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 7.5a1.5 1.5 0 0 1 1.5-1.5h13a1.5 1.5 0 0 1 1.5 1.5v2a2.5 2.5 0 0 0 0 5v2a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5v-2a2.5 2.5 0 0 0 0-5Z"
+        fill={cor} fillOpacity="0.12" stroke={cor} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="m12 9 .9 1.85 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3Z" fill={cor} />
     </svg>
   );
 }
