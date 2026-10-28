@@ -545,14 +545,14 @@ isOneToOne: false
                   ]
                 },"faturas": {
                   Row: {
-                    "aviso_atraso_em": string | null,"criada_em": string,"descricao": string,"evento_id": string | null,"forma_pagamento": string | null,"id": string,"mp_link": string | null,"mp_pagamento_id": string | null,"mp_preferencia_id": string | null,"observacao": string | null,"paga_em": string | null,"periodo_fim": string | null,"periodo_inicio": string | null,"produtora_id": string,"referencia": string,"status": string,"tipo": string,"valor_total": number,"vencimento": string
+                    "aviso_atraso_em": string | null,"criada_em": string,"descricao": string,"evento_id": string | null,"forma_pagamento": string | null,"id": string,"mp_link": string | null,"mp_pagamento_id": string | null,"mp_preferencia_id": string | null,"observacao": string | null,"paga_em": string | null,"periodo_fim": string | null,"periodo_inicio": string | null,"produtora_id": string | null,"referencia": string,"status": string,"tipo": string,"valor_total": number,"vencimento": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "aviso_atraso_em"?: string | null,"criada_em"?: string,"descricao": string,"evento_id"?: string | null,"forma_pagamento"?: string | null,"id"?: string,"mp_link"?: string | null,"mp_pagamento_id"?: string | null,"mp_preferencia_id"?: string | null,"observacao"?: string | null,"paga_em"?: string | null,"periodo_fim"?: string | null,"periodo_inicio"?: string | null,"produtora_id": string,"referencia": string,"status"?: string,"tipo": string,"valor_total": number,"vencimento": string
+                    "aviso_atraso_em"?: string | null,"criada_em"?: string,"descricao": string,"evento_id"?: string | null,"forma_pagamento"?: string | null,"id"?: string,"mp_link"?: string | null,"mp_pagamento_id"?: string | null,"mp_preferencia_id"?: string | null,"observacao"?: string | null,"paga_em"?: string | null,"periodo_fim"?: string | null,"periodo_inicio"?: string | null,"produtora_id"?: string | null,"referencia": string,"status"?: string,"tipo": string,"valor_total": number,"vencimento": string
                   }
                   Update: {
-                    "aviso_atraso_em"?: string | null,"criada_em"?: string,"descricao"?: string,"evento_id"?: string | null,"forma_pagamento"?: string | null,"id"?: string,"mp_link"?: string | null,"mp_pagamento_id"?: string | null,"mp_preferencia_id"?: string | null,"observacao"?: string | null,"paga_em"?: string | null,"periodo_fim"?: string | null,"periodo_inicio"?: string | null,"produtora_id"?: string,"referencia"?: string,"status"?: string,"tipo"?: string,"valor_total"?: number,"vencimento"?: string
+                    "aviso_atraso_em"?: string | null,"criada_em"?: string,"descricao"?: string,"evento_id"?: string | null,"forma_pagamento"?: string | null,"id"?: string,"mp_link"?: string | null,"mp_pagamento_id"?: string | null,"mp_preferencia_id"?: string | null,"observacao"?: string | null,"paga_em"?: string | null,"periodo_fim"?: string | null,"periodo_inicio"?: string | null,"produtora_id"?: string | null,"referencia"?: string,"status"?: string,"tipo"?: string,"valor_total"?: number,"vencimento"?: string
                   }
                   Relationships: [
                     {

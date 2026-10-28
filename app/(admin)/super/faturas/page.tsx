@@ -57,7 +57,7 @@ export default async function SuperFaturas({ searchParams }: { searchParams: Pro
             return (
               <li key={x.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-white">{p?.nome} · {x.descricao}</p>
+                  <p className="truncate text-white">{p?.nome ?? "ARXUM"} · {x.descricao}</p>
                   <p className="text-xs text-gray-500">
                     {x.status === "paga" ? `Paga em ${dataBR(x.paga_em)} · ${x.forma_pagamento ?? ""}` : x.status === "cancelada" ? "Cancelada" : `Vence em ${dataBR(`${x.vencimento}T12:00:00`)}`}
                     {vencida && <span className="ml-2 text-red-300">vencida</span>}

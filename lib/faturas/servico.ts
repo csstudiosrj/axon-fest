@@ -168,10 +168,11 @@ async function gerarDeEventos(admin: Admin, cfg: ConfigFaturamento, hoje: string
 // Atrasos: aviso no dia seguinte ao vencimento; bloqueio do painel X dias após
 async function processarAtrasos(admin: Admin, cfg: ConfigFaturamento, hoje: string) {
   const { data: vencidas } = await admin.from("faturas").select("id, produtora_id, descricao, valor_total, vencimento, aviso_atraso_em, mp_link")
-    .eq("status", "aberta").lt("vencimento", hoje);
+    .eq("status", "aberta").lt("vencimento", hoje).not("produtora_id", "is", null);
   let avisos = 0, bloqueios = 0;
   const bloquear = new Set<string>();
   for (const f of vencidas ?? []) {
+    if (!f.produtora_id) continue;
     if (!f.aviso_atraso_em) {
       const limite = somarDias(f.vencimento, cfg.diasBloqueio);
       await enviarParaTodos(admin, f.produtora_id, `Fatura vencida: ${f.descricao}`, emailComBotao({
@@ -207,7 +208,8 @@ async function processarAtrasos(admin: Admin, cfg: ConfigFaturamento, hoje: stri
 }
 
 // Libera o painel se não sobrou fatura passada do prazo de bloqueio
-export async function revisarBloqueio(admin: Admin, produtoraId: string) {
+export async function revisarBloqueio(admin: Admin, produtoraId: string | null) {
+  if (!produtoraId) return false; // cobrança de teste do super admin
   const cfg = await configFaturamento(admin);
   const limite = somarDias(hojeSP(), -cfg.diasBloqueio);
   const { count } = await admin.from("faturas").select("id", { count: "exact", head: true })
@@ -225,6 +227,21 @@ export async function marcarPaga(admin: Admin, faturaId: string, dados: { forma:
   }).eq("id", faturaId).eq("status", "aberta").select("produtora_id").maybeSingle();
   if (f) await revisarBloqueio(admin, f.produtora_id);
   return !!f;
+}
+
+// Cobrança de teste: o super admin paga pelo link e confere a baixa automática
+export async function criarCobrancaTeste(admin: Admin, valor: number) {
+  const { data: f, error } = await admin.from("faturas").insert({
+    produtora_id: null, tipo: "teste", referencia: `teste-${Date.now()}`, descricao: "Cobrança de teste do ARXUM",
+    valor_total: valor, vencimento: somarDias(hojeSP(), 5),
+  }).select("id").single();
+  if (error || !f) throw new Error("Não foi possível criar a cobrança de teste.");
+  try {
+    return { id: f.id, link: await garantirLink(admin, f.id) };
+  } catch (e) {
+    await admin.from("faturas").delete().eq("id", f.id);
+    throw e;
+  }
 }
 
 // Rotina diária (Vercel Cron): gera, cobra e trata atrasos. Pode rodar várias vezes no dia.

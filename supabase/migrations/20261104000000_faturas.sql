@@ -59,3 +59,8 @@ where not exists (select 1 from public.configuracoes_sistema where chave = 'fatu
 
 -- Liberação manual pelo super admin: a rotina não bloqueia de novo até esta data
 alter table public.produtoras add column if not exists liberado_ate date;
+
+-- Cobrança de teste do super admin (confere o Mercado Pago de ponta a ponta, sem produtora)
+alter table public.faturas alter column produtora_id drop not null;
+alter table public.faturas drop constraint if exists faturas_tipo_check;
+alter table public.faturas add constraint faturas_tipo_check check (tipo in ('mensal', 'evento', 'teste'));

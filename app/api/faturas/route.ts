@@ -4,7 +4,7 @@ import { getUsuarioAtual } from "@/lib/auth/session";
 import { pode } from "@/lib/auth/permissoes";
 import { registrar } from "@/lib/super/registro";
 import { contaMercadoPago, mercadoPagoTeste } from "@/lib/faturas/mercadopago";
-import { garantirLink, marcarPaga, revisarBloqueio, rotinaDiaria } from "@/lib/faturas/servico";
+import { criarCobrancaTeste, garantirLink, marcarPaga, revisarBloqueio, rotinaDiaria } from "@/lib/faturas/servico";
 
 // pagar: admin/financeiro da produtora pega o link de pagamento da fatura.
 // Super admin: gerar_agora, marcar_paga, cancelar, desbloquear, testar_mp.
@@ -14,7 +14,7 @@ const erro = (mensagem: string, status = 400) => NextResponse.json({ error: mens
 export async function POST(req: NextRequest) {
   const usuario = await getUsuarioAtual();
   if (!usuario) return erro("Não autenticado.", 401);
-  const body = (await req.json().catch(() => ({}))) as { acao?: string; id?: string; observacao?: string };
+  const body = (await req.json().catch(() => ({}))) as { acao?: string; id?: string; observacao?: string; valor?: number };
   const admin = createAdminClient();
   const ehSuper = usuario.role === "super_admin";
 
@@ -39,6 +39,17 @@ export async function POST(req: NextRequest) {
     const r = await rotinaDiaria(admin);
     await registrar(admin, usuario.id, "gerar_faturas", { tipo: "sistema" }, r);
     return NextResponse.json(r);
+  }
+  if (body.acao === "cobranca_teste") {
+    const valor = Math.round(Number(body.valor) * 100) / 100;
+    if (!(valor >= 0.01 && valor <= 1000)) return erro("Valor entre R$ 0,01 e R$ 1.000.");
+    try {
+      const r = await criarCobrancaTeste(admin, valor);
+      await registrar(admin, usuario.id, "cobranca_teste", { tipo: "fatura", id: r.id }, { valor });
+      return NextResponse.json(r);
+    } catch (e) {
+      return erro((e as Error).message, 502);
+    }
   }
   if (body.acao === "testar_mp") {
     try {
