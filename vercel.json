@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/fest/api/cron/faturamento", "schedule": "0 11 * * *" }
+  ]
+}

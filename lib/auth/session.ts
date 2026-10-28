@@ -10,6 +10,7 @@ export interface UsuarioAtual {
   produtora_id: string | null;
   organizacao_id: string | null;
   setor_pdv: string | null;
+  bloqueio_financeiro: boolean; // produtora com fatura atrasada: painel suspenso (só Faturas abre)
 }
 
 // Usuário autenticado + dados da tabela usuarios.
@@ -27,7 +28,7 @@ export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
   const admin = createAdminClient();
   const { data } = await admin
     .from("usuarios")
-    .select("id, email, nome, role, produtora_id, organizacao_id, setor_pdv, ativo, produtoras:produtora_id ( ativo ), grupos:organizacao_id ( ativo )")
+    .select("id, email, nome, role, produtora_id, organizacao_id, setor_pdv, ativo, produtoras:produtora_id ( ativo, bloqueio_financeiro ), grupos:organizacao_id ( ativo )")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -45,5 +46,6 @@ export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
     produtora_id: data.produtora_id ?? null,
     organizacao_id: data.organizacao_id ?? null,
     setor_pdv: data.setor_pdv ?? null,
+    bloqueio_financeiro: data.role !== "super_admin" && um(data.produtoras)?.bloqueio_financeiro === true,
   };
 });

@@ -27,6 +27,7 @@ const UUID = /^[0-9a-f-]{36}$/i;
 export async function carregarEvento(id: string, area: Area | Area[] = "eventos"): Promise<ContextoEvento> {
   const usuario = await getUsuarioAtual();
   if (!usuario) redirect("/login");
+  if (usuario.bloqueio_financeiro) redirect("/faturas");
   const areas = Array.isArray(area) ? area : [area];
   if (usuario.role !== "super_admin" && !areas.some((a) => pode(usuario.role, a))) {
     redirect(pode(usuario.role, "eventos") ? `/eventos/${id}` : inicioDe(usuario.role));
