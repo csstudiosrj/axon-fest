@@ -523,6 +523,52 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"fatura_itens": {
+                  Row: {
+                    "base": number | null,"descricao": string,"fatura_id": string,"id": string,"quantidade": number,"valor": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "base"?: number | null,"descricao": string,"fatura_id": string,"id"?: string,"quantidade"?: number,"valor": number
+                  }
+                  Update: {
+                    "base"?: number | null,"descricao"?: string,"fatura_id"?: string,"id"?: string,"quantidade"?: number,"valor"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "fatura_itens_fatura_id_fkey"
+      columns: ["fatura_id"]
+isOneToOne: false
+      referencedRelation: "faturas"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"faturas": {
+                  Row: {
+                    "aviso_atraso_em": string | null,"criada_em": string,"descricao": string,"evento_id": string | null,"forma_pagamento": string | null,"id": string,"mp_link": string | null,"mp_pagamento_id": string | null,"mp_preferencia_id": string | null,"observacao": string | null,"paga_em": string | null,"periodo_fim": string | null,"periodo_inicio": string | null,"produtora_id": string,"referencia": string,"status": string,"tipo": string,"valor_total": number,"vencimento": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "aviso_atraso_em"?: string | null,"criada_em"?: string,"descricao": string,"evento_id"?: string | null,"forma_pagamento"?: string | null,"id"?: string,"mp_link"?: string | null,"mp_pagamento_id"?: string | null,"mp_preferencia_id"?: string | null,"observacao"?: string | null,"paga_em"?: string | null,"periodo_fim"?: string | null,"periodo_inicio"?: string | null,"produtora_id": string,"referencia": string,"status"?: string,"tipo": string,"valor_total": number,"vencimento": string
+                  }
+                  Update: {
+                    "aviso_atraso_em"?: string | null,"criada_em"?: string,"descricao"?: string,"evento_id"?: string | null,"forma_pagamento"?: string | null,"id"?: string,"mp_link"?: string | null,"mp_pagamento_id"?: string | null,"mp_preferencia_id"?: string | null,"observacao"?: string | null,"paga_em"?: string | null,"periodo_fim"?: string | null,"periodo_inicio"?: string | null,"produtora_id"?: string,"referencia"?: string,"status"?: string,"tipo"?: string,"valor_total"?: number,"vencimento"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "faturas_evento_id_fkey"
+      columns: ["evento_id"]
+isOneToOne: false
+      referencedRelation: "eventos"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "faturas_produtora_id_fkey"
+      columns: ["produtora_id"]
+isOneToOne: false
+      referencedRelation: "produtoras"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"grupo_participante": {
                   Row: {
                     "bloqueado_por_produtora": string | null,"confirmado": boolean,"data_vinculo": string | null,"funcao": string | null,"grupo_id": string,"id": string,"participante_id": string,"status": string | null,"token_confirmacao": string | null
@@ -991,14 +1037,14 @@ isOneToOne: false
                   ]
                 },"produtoras": {
                   Row: {
-                    "ativo": boolean,"bairro": string | null,"cep": string | null,"cidade": string | null,"complemento": string | null,"created_at": string | null,"demonstracao": boolean,"documento": string | null,"email": string | null,"estado": string | null,"id": string,"logo_url": string | null,"logradouro": string | null,"nome": string,"numero": string | null,"plano": string,"plano_catalogo_id": string | null,"plano_inicio": string,"pro_ate": string | null,"telefone": string | null
+                    "ativo": boolean,"bairro": string | null,"bloqueio_financeiro": boolean,"cep": string | null,"cidade": string | null,"complemento": string | null,"created_at": string | null,"demonstracao": boolean,"documento": string | null,"email": string | null,"estado": string | null,"id": string,"liberado_ate": string | null,"logo_url": string | null,"logradouro": string | null,"nome": string,"numero": string | null,"plano": string,"plano_catalogo_id": string | null,"plano_inicio": string,"pro_ate": string | null,"telefone": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "ativo"?: boolean,"bairro"?: string | null,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string | null,"demonstracao"?: boolean,"documento"?: string | null,"email"?: string | null,"estado"?: string | null,"id"?: string,"logo_url"?: string | null,"logradouro"?: string | null,"nome": string,"numero"?: string | null,"plano"?: string,"plano_catalogo_id"?: string | null,"plano_inicio"?: string,"pro_ate"?: string | null,"telefone"?: string | null
+                    "ativo"?: boolean,"bairro"?: string | null,"bloqueio_financeiro"?: boolean,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string | null,"demonstracao"?: boolean,"documento"?: string | null,"email"?: string | null,"estado"?: string | null,"id"?: string,"liberado_ate"?: string | null,"logo_url"?: string | null,"logradouro"?: string | null,"nome": string,"numero"?: string | null,"plano"?: string,"plano_catalogo_id"?: string | null,"plano_inicio"?: string,"pro_ate"?: string | null,"telefone"?: string | null
                   }
                   Update: {
-                    "ativo"?: boolean,"bairro"?: string | null,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string | null,"demonstracao"?: boolean,"documento"?: string | null,"email"?: string | null,"estado"?: string | null,"id"?: string,"logo_url"?: string | null,"logradouro"?: string | null,"nome"?: string,"numero"?: string | null,"plano"?: string,"plano_catalogo_id"?: string | null,"plano_inicio"?: string,"pro_ate"?: string | null,"telefone"?: string | null
+                    "ativo"?: boolean,"bairro"?: string | null,"bloqueio_financeiro"?: boolean,"cep"?: string | null,"cidade"?: string | null,"complemento"?: string | null,"created_at"?: string | null,"demonstracao"?: boolean,"documento"?: string | null,"email"?: string | null,"estado"?: string | null,"id"?: string,"liberado_ate"?: string | null,"logo_url"?: string | null,"logradouro"?: string | null,"nome"?: string,"numero"?: string | null,"plano"?: string,"plano_catalogo_id"?: string | null,"plano_inicio"?: string,"pro_ate"?: string | null,"telefone"?: string | null
                   }
                   Relationships: [
                     {

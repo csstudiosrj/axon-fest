@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Crown, FileSignature, Gavel, History,
-  LayoutDashboard, LogOut, Menu, Mic2, Settings, ShieldCheck, Ticket, User, UserRound, Users, UsersRound, X,
+  LayoutDashboard, LogOut, Menu, Mic2, Receipt, Settings, ShieldCheck, Ticket, User, UserRound, Users, UsersRound, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { nomeCargo } from "@/lib/auth/cargos";
@@ -22,6 +22,7 @@ const MENU_PRODUTORA: ItemMenu[] = [
   { nome: "Jurados & Apuração", href: "/jurados", icone: Gavel, area: "jurados" },
   { nome: "PDV & Bilheteria", href: "/pdv", icone: Ticket, area: "pdv" },
   { nome: "Termos & Regulamento", href: "/termos", icone: FileSignature, area: "termos" },
+  { nome: "Faturas ARXUM", href: "/faturas", icone: Receipt, area: "faturas" },
 ];
 
 const MENU_SUPER: ItemMenu[] = [
@@ -31,6 +32,7 @@ const MENU_SUPER: ItemMenu[] = [
   { nome: "Grupos", href: "/super/grupos", icone: UsersRound, area: "super" },
   { nome: "Participantes", href: "/super/participantes", icone: Users, area: "super" },
   { nome: "Planos e taxas", href: "/super/planos", icone: CreditCard, area: "super" },
+  { nome: "Faturas", href: "/super/faturas", icone: Receipt, area: "super" },
   { nome: "Registro de ações", href: "/super/registro", icone: History, area: "super" },
 ];
 
@@ -40,6 +42,7 @@ const OUTRAS: { href: string; nome: string }[] = [
   { href: "/usuarios", nome: "Equipe" },
   { href: "/configuracoes", nome: "Configurações da produtora" },
   { href: "/jurados/apuracao", nome: "Apuração das notas" },
+  { href: "/faturas", nome: "Faturas do ARXUM" },
 ];
 
 // Tela "de cima" para o botão Voltar do topo (nada nas telas do menu)
@@ -56,11 +59,15 @@ function tituloDa(pathname: string, menu: ItemMenu[]): string {
   return candidatos[0]?.nome ?? "ARXUM Fest";
 }
 
-export default function AdminShell({ children, userEmail, userName, userRole }: {
+export interface AvisoFatura { valor: number; vencimento: string; vencida: boolean }
+
+export default function AdminShell({ children, userEmail, userName, userRole, bloqueado = false, avisoFatura = null }: {
   children: React.ReactNode;
   userEmail: string;
   userName: string;
   userRole: string;
+  bloqueado?: boolean;
+  avisoFatura?: AvisoFatura | null;
 }) {
   const [aberto, setAberto] = useState(true);
   const [menuCelular, setMenuCelular] = useState(false);
@@ -68,7 +75,8 @@ export default function AdminShell({ children, userEmail, userName, userRole }: 
   const pathname = usePathname();
   const router = useRouter();
   const ehSuper = userRole === "super_admin";
-  const menu = ehSuper ? MENU_SUPER : MENU_PRODUTORA.filter((m) => pode(userRole, m.area));
+  // Painel suspenso por fatura atrasada: só a tela de faturas
+  const menu = ehSuper ? MENU_SUPER : MENU_PRODUTORA.filter((m) => pode(userRole, m.area) && (!bloqueado || m.area === "faturas"));
   const titulo = tituloDa(pathname, menu);
   const voltar = voltarDe(pathname, menu, ehSuper ? "/super" : "/dashboard");
 
@@ -178,6 +186,11 @@ export default function AdminShell({ children, userEmail, userName, userRole }: 
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-6 sm:p-8">
+          {avisoFatura && !bloqueado && pathname !== "/faturas" && (
+            <Link href="/faturas" className={`mx-auto mb-6 block max-w-6xl rounded-lg border px-4 py-3 text-sm ${avisoFatura.vencida ? "border-red-400/40 bg-red-400/10 text-red-200" : "border-axon-gold/30 bg-axon-gold/10 text-axon-gold"}`}>
+              {avisoFatura.vencida ? "Fatura do ARXUM vencida" : "Fatura do ARXUM em aberto"}: {avisoFatura.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}, vencimento em {new Date(`${avisoFatura.vencimento}T12:00:00`).toLocaleDateString("pt-BR")}. {avisoFatura.vencida ? "Pague para não ter o painel suspenso." : "Clique para pagar."}
+            </Link>
+          )}
           {children}
           <Direitos className="mt-12 text-center text-xs text-gray-600" />
         </div>

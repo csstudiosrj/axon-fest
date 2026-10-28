@@ -27,6 +27,8 @@ export async function exigirArea(
 export async function exigirAcesso(area: Area): Promise<UsuarioAtual> {
   const usuario = await getUsuarioAtual();
   if (!usuario) redirect("/login");
+  // Fatura atrasada: o painel fica suspenso, só a tela de faturas abre
+  if (usuario.bloqueio_financeiro && area !== "faturas") redirect("/faturas");
   if (!pode(usuario.role, area)) redirect(inicioDe(usuario.role, usuario.setor_pdv));
   return usuario;
 }

@@ -14,12 +14,12 @@
 export const AREAS = [
   "dashboard", "eventos", "evento_dados", "evento_pagina", "evento_categorias", "evento_inscricoes", "evento_programacao",
   "evento_jurados", "checkin", "pagamentos", "valores", "midias", "jurados", "apuracao", "pdv", "caixa", "termos", "equipe",
-  "configuracoes", "plano", "super",
+  "configuracoes", "plano", "faturas", "super",
 ] as const;
 export type Area = (typeof AREAS)[number];
 
 const PRODUCAO: Area[] = ["dashboard", "eventos", "evento_dados", "evento_pagina", "evento_categorias", "evento_programacao", "evento_jurados", "checkin", "midias", "jurados", "apuracao", "termos"];
-const FINANCEIRO: Area[] = ["dashboard", "eventos", "evento_inscricoes", "pagamentos", "valores", "pdv", "caixa"];
+const FINANCEIRO: Area[] = ["dashboard", "eventos", "evento_inscricoes", "pagamentos", "valores", "pdv", "caixa", "faturas"];
 const MARKETING: Area[] = ["dashboard", "eventos", "evento_pagina", "evento_inscricoes", "termos"];
 
 const PERMISSOES: Record<string, readonly Area[]> = {
