@@ -7,7 +7,7 @@ import { situacaoPlano } from "@/lib/planos";
 import {
   hojeSP, itemInscricoes, itemVendas, limitesDoMes, mesAnterior, nomeMes, somarDias, totalItens, type ItemFatura, type PrecosFatura,
 } from "./calculo";
-import { criarPreferencia, mercadoPagoConfigurado } from "./mercadopago";
+import { buscarPagamento, criarPix, criarPreferencia, mercadoPagoConfigurado } from "./mercadopago";
 
 // Faturas do ARXUM para as produtoras: geração (mensal e por evento), link de
 // pagamento no Mercado Pago, e-mails, aviso de atraso, bloqueio e baixa.
@@ -58,6 +58,39 @@ export async function garantirLink(admin: Admin, faturaId: string): Promise<stri
   });
   await admin.from("faturas").update({ mp_preferencia_id: pref.id, mp_link: pref.init_point }).eq("id", f.id);
   return pref.init_point;
+}
+
+// Pix da fatura: reaproveita o QR ainda válido; senão gera outro
+export async function pixDaFatura(admin: Admin, faturaId: string, emailReserva: string) {
+  const { data: f } = await admin.from("faturas").select("id, descricao, valor_total, status, mp_pix_id, mp_pix_copia, mp_pix_qr, mp_pix_expira, produtoras ( email )").eq("id", faturaId).maybeSingle();
+  if (!f || f.status !== "aberta") return null;
+  if (f.mp_pix_copia && f.mp_pix_expira && new Date(f.mp_pix_expira).getTime() > Date.now() + 60000) {
+    return { copia: f.mp_pix_copia, qr: f.mp_pix_qr, expira: f.mp_pix_expira };
+  }
+  const prod = Array.isArray(f.produtoras) ? f.produtoras[0] : f.produtoras;
+  const pg = await criarPix({
+    faturaId: f.id, valor: Number(f.valor_total), descricao: `ARXUM Fest · ${f.descricao}`, email: prod?.email || emailReserva,
+    notificacao: urlAbsoluta("/api/pagamentos/mercadopago"), tentativa: Date.now(),
+  });
+  const td = pg.point_of_interaction?.transaction_data;
+  if (!td?.qr_code) throw new Error("O Mercado Pago não devolveu o Pix. Confira se a conta tem chave Pix cadastrada.");
+  const expira = pg.date_of_expiration ?? new Date(Date.now() + 30 * 60000).toISOString();
+  await admin.from("faturas").update({ mp_pix_id: String(pg.id), mp_pix_copia: td.qr_code, mp_pix_qr: td.qr_code_base64 ?? null, mp_pix_expira: expira }).eq("id", f.id);
+  return { copia: td.qr_code, qr: td.qr_code_base64 ?? null, expira };
+}
+
+// Situação da fatura; se o Pix já foi pago e o aviso ainda não chegou, consulta e dá baixa
+export async function situacaoFatura(admin: Admin, faturaId: string) {
+  const { data: f } = await admin.from("faturas").select("id, status, valor_total, mp_pix_id").eq("id", faturaId).maybeSingle();
+  if (!f) return null;
+  if (f.status === "aberta" && f.mp_pix_id) {
+    const pg = await buscarPagamento(f.mp_pix_id).catch(() => null);
+    if (pg?.status === "approved" && Number(pg.transaction_amount) + 0.01 >= Number(f.valor_total)) {
+      await marcarPaga(admin, f.id, { forma: "Pix", pagamentoId: String(pg.id) });
+      return "paga";
+    }
+  }
+  return f.status;
 }
 
 async function criarFatura(admin: Admin, cfg: ConfigFaturamento, hoje: string, f: {
@@ -229,19 +262,14 @@ export async function marcarPaga(admin: Admin, faturaId: string, dados: { forma:
   return !!f;
 }
 
-// Cobrança de teste: o super admin paga pelo link e confere a baixa automática
+// Cobrança de teste: o super admin paga o Pix na tela e confere a baixa automática
 export async function criarCobrancaTeste(admin: Admin, valor: number) {
   const { data: f, error } = await admin.from("faturas").insert({
     produtora_id: null, tipo: "teste", referencia: `teste-${Date.now()}`, descricao: "Cobrança de teste do ARXUM",
     valor_total: valor, vencimento: somarDias(hojeSP(), 5),
   }).select("id").single();
   if (error || !f) throw new Error("Não foi possível criar a cobrança de teste.");
-  try {
-    return { id: f.id, link: await garantirLink(admin, f.id) };
-  } catch (e) {
-    await admin.from("faturas").delete().eq("id", f.id);
-    throw e;
-  }
+  return { id: f.id }; // o Pix é gerado na tela (PagamentoPix)
 }
 
 // Rotina diária (Vercel Cron): gera, cobra e trata atrasos. Pode rodar várias vezes no dia.

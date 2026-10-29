@@ -4,7 +4,7 @@ import { getUsuarioAtual } from "@/lib/auth/session";
 import { pode } from "@/lib/auth/permissoes";
 import { registrar } from "@/lib/super/registro";
 import { contaMercadoPago, mercadoPagoTeste } from "@/lib/faturas/mercadopago";
-import { criarCobrancaTeste, garantirLink, marcarPaga, revisarBloqueio, rotinaDiaria } from "@/lib/faturas/servico";
+import { criarCobrancaTeste, garantirLink, marcarPaga, pixDaFatura, revisarBloqueio, rotinaDiaria, situacaoFatura } from "@/lib/faturas/servico";
 
 // pagar: admin/financeiro da produtora pega o link de pagamento da fatura.
 // Super admin: gerar_agora, marcar_paga, cancelar, desbloquear, testar_mp.
@@ -17,6 +17,23 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { acao?: string; id?: string; observacao?: string; valor?: number };
   const admin = createAdminClient();
   const ehSuper = usuario.role === "super_admin";
+
+  // Pix no painel e acompanhamento do pagamento (mesma permissão de "pagar")
+  if (body.acao === "pix" || body.acao === "situacao") {
+    if (!UUID.test(body.id ?? "")) return erro("Fatura inválida.");
+    const { data: f } = await admin.from("faturas").select("produtora_id").eq("id", body.id!).maybeSingle();
+    const dono = f && (ehSuper || (f.produtora_id && f.produtora_id === usuario.produtora_id && pode(usuario.role, "faturas")));
+    if (!dono) return erro("Fatura não encontrada.", 404);
+    if (body.acao === "situacao") return NextResponse.json({ status: await situacaoFatura(admin, body.id!) });
+    try {
+      const pix = await pixDaFatura(admin, body.id!, usuario.email);
+      if (!pix) return erro("Esta fatura não está em aberto.");
+      return NextResponse.json(pix);
+    } catch (e) {
+      console.error("[api/faturas] pix", e);
+      return erro(`Não foi possível gerar o Pix: ${(e as Error).message}`, 502);
+    }
+  }
 
   if (body.acao === "pagar") {
     if (!UUID.test(body.id ?? "")) return erro("Fatura inválida.");

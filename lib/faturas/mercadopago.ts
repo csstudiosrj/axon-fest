@@ -58,6 +58,31 @@ export interface Pagamento {
   date_approved: string | null;
 }
 
+export interface PagamentoPix {
+  id: number;
+  status: string;
+  date_of_expiration: string | null;
+  point_of_interaction?: { transaction_data?: { qr_code?: string; qr_code_base64?: string } };
+}
+
+// Pix direto (sem sair do painel): devolve o QR Code e o "copia e cola"
+export function criarPix(p: { faturaId: string; valor: number; descricao: string; email: string; notificacao: string; tentativa: number }) {
+  const expira = new Date(Date.now() + 30 * 60000); // 30 minutos
+  return chamar<PagamentoPix>("/v1/payments", {
+    method: "POST",
+    idempotencia: `pix-${p.faturaId}-${p.tentativa}`,
+    body: JSON.stringify({
+      transaction_amount: Math.round(p.valor * 100) / 100,
+      description: p.descricao.slice(0, 250),
+      payment_method_id: "pix",
+      payer: { email: p.email },
+      external_reference: p.faturaId,
+      notification_url: p.notificacao,
+      date_of_expiration: expira.toISOString().replace("Z", "-00:00"),
+    }),
+  });
+}
+
 export const buscarPagamento = (id: string) => chamar<Pagamento>(`/v1/payments/${encodeURIComponent(id)}`);
 
 export const contaMercadoPago = () => chamar<{ id: number; nickname?: string; email?: string }>("/users/me");

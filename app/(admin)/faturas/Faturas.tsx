@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, ChevronDown, Clock, CreditCard, Loader2, Receipt } from "lucide-react";
+import { CheckCircle2, ChevronDown, Clock, CreditCard, Loader2, QrCode, Receipt } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { apiUrl } from "@/lib/base-path";
+import { PagamentoPix } from "@/app/_components/PagamentoPix";
 
 export interface FaturaLinha {
   id: string;
@@ -27,6 +29,8 @@ export function Faturas({ faturas, bloqueado, diasBloqueio, retorno, modoTeste }
   const [abrindo, setAbrindo] = useState<string | null>(null);
   const [aberta, setAberta] = useState<string | null>(faturas.find((f) => f.status === "aberta")?.id ?? null);
   const [erro, setErro] = useState<string | null>(null);
+  const [pixDe, setPixDe] = useState<FaturaLinha | null>(null);
+  const router = useRouter();
   const emAberto = faturas.filter((f) => f.status === "aberta");
   const totalAberto = emAberto.reduce((s, f) => s + f.valor, 0);
 
@@ -98,9 +102,13 @@ export function Faturas({ faturas, bloqueado, diasBloqueio, retorno, modoTeste }
                   {f.status === "aberta" && (
                     <>
                       <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs ${vencida ? "border-red-400/40 text-red-300" : "border-axon-gold/30 text-axon-gold"}`}><Clock size={12} /> {vencida ? "Vencida" : "Em aberto"}</span>
-                      <button type="button" onClick={() => pagar(f.id)} disabled={abrindo !== null}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-axon-gold px-3 py-1.5 text-sm font-semibold text-black disabled:opacity-50">
-                        {abrindo === f.id ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />} Pagar
+                      <button type="button" onClick={() => setPixDe(f)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-axon-gold px-3 py-1.5 text-sm font-semibold text-black">
+                        <QrCode size={14} /> Pagar com Pix
+                      </button>
+                      <button type="button" onClick={() => pagar(f.id)} disabled={abrindo !== null} title="Cartão ou boleto pelo Mercado Pago"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-axon-border px-3 py-1.5 text-sm text-gray-200 disabled:opacity-50">
+                        {abrindo === f.id ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />} Cartão ou boleto
                       </button>
                     </>
                   )}
@@ -118,7 +126,8 @@ export function Faturas({ faturas, bloqueado, diasBloqueio, retorno, modoTeste }
           })}
         </ul>
       )}
-      <p className="text-xs text-gray-500">Pagamento por Pix, boleto ou cartão, pelo Mercado Pago. A baixa é automática.</p>
+      <p className="text-xs text-gray-500">Pix direto aqui no painel, ou cartão e boleto pelo Mercado Pago. A baixa é automática.</p>
+      {pixDe && <PagamentoPix faturaId={pixDe.id} titulo={pixDe.descricao} valor={pixDe.valor} onFechar={() => { setPixDe(null); router.refresh(); }} onPago={() => router.refresh()} />}
     </div>
   );
 }

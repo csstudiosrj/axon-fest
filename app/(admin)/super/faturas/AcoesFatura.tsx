@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CreditCard, Loader2, PlugZap, RefreshCw } from "lucide-react";
 import { apiUrl } from "@/lib/base-path";
 import { confirmar, pedirTexto } from "@/app/_components/Dialogos";
+import { PagamentoPix } from "@/app/_components/PagamentoPix";
 
 async function chamar(corpo: Record<string, unknown>) {
   const res = await fetch(apiUrl("/api/faturas"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
@@ -18,7 +19,7 @@ export function PainelFaturamento({ configurado, teste }: { configurado: boolean
   const router = useRouter();
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
-  const [linkTeste, setLinkTeste] = useState<string | null>(null);
+  const [cobranca, setCobranca] = useState<{ id: string; valor: number } | null>(null);
   const executar = async (acao: string) => {
     setOcupado(acao);
     setMsg(null);
@@ -35,14 +36,13 @@ export function PainelFaturamento({ configurado, teste }: { configurado: boolean
   };
   // Cria uma cobrança real (valor livre) e abre o pagamento: confere link, aviso e baixa automática
   const cobrancaTeste = async () => {
-    const valor = await pedirTexto({ titulo: "Cobrança de teste", mensagem: "Cria uma cobrança de verdade no Mercado Pago para você pagar e conferir a baixa automática. Ela aparece nesta lista como paga.", rotulo: "Valor (R$)", valor: "1,00", botao: "Criar e pagar" });
+    const valor = await pedirTexto({ titulo: "Cobrança de teste", mensagem: "Gera um Pix de verdade aqui na tela para você pagar e conferir a baixa automática. Depois ela aparece em “Pagas”.", rotulo: "Valor (R$)", valor: "0,01", botao: "Gerar Pix" });
     if (!valor) return;
     setOcupado("cobranca_teste");
     setMsg(null);
     try {
       const r = await chamar({ acao: "cobranca_teste", valor: Number(valor.replace(/\./g, "").replace(",", ".")) });
-      setLinkTeste(r.link ? String(r.link) : null);
-      setMsg({ ok: true, texto: "Cobrança criada. Clique em “Abrir pagamento”, pague e depois atualize esta página: ela deve aparecer como paga." });
+      setCobranca({ id: String(r.id), valor: Number(valor.replace(/\./g, "").replace(",", ".")) });
       router.refresh();
     } catch (e) {
       setMsg({ ok: false, texto: (e as Error).message });
@@ -66,7 +66,7 @@ export function PainelFaturamento({ configurado, teste }: { configurado: boolean
         {ocupado === "gerar_agora" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Rodar faturamento agora
       </button>
       {msg && <p className={`basis-full text-xs ${msg.ok ? "text-emerald-300" : "text-red-300"}`}>{msg.texto}</p>}
-      {linkTeste && <a href={linkTeste} target="_blank" rel="noreferrer" className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black">Abrir pagamento</a>}
+      {cobranca && <PagamentoPix faturaId={cobranca.id} titulo="Cobrança de teste do ARXUM" valor={cobranca.valor} onFechar={() => { setCobranca(null); router.refresh(); }} onPago={() => router.refresh()} />}
     </div>
   );
 }
