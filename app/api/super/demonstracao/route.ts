@@ -13,7 +13,12 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient();
   try {
     if (acao === "criar") return NextResponse.json({ success: true, ...(await criarDemonstracao(admin)) });
-    if (acao === "apagar") return NextResponse.json({ success: true, ...(await apagarDemonstracao(admin)) });
+    if (acao === "apagar") {
+      // Apaga todas (normalmente há só uma)
+      let apagadas = 0;
+      while ((await apagarDemonstracao(admin)).apagada) if (++apagadas >= 50) break;
+      return NextResponse.json({ success: true, apagada: apagadas > 0 });
+    }
     return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
   } catch (e) {
     console.error("[api/super/demonstracao]", e);

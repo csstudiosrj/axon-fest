@@ -140,7 +140,8 @@ async function gerarMensais(admin: Admin, cfg: ConfigFaturamento, hoje: string, 
     const fim = new Date(`${lim.ultimoDia}T23:00:00-03:00`);
     const situacao = situacaoPlano({ plano: p.plano as "start" | "pro", plano_inicio: p.plano_inicio, pro_ate: p.pro_ate }, precos, fim);
     const cat = Array.isArray(p.planos_catalogo) ? p.planos_catalogo[0] : p.planos_catalogo;
-    if (situacao.fase === "pro") {
+    // Mês em que a cobrança começou no meio: sem mensalidade (só as taxas do que foi vendido)
+    if (situacao.fase === "pro" && lim.primeiroDia >= cfg.inicio) {
       const valor = cat?.periodo === "mensal" && Number(cat.preco) > 0 ? Number(cat.preco) : precos.mensalidadePro;
       if (valor && valor > 0) itens.push({ descricao: `Plano ${cat?.nome ?? "Pro"}: mensalidade de ${nomeMes(mes)}`, quantidade: 1, base: null, valor });
     }

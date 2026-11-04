@@ -67,7 +67,8 @@ function checar<T>(r: { data: T; error: { message: string } | null }, onde: stri
 }
 
 export async function demonstracaoAtual(admin: Admin) {
-  const { data } = await admin.from("produtoras").select("id").eq("demonstracao", true).maybeSingle();
+  // Mais antiga primeiro: se sobrar mais de uma (ex.: criação interrompida), "Apagar" remove uma por vez
+  const { data } = await admin.from("produtoras").select("id").eq("demonstracao", true).order("created_at").limit(1).maybeSingle();
   return (data?.id as string | undefined) ?? null;
 }
 
